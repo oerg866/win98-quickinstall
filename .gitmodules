@@ -1,3 +1,18 @@
 [submodule "linux"]
 	path = linux
 	url = https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git
+[submodule "syslinux"]
+	path = syslinux
+	url = https://github.com/geneC/syslinux
+[submodule "win98-driver-lib-base"]
+	path = win98-driver-lib-base
+	url = git@github.com:oerg866/win98-driver-lib-base.git
+[submodule "dosfstools"]
+	path = dosfstools
+	url = https://github.com/dosfstools/dosfstools
+[submodule "tiny-floppy-bootloader"]
+	path = tiny-floppy-bootloader
+	url = git@github.com:oerg866/w98qi-tiny-floppy-bootloader.git
+[submodule "util-linux"]
+	path = util-linux
+	url = git@github.com:oerg866/w98qi-util-linux.git
