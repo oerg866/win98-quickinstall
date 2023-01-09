@@ -1,0 +1,67 @@
+-------------------------------------------------------------------------------
+MercyPak is a simple binary blob "packer" (not compressor!) intended 
+for old computers.
+
+!!! THIS IS ALL SLOPPY AND UNSAFE, DO NOT USE IN PRODUCTION ENVIRONMENT !!!
+
+You have been warned :P
+
+Usage:
+mercypak.exe    <directory to pack> <output file>     <-- For DOS
+mercypak32.exe                                        <-- For Win32/64
+
+unmercy.exe    <input file> <output directory>        <-- For DOS
+unmercy32.exe                                         <-- For Win32/64
+
+-------------------------------------------------------------------------------
+
+File Format definition
+
+File extension: don't really care, but you can use ".866" :-)
+
+FILE HEADER:
+
+* ASCII File identifier ("ZIEG")            4 Bytes ASCII
+* Directory count                           UINT32
+* File count                                UINT32
+
+Per directory (repeat "directory count"-times):
+
+* Dir attributes (hidden, sys, etc)         BYTE
+
+  Combination of flags (taken from direct.h in OWC)
+
+  _A_NORMAL       0x00    /* Normal file - read/write permitted */
+  _A_RDONLY       0x01    /* Read-only file */
+  _A_HIDDEN       0x02    /* Hidden file */
+  _A_SYSTEM       0x04    /* System file */
+  _A_VOLID        0x08    /* Volume-ID entry */
+  _A_SUBDIR       0x10    /* Subdirectory */
+  _A_ARCH         0x20    /* Archive file */
+
+* Directory String length                   UINT8
+* Directory String                          BYTE [ * Directory String Length ]
+  String is NOT terminated.
+
+Per file (repeat "file count"-times):
+
+* File Name String length                   UINT8
+* File Name String                          BYTE [ * File Name String Length ]
+  String is NOT terminated.
+
+  Includes subidrectory. Example:
+  "FOLDER1\FILE2.DAT"
+
+* File attributes                           BYTE
+
+  (See "Dir attributes")
+
+* File Date                                 UINT16 packed MS-DOS System Date
+* File Time                                 UINT16 packed MS-DOS System Time
+* File size (Max 4GB, sorry)                UINT32
+
+* Binary blob of the actual file            BYTE * (file size)
+
+And that's it! simplistic as hell
+
+-------------------------------------------------------------------------------
