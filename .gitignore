@@ -1,0 +1,30 @@
+# Ignore all the things that aren't repos.
+i486-linux-musl-cross
+busybox
+dialog
+dosfstools
+ncurses
+termtypes
+_TEMP
+
+# ignore initrd and temporary floppy mount
+filesystem
+mnt
+
+# Linux
+bzImage
+rootfs*
+
+# ignore cdrom stuff
+cdromroot
+__EXTRA_CD_FILES
+
+# driver stuff
+tools/tmp.ddf
+
+# vscode stuff
+*.swp
+*/.vscode
+
+# build output
+installer/lunmercy
