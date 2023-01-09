@@ -1,0 +1,28 @@
+WINDOWS 98 SE QUICKINSTALL -- VERSION 0.1
+----------------------------------------------------------------------
+Your friendly Linux-based Windows 98 SE Installer :)
+----------------------------------------------------------------------
+
+DISCLAIMER:
+- This is a BETA release. It's not finished.
+- This has no endorsement or anything from MICROSOFT.
+- Windows belongs to Microsoft.
+- Please don't sue me I just like old computers :(
+
+Features:
+- Installs Windows 98 in RECORD time.
+- Includes many patches and slipstreamed drivers
+- Writes MBR and boot sectors
+- Can partition your hard drive(s)
+
+Bugs:
+- Only supports FAT32 so far, no FAT16. If you use a FAT16 partition,
+  things will break, badly.
+- Error handling is basically nonexistant. Sorry!
+- This menu uses the "dialog" tool, not libdialog, so it's inefficient.
+- Only supports CDROMs so far, sadly. USB flash drive support is in
+  planning.
+
+Special thanks to TRW, ChrisR3tro and kext :3
+
+Reach out to me on Discord: EricV#9999

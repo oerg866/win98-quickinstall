@@ -1,0 +1,12 @@
+#!/bin/sh
+mount -t proc none /proc
+mount -t sysfs none /sys
+mount -n -t devtmpfs none /dev
+dmesg -n 1
+
+clear
+. /findcd.sh
+. /setenv.sh
+cat welcome
+lunmercy
+/bin/sh
