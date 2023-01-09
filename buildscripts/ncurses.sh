@@ -1,0 +1,7 @@
+#!/bin/sh
+
+export CC=$PWD/../i486-linux-musl-cross/bin/i486-linux-musl-gcc
+export CXX=$PWD/../i486-linux-musl-cross/bin/i486-linux-musl-g++
+
+make -j8
+make install
