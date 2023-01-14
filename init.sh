@@ -1,10 +1,12 @@
 #!/bin/bash
 
+set -e
+
 #set -x
 #trap read debug
 
 # required packages
-# build-essential gcc-7 tic python3 gunzip libuuid wine
+# build-essential gcc-7 tic python3 gunzip libuuid wine dd nasm cdrtools zip
 
 # Find GCC version
 gcc_version=$(gcc -dumpversion)
@@ -17,7 +19,7 @@ if [ "$gcc_version" -gt 7 ]; then
 	read -n 1 -s -r -p "Press any key to continue."
 fi
 
-git submodule update --init --recursive --depth 1
+git submodule update --init --recursive --depth 1 || true
 
 echo "--------------------------------"
 echo "Ignore the above message about not being able to find a certain commit hash,"
@@ -26,8 +28,8 @@ echo "ignore it."
 echo "--------------------------------"
 
 # pre clean so the init script works even when init has been done already
-rm *.tgz*
-rm *.tar*
+rm -f *.tgz*
+rm -f *.tar*
 rm -rf busybox*
 rm -rf ncurses*
 rm -rf i486-linux-musl*
@@ -116,6 +118,5 @@ pushd util-linux
 	./configure --host=i486-linux-musl --prefix=$PWD/OUTPUT --disable-use-tty-group --disable-bash-completion --disable-shared --enable-static --without-ncursesw --without-tinfo
 	./build.sh
 popd
-
 
 echo "Assuming nothing went wrong, this should be ready to go! :)"
