@@ -1,0 +1,40 @@
+REGEDIT4
+
+[HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion]
+"SetupFlags"=hex:09,05,00,00
+"OtherDevicePath"="C:\\DRIVER"
+
+[HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\RunOnce]
+; "Reboot"="C:\\WINDOWS\\RUNDLL.EXE USER.EXE,ExitWindowsExec"
+"Reboot"="C:\\WINDOWS\\RUNDLL32.EXE SHELL32.W98,SHExitWindowsEx 2"
+
+; [-HKEY_LOCAL_MACHINE\Enum]
+
+[HKEY_LOCAL_MACHINE\Enum]
+
+[HKEY_LOCAL_MACHINE\Enum\INFRARED]
+
+[HKEY_LOCAL_MACHINE\Enum\INFRARED\KnownDevices]
+"*PNP0510"="*PNP0510"
+"*PNP0511"="*PNP0511"
+"IRMINI"="IRMINI"
+"IBM4MIR"="IBM4MIR"
+"PC87108"="PC87108"
+"LZ9AT32"="LZ9AT32"
+"*TOS7009"="*TOS7009"
+"PCI\\VEN_1179&DEV_0701"="PCI\\VEN_1179&DEV_0701"
+"*ALI5123"="*ALI5123"
+"*SMCF010"="*SMCF010"
+"*WEC0510"="*WEC0510"
+
+[HKEY_LOCAL_MACHINE\Enum\Root]
+
+[HKEY_LOCAL_MACHINE\Enum\Root\Processor_Update]
+
+[HKEY_LOCAL_MACHINE\Enum\Root\Processor_Update\0000]
+"HardwareID"="Processor_Update"
+
+[HKEY_LOCAL_MACHINE\Enum\Root\SwEnum]
+
+[HKEY_LOCAL_MACHINE\Enum\Root\SwEnum\0000]
+"HardwareID"="SWENUM"
