@@ -47,79 +47,24 @@ struct DirList {
     char attribute;
 };
 
-static bool mp_isDirectory(const char *path) {
-    struct stat path_stat;
-    stat(path, &path_stat);
-    return S_ISDIR(path_stat.st_mode);
+
+static inline bool mp_isDirectory(const char *toCheck) {
+    struct stat sb;
+    return (stat(toCheck, &sb) == 0 && S_ISDIR(sb.st_mode));
 }
 
-static bool mp_isRegularFile(const char *path) {
-    struct stat path_stat;
-    stat(path, &path_stat);
-    return S_ISREG(path_stat.st_mode);
+static inline bool mp_isRegularFile(const char *toCheck) {
+    struct stat sb;
+    return (stat(toCheck, &sb) == 0 && S_ISREG(sb.st_mode));
 }
 
-static char *mp_createSubpathString(const char* path, const char* subdir) 
-/* allocates and creates a new subpath string */
-{
-    int pathLen = strlen(path);
-    int subdirLen = strlen(subdir);
-    char *ret = (char*) calloc(pathLen + subdirLen + 1 + 1, 1);
-    assert(ret);
-
-    sprintf(ret, "%s%c%s", path, PATH_SEPARATOR, subdir);
-    return ret;
-}
-
-static DirList *mp_DirList_addNewDirectory(const char *path, const char* subdir, uint8_t attribute, DirList *dirs, uint32_t *dirCount) 
-/* Adds a new directory to the linked DirList */
-{
-    DirList *newDir = (DirList*) calloc(sizeof(DirList), 1);
-    assert(newDir);
-    newDir->base = dirs->base;
-    newDir->path = mp_createSubpathString(path, subdir);
-    newDir->attribute = attribute;
-    if (dirs)   // Only set "next" if dir isn't null, which it is, in case it is the first directory
-        dirs->next = newDir;
-    *dirCount += 1;
-    //printf("%d: %s\n", *dirCount, newDir->path);
-    return newDir;
-}
-
-static FileList *mp_FileList_addNewFile(const char *path, const char* filename, uint8_t attribute, FileList *files, uint32_t *fileCount) 
-/* Adds a new file to the linked FileList */
-{
-    FileList *newFile = (FileList*) calloc(sizeof(FileList), 1);
-    newFile->path = mp_createSubpathString(path, filename);
-    newFile->attribute = attribute;
-    files->next = newFile;
-    *fileCount += 1;
-    return newFile;
-}
-
-/* Takes a MERCYPAK path string and converts it to a string the host platform can understand. MUST BE free'd AFTERWARDS!! 
-   Important for DOS and stuff... */
-static char *mp_convertToHostPath(const char *path) {
-    char *newStr = strdup(path);
-    int pathLen = strlen(path);
-    int i;
-
-    assert(newStr);
-    for (i=0; i < pathLen; i++)
-        if (newStr[i] == '\\' || newStr[i] == '/')
-            newStr[i] = PATH_SEPARATOR;
-    return newStr;
-}
-
-static uint8_t mp_getDosAttributesFromDirent(struct dirent *direntp) {
+static uint8_t mp_getDosAttributes(const char *path) {
     struct stat path_stat;
     uint8_t flags = 0;
     mode_t mode;
     uint32_t winFileAttributes;
 
-    assert(direntp);
-
-    if (!direntp || (stat(direntp->d_name, &path_stat) != 0))
+    if (stat(path, &path_stat) != 0)
         return 0x00;
 
     mode = path_stat.st_mode;
@@ -129,7 +74,7 @@ static uint8_t mp_getDosAttributesFromDirent(struct dirent *direntp) {
         flags |= _A_SUBDIR;
 
 #ifdef _WIN32
-    winFileAttributes = GetFileAttributesA(direntp->d_name);
+    winFileAttributes = GetFileAttributesA(path);
 
     if (winFileAttributes & FILE_ATTRIBUTE_HIDDEN)
         flags |= _A_HIDDEN;
@@ -139,7 +84,7 @@ static uint8_t mp_getDosAttributesFromDirent(struct dirent *direntp) {
 #else
     UNUSED(winFileAttributes);
 
-    if (mode & S_ISGID)         // On FAT32 this means system file
+    if (mode & S_ISGID)         // On FAT32 this means system file, according to some usenet posts
         flags |= _A_SYSTEM;
     
     if (mode & S_ISVTX)
@@ -152,8 +97,63 @@ static uint8_t mp_getDosAttributesFromDirent(struct dirent *direntp) {
     return flags;
 }
 
-FileList *mp_FileList_addFilesfromDirectory(const char *path, FileList *files, uint32_t *fileCount) 
+/* allocates and creates a new subpath string */
+static char *mp_createSubpathString(const char* path, const char* subdir) 
+{
+    int pathLen = strlen(path);
+    int subdirLen = strlen(subdir);
+    char *ret = (char*) calloc(pathLen + subdirLen + 1 + 1, 1);
+    assert(ret);
+
+    sprintf(ret, "%s%c%s", path, PATH_SEPARATOR, subdir);
+    return ret;
+}
+
+/* Adds a new directory to the linked DirList */
+static DirList *mp_DirList_addNewDirectory(char *pathname, DirList *dirs, uint32_t *dirCount) 
+{
+    uint8_t attribute = mp_getDosAttributes(pathname);
+    DirList *newDir = (DirList*) calloc(sizeof(DirList), 1);
+    assert(newDir);
+    newDir->base = dirs->base;
+    newDir->path = pathname;
+    newDir->attribute = attribute;
+    if (dirs)   // Only set "next" if dir isn't null, which it is, in case it is the first directory
+        dirs->next = newDir;
+    *dirCount += 1;
+    return newDir;
+}
+
+/* Adds a new file to the linked FileList */
+static FileList *mp_FileList_addNewFile(char *filename, FileList *files, uint32_t *fileCount) 
+{
+    uint8_t attribute = mp_getDosAttributes(filename);
+    FileList *newFile = (FileList*) calloc(sizeof(FileList), 1);
+    assert(newFile);    
+    newFile->path = filename;
+    newFile->attribute = attribute;
+    files->next = newFile;
+    *fileCount += 1;
+    return newFile;
+}
+
+/* Takes a host platform path string and converts it to MERCYPAK format (where path separator is \ because DOS/WIN9x).
+   MUST BE free'd AFTERWARDS!! */
+static char *mp_convertToMercyPakPath(const char *path) {
+    char *newStr = strdup(path);
+    int pathLen = strlen(path);
+    int i;
+
+    assert(newStr);
+    for (i=0; i < pathLen; i++)
+        if (newStr[i] == '\\' || newStr[i] == '/')
+            newStr[i] = '\\';
+    return newStr;
+}
+
+
 /* Scans a single path and adds all files in it to the linked FileList */
+FileList *mp_FileList_addFilesfromDirectory(const char *path, FileList *files, uint32_t *fileCount) 
 {
     FileList *ret = files;
     DIR *dirp = opendir(path);
@@ -163,17 +163,22 @@ FileList *mp_FileList_addFilesfromDirectory(const char *path, FileList *files, u
         direntp = readdir(dirp);
         if (direntp == NULL) break;
 
-        if (mp_isRegularFile(direntp->d_name)) {
-            ret = mp_FileList_addNewFile(path, direntp->d_name, mp_getDosAttributesFromDirent(direntp), ret, fileCount);
+        char *tmpPath = mp_createSubpathString(path, direntp->d_name);
+
+        if (mp_isRegularFile(tmpPath)) {            
+           ret = mp_FileList_addNewFile(tmpPath, ret, fileCount);
+        } else {
+            free(tmpPath);
         }
+        
     } 
 
     closedir(dirp);
     return ret;
 }
 
-FileList *mp_fileList_addFilesFromDirList(FileList *files, DirList *dirs, uint32_t *fileCount) 
 /* Scans all paths in the linked DirList and adds their paths to the linked FileList */
+FileList *mp_fileList_addFilesFromDirList(FileList *files, DirList *dirs, uint32_t *fileCount) 
 {
     // First one is the base path
     files = mp_FileList_addFilesfromDirectory(dirs->base, files, fileCount);
@@ -194,7 +199,6 @@ static DirList *mp_MercyPackContext_findAllDirectoriesRecursive(DirList *dir, co
     DirList *newDir = dir;
     DIR *dirp = opendir(path);
     struct dirent *direntp;
-    uint8_t attributeFlags;
 
     assert(dirp);
 
@@ -202,10 +206,14 @@ static DirList *mp_MercyPackContext_findAllDirectoriesRecursive(DirList *dir, co
         direntp = readdir(dirp);
         if (direntp == NULL) break;
 
-        if (mp_isDirectory(direntp->d_name) && strcmp(direntp->d_name, ".") != 0 && strcmp(direntp->d_name, "..") != 0) {
-            attributeFlags = mp_getDosAttributesFromDirent(direntp);
-            newDir = mp_DirList_addNewDirectory(path, direntp->d_name, attributeFlags, newDir, dirCount);
+        char *tmpPath = mp_createSubpathString(path, direntp->d_name);
+
+        /* If this is a proper directory, the temporary string stays allocated and taken by the DirList entry, else it gets freed. */
+        if (mp_isDirectory(tmpPath) && strcmp(direntp->d_name, ".") != 0 && strcmp(direntp->d_name, "..") != 0) {
+            newDir = mp_DirList_addNewDirectory(tmpPath, newDir, dirCount);
             newDir = mp_MercyPackContext_findAllDirectoriesRecursive(newDir, newDir->path, dirCount);
+        } else {
+            free (tmpPath);
         }
     } 
 
@@ -220,7 +228,7 @@ bool mp_MercyPackContext_addPath(MercyPackContext *ctx, const char* path)
     DirList *oldDirTail;
     FileList *newFileTail;
  
-     /* If DirList is not initialized, do so. */
+     /* If DirList or FileList are not initialized, do so. */
 
     if (!ctx->dirs) {
         ctx->dirs = (DirList *) calloc(1, sizeof(DirList));
@@ -229,7 +237,6 @@ bool mp_MercyPackContext_addPath(MercyPackContext *ctx, const char* path)
         ctx->dirs->path = strdup(path);
         ctx->dirs->next = NULL;
         ctx->dirsTail = ctx->dirs;
-        // Add all files from base path first
     }
 
     if (!ctx->files) {
@@ -237,6 +244,8 @@ bool mp_MercyPackContext_addPath(MercyPackContext *ctx, const char* path)
         assert(ctx->files);
         ctx->filesTail = ctx->files;
     }
+
+    /* First all directories are scanned, then all the files from all directories are scanned. Makes life a bit easier. */
 
     newDirTail = mp_MercyPackContext_findAllDirectoriesRecursive(ctx->dirsTail, path, &ctx->dirCount);
     oldDirTail = ctx->dirsTail;
@@ -285,14 +294,13 @@ static void mp_getDosDateFromFile(FILE *file, uint16_t *date, uint16_t *time) {
 /* Write the file data block to the MercyPak output file */
 static bool mp_MercyPackContext_writeFileData(MercyPackContext *ctx) { //FILE *file, FileList *files, DirList *dirs, size_t fileCount) {
     FileList *curFile;
-    FileList *orig;
     size_t basePathLen;
     FILE *toPack;
     uint16_t fileDate;
     uint16_t fileTime;
     uint32_t fileSize;
     char *toPackBuf;
-    char *hostFileName;
+    char *mpFileName;
     bool success = true;
 
     assert(ctx && ctx->files && ctx->dirs);
@@ -308,12 +316,14 @@ static bool mp_MercyPackContext_writeFileData(MercyPackContext *ctx) { //FILE *f
     printf("file %p, files %p, dircount %d\n", ctx->outputFile, ctx->files, ctx->fileCount);
 
     while (curFile) {
-        mp_MercyPackContext_writeString(ctx, &curFile->path[basePathLen+1]);
+        // First, make sure path separators written to the MP file are correct by spawning a new guaranteed mp string
+        mpFileName = mp_convertToMercyPakPath(curFile->path);
+        mp_MercyPackContext_writeString(ctx, &mpFileName[basePathLen+1]);
+        free(mpFileName);
+
         fputc(curFile->attribute, ctx->outputFile);
 
-        hostFileName = mp_convertToHostPath(curFile->path);
-
-        toPack = fopen(hostFileName, "rb");
+        toPack = fopen(curFile->path, "rb");
         
         if (ferror(toPack))
             assert(0);
@@ -355,11 +365,7 @@ static bool mp_MercyPackContext_writeFileData(MercyPackContext *ctx) { //FILE *f
 
         fclose(toPack);
         
-        orig = curFile;
         curFile = curFile->next;
-        free(orig->path);
-        free(orig);
-        free(hostFileName);
     }
 
     return success;
@@ -378,13 +384,15 @@ static void mp_FileList_destroy(FileList *files) {
         free(orig->path);
         free(orig);
     }
+
+    free(files);
 }
 
 /* Writes MERCYPAK Directory data info block */
 static bool mp_MercyPackContext_writeDirectoryData(MercyPackContext *ctx) {
     DirList *curDir;
     size_t basePathLen;
-    char *hostFileName;
+    char *mpFileName;
     bool success = true;
 
     assert(ctx && ctx->dirs && ctx->outputFile);
@@ -394,11 +402,11 @@ static bool mp_MercyPackContext_writeDirectoryData(MercyPackContext *ctx) {
     /* printf("file %p, dirs %p, dircount %d\n", ctx->outputFile, ctx->dirs, ctx->dirCount); */
 
     while (curDir) {
-        hostFileName = mp_convertToHostPath(&curDir->path[basePathLen+1]);
+        mpFileName = mp_convertToMercyPakPath(&curDir->path[basePathLen+1]);
         success &= (fputc(curDir->attribute, ctx->outputFile) != EOF);
-        success &= mp_MercyPackContext_writeString(ctx, hostFileName);
+        success &= mp_MercyPackContext_writeString(ctx, mpFileName);
         curDir = curDir->next;
-        free(hostFileName);
+        free(mpFileName);
     }
 
     return success;
@@ -429,6 +437,8 @@ static void mp_DirList_destroy(DirList *dirs) {
         free(orig->path);
         free(orig);
     }
+
+    free(dirs);
 }
 
 /* Pack all files added to the MercyPackContext and write the output file. */

@@ -59,7 +59,7 @@ typedef uint8_t *farptr;
 
 /* Path separator */
 
-#if defined(__DOS__)
+#if defined(__DOS__) || defined(_WIN32)
 #define PATH_SEPARATOR '\\'
 #else
 #define PATH_SEPARATOR '/'
