@@ -65,14 +65,15 @@ static void* inst_fillerThreadFunc(void* threadParam) {
     uint8_t *scratchBuffer = malloc(scratchBufferSize);
 
     bool endOfFile = false;
+    bool *quit = args->quitFlag;
 
     assert(scratchBuffer);
 
-    while (!endOfFile && (*(args->quitFlag)) != true) {        
+    while (!endOfFile && !(*quit)) {        
         if (rb_avail(buf) < fillerThreshold) {
             // We dipped below the filler threshold. Which means we must now fill all of it
             size_t leftToFill = rb_space(buf);
-            while (!endOfFile && leftToFill) {
+            while (!endOfFile && leftToFill && !(*quit)) {
                 size_t bytesToRead = MIN(scratchBufferSize, leftToFill);
                 ssize_t bytesRead = read(file, scratchBuffer, bytesToRead);
                 if (bytesRead < 0) {
