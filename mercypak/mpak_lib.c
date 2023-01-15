@@ -282,17 +282,31 @@ static bool mp_MercyPackContext_writeString(MercyPackContext *ctx, const char* s
 static void mp_getDosDateFromFile(FILE *file, uint16_t *date, uint16_t *time) {
     struct stat statBuf;
     int result = fstat(fileno(file), &statBuf);
+    time_t mtime = statBuf.st_mtime;
     struct tm *tm_struct;
     assert(result == 0);
 
-    tm_struct = gmtime(&statBuf.st_mtime);
+    tm_struct = localtime(&mtime);
+  
+#if !defined(_WIN32)
 
+   /* This is a really ugly hack... There's either a bug on windows or on linux, I don't know. If the timestamp 
+       falls within DST, there is an extra offset of 1 hour here. No idea what layer is causing this, but Windows
+       doesn't do it. So we turn the tm_struct back into a unix epoch and if there's a difference of an hour, we subtract it from the localtime. */
+
+    if (tm_struct->tm_isdst) {
+        mtime -= 3600;
+        tm_struct = localtime(&mtime);
+    }
+    
+#endif
+    
     *date = ((tm_struct->tm_year - 80) << 9) | ((tm_struct->tm_mon + 1) << 5) | tm_struct->tm_mday;
     *time = (tm_struct->tm_hour << 11) | (tm_struct->tm_min << 5) | (tm_struct->tm_sec >> 1);
 }
 
 /* Write the file data block to the MercyPak output file */
-static bool mp_MercyPackContext_writeFileData(MercyPackContext *ctx) { //FILE *file, FileList *files, DirList *dirs, size_t fileCount) {
+static bool mp_MercyPackContext_writeFileData(MercyPackContext *ctx) {
     FileList *curFile;
     size_t basePathLen;
     FILE *toPack;
