@@ -47,13 +47,14 @@ Here are the steps to create an ISO:
 
 - Use 7zip or an imaging software and extract the entire root of the 
   partition you installed Windows 98 to.
-
-  On linux, you can do this with by mounting the image file itself and
-  recursively copying all the files. Make sure attributes and file dates
-  are intact!
-
+  
   Extract all files into the "_OS_ROOT_" directory.
 
+  On Windows, you can open the image file using the 7zip File Manager.
+  On Linux, you can do this with by using '7z' from the p7zip-full package.
+
+  '7z x -o_OS_ROOT_/ /path/to/image/file'
+  
   *** NOTE: Only *one* Windows directory is allowed, and only *one*
   *** CAB directory.
   *** Windows directory is detected by finding "WIN.COM"
