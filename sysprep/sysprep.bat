@@ -1,4 +1,4 @@
-@ECHO OFF
+:: @ECHO OFF
 
 :: This script builds the Win98QI ISO.
 :: It expects the OS files to be in _OS_ROOT_
@@ -8,13 +8,14 @@ SET ISODIR=%CD%\__ISO__
 SET DRIVER=%CD%\_DRIVER_
 SET DRIVEREX=%CD%\_EXTRA_DRIVER_
 SET DRIVERTMP=%BASEDIR%\.drvtmp
+SET EXTRA=%CD%\_EXTRA_CD_FILES_
 SET OUTPUT=%CD%\__OUTPUT__
 SET OSROOT=%CD%\_OS_ROOT_
 SET OEMINFO=%CD%\_OEMINFO_
+SET CDROOTSOURCE=%CD%\cdromroot
 
 :: no timestamps, sorry
 SET ISOFILE=%ISODIR%\win98qi.iso
-
 
 rmdir /S /Q "%OUTPUT%"
 rmdir /S /Q "%ISODIR%"
@@ -39,21 +40,21 @@ if ("%OSWINCABDIR%"=="") (
 )
 
 :: Filter some garbage data first
-del /Q "%OSWINDIR%\WIN386.SWP"
-del /Q "%OSWINDIR%\SYSBKUP\*"
-del /Q "%OSWINDIR%\INF\MDM*.INF"
-del /Q "%OSWINDIR%\INF\WDMA_*.INF"
-del /Q "%OSWINDIR%\RECENT\*"
-del /Q "%OSROOT%\BOOTLOG.*"
-del /Q "%OSROOT%\FRUNLOG.TXT"
-del /Q "%OSROOT%\DETLOG.TXT"
-del /Q "%OSROOT%\SETUPDLOG.TXT"
-del /Q "%OSROOT%\SCANDISK.LOG"
-del /Q "%OSROOT%\NETLOG.TXT"
+del /Q /F "%OSWINDIR%\WIN386.SWP"
+del /Q /F "%OSWINDIR%"\SYSBKUP\*
+del /Q /F "%OSWINDIR%"\INF\MDM*.INF
+del /Q /F "%OSWINDIR%"\INF\WDMA_*.INF
+del /Q /F "%OSWINDIR%"\RECENT\*
+del /Q /F "%OSROOT%"\BOOTLOG.*
+del /Q /F "%OSROOT%\FRUNLOG.TXT"
+del /Q /F "%OSROOT%\DETLOG.TXT"
+del /Q /F "%OSROOT%\SETUPLOG.TXT"
+del /Q /F "%OSROOT%\SCANDISK.LOG"
+del /Q /F "%OSROOT%\NETLOG.TXT"
 
 
 :: Copy oeminfo
-cp %OEMINFO%\*.* %OSWINDIR%/SYSTEM
+copy "%OEMINFO%"\*.* "%OSWINDIR%"\SYSTEM
 
 :: Create MercyPak file for the system root
 mercypak\mercypak32.exe "%OSROOT%" "%OUTPUT%\FULL.866"
@@ -61,16 +62,27 @@ mercypak\mercypak32.exe "%OSROOT%" "%OUTPUT%\FULL.866"
 :: Build driver package
 md "%DRIVERTMP%"
 
-pushd tools
-drivercopy.exe "%DRIVER%" "%DRIVERTMP%"
+pushd "%DRIVERTMP%"
+:: working around a bug in drivercopy, which for reasons I cannot fix at the moment, so only relative paths work
+:: because makecab CabinetNameTemplate can't be a directory, only a filename... the directory has to go in DestinationDir
+
+copy "%BASEDIR%"\tools\makecab.exe .
+"%BASEDIR%"\tools\drivercopy.exe "%DRIVER%" .
+del makecab.exe
 popd
 
 :: Important step: separate INFs and CABs
-CALL set OSRELATIVECABDIR=%%OSWINCABDIR:%BASEDIR%=%%
+CALL set OSRELATIVECABDIR=%%OSWINCABDIR:%OSROOT%=%%
 echo %OSRELATIVECABDIR%
 md "%DRIVERTMP%\%OSRELATIVECABDIR%"
 md "%DRIVERTMP%\%DRIVER%"
 move "%DRIVERTMP%\*.cab" "%DRIVERTMP%\%OSRELATIVECABDIR%"
+
+mercypak\mercypak32.exe "%DRIVERTMP%" "%OUTPUT%\DRIVER.866"
+
+:: Copy extra CD files
+xcopy /R /E /S /H /C /I "%EXTRA%" "%OUTPUT%\extras"
+xcopy /R /E /S /H /C /I "%CDROOTSOURCE%" "%OUTPUT%"
 
 if not exist "%OUTPUT%\FULL.866" (
     goto NOTFOUND
@@ -80,10 +92,17 @@ if not exist "%OUTPUT%\DRIVER.866" (
     goto NOTFOUND
 )
 
-mkisofs -r -V "Win98 QuickInstall" -o "%ISOFILE%" -b disk.img .
+:: Create ISO
+pushd "%OUTPUT%"
+..\tools\mkisofs -r -V "Win98 QuickInstall" -o "%ISOFILE%" -b disk.img .
+popd
 
-exit 0
+echo Done.
+echo The ISO file was created at %ISOFILE%.
+
+goto END
 
 :NOTFOUND
-echo "The required .866 files do not exist, sysprep cannot continue."
-exit 1
+echo The required .866 files do not exist, sysprep cannot continue.
+
+:END
