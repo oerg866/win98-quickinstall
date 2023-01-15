@@ -32,7 +32,7 @@ typedef enum {
     INSTALL_DO_INSTALL,
 } inst_InstallStep;
 
-#define INST_VERSION "0.1"
+#define INST_VERSION "0.2"
 #define INST_COPYRIGHT "(C) 2023 Eric Voirin"
 #define INST_BACKTITLE "--backtitle \"Win98SE QuickInstall -- Version " INST_VERSION " " INST_COPYRIGHT "\""
 
