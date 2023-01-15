@@ -18,6 +18,7 @@
 #define CMD_LSBLK_HDD_NAME_SIZE "lsblk -I 8 -d -n -b -p -oKNAME,SIZE,MIN-IO,OPT-IO"
 #define CMD_LSBLK_HDD_MODEL "lsblk -I 8 -d -n -o MODEL"
 #define CMD_LSBLK_HDD_WITH_PARTS_AND_FS "lsblk -I 8 -n -b -p -oKNAME,SIZE,PARTTYPE"
+#define CMD_OUTPUT_BUF_SIZE (64*1024)
 
 size_t util_getSystemHardDiskCount() {
     return util_getCommandOutputLineCount(CMD_LSBLK_HDD_ONLY);
@@ -25,7 +26,7 @@ size_t util_getSystemHardDiskCount() {
 
 util_HardDiskArray util_getSystemHardDisks() {
     size_t hddCount = util_getSystemHardDiskCount();
-    char *cmdOutputBuf = calloc(1, 64*1024);
+    char *cmdOutputBuf = calloc(1, CMD_OUTPUT_BUF_SIZE);
     char *cmdOutputBufPos = cmdOutputBuf;
     size_t totalPartitionCount = 0;
     util_HardDiskArray ret;
@@ -33,7 +34,7 @@ util_HardDiskArray util_getSystemHardDisks() {
     util_HardDisk *disks = calloc(sizeof(util_HardDisk), hddCount);
 
     // Get disk models
-    util_captureCommandOutput(CMD_LSBLK_HDD_NAME_SIZE, cmdOutputBuf, sizeof(cmdOutputBuf));
+    util_captureCommandOutput(CMD_LSBLK_HDD_NAME_SIZE, cmdOutputBuf, CMD_OUTPUT_BUF_SIZE);
 
     for (int i = 0; i < hddCount; ++i) {
         // format of the output is KNAME SIZE MIN-IO OPT-IO\n, so we need to scan until that character, that's our line.
@@ -44,7 +45,7 @@ util_HardDiskArray util_getSystemHardDisks() {
 
     // Get disk models
     cmdOutputBufPos = cmdOutputBuf;
-    util_captureCommandOutput(CMD_LSBLK_HDD_MODEL, cmdOutputBuf, sizeof(cmdOutputBuf));
+    util_captureCommandOutput(CMD_LSBLK_HDD_MODEL, cmdOutputBuf, CMD_OUTPUT_BUF_SIZE);
 
     for (int i = 0; i < hddCount; ++i) {
         // Can't think of a simpler way to put the whole line from a string into another... why is sgets not a thing??
@@ -56,11 +57,9 @@ util_HardDiskArray util_getSystemHardDisks() {
     // Reset buffer once again
     cmdOutputBufPos = cmdOutputBuf;
 
-    size_t fullDiskListLineCount = util_captureCommandOutput(CMD_LSBLK_HDD_WITH_PARTS_AND_FS, cmdOutputBuf, sizeof(cmdOutputBuf));
+    size_t fullDiskListLineCount = util_captureCommandOutput(CMD_LSBLK_HDD_WITH_PARTS_AND_FS, cmdOutputBuf, CMD_OUTPUT_BUF_SIZE);
     totalPartitionCount = fullDiskListLineCount - hddCount; // The captured list *includes* the hdds themselves! we need to filter them!
     util_Partition *partitions = calloc(sizeof(util_Partition), totalPartitionCount);
-
-    printf("%zu\n", fullDiskListLineCount);
 
     // Now figure out where partitions go
 
