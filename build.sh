@@ -101,6 +101,10 @@ cp dosfstools/OUTPUT/sbin/* $CDROOT/bin/
 cp dialog/dialog $CDROOT/bin/
 cp supplement/get* $CDROOT/bin/
 
+# Our installer!
+cp supplement/install.txt $CDROOT/
+cp installer/lunmercy $CDROOT/bin/
+
 # Copy sysprep tools & base drivers
 mkdir -p $OUTPUT/tools
 mkdir -p $OUTPUT/mercypak
