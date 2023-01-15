@@ -18,6 +18,7 @@ DRIVEREXOUTPUT=$OUTPUT/DRIVER.EX
 DRIVERTMP=./.drvtmp
 OSROOT=./_OS_ROOT_
 CDROOTSOURCE=./cdromroot
+OEMINFO=./_OEMINFO_
 
 # Sorry, too busy right now to natively port this to linux :(
 MERCYPAK="mercypak/mercypak"
@@ -97,7 +98,7 @@ $MERCYPAK $DRIVERTMP $OUTPUT/DRIVER.866
 
 # Copy extra CD files
 mkdir -p $OUTPUT/extras
-cp -r $EXTRA/* $OUTPUT/extras/* || true
+cp -r $EXTRA/* $OUTPUT/extras || true
 cp -r $CDROOTSOURCE/* $OUTPUT/
 
 if [ ! -f "$OUTPUT/FULL.866" ] || [ ! -f "$OUTPUT/DRIVER.866" ]; then
@@ -105,7 +106,7 @@ if [ ! -f "$OUTPUT/FULL.866" ] || [ ! -f "$OUTPUT/DRIVER.866" ]; then
 	exit -1
 fi
 
-# ISOLINUX
+# Build ISO image.
 # TODO: Make ISOLINUX variant. 
 
 cd $OUTPUT
