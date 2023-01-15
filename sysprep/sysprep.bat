@@ -41,18 +41,17 @@ if ("%OSWINCABDIR%"=="") (
 )
 
 :: Filter some garbage data first
-del /Q /F "%OSWINDIR%\WIN386.SWP"
-del /Q /F "%OSWINDIR%"\SYSBKUP\*
-del /Q /F "%OSWINDIR%"\INF\MDM*.INF
-del /Q /F "%OSWINDIR%"\INF\WDMA_*.INF
-del /Q /F "%OSWINDIR%"\RECENT\*
-del /Q /F "%OSROOT%"\BOOTLOG.*
-del /Q /F "%OSROOT%\FRUNLOG.TXT"
-del /Q /F "%OSROOT%\DETLOG.TXT"
-del /Q /F "%OSROOT%\SETUPLOG.TXT"
-del /Q /F "%OSROOT%\SCANDISK.LOG"
-del /Q /F "%OSROOT%\NETLOG.TXT"
-
+del /Q /F /A "%OSWINDIR%\WIN386.SWP"
+del /Q /F /A "%OSWINDIR%"\SYSBCKUP\*
+del /Q /F /A "%OSWINDIR%"\INF\MDM*.INF
+del /Q /F /A "%OSWINDIR%"\INF\WDMA_*.INF
+del /Q /F /A "%OSWINDIR%"\RECENT\*
+del /Q /F /A "%OSROOT%"\BOOTLOG.*
+del /Q /F /A "%OSROOT%\FRUNLOG.TXT"
+del /Q /F /A "%OSROOT%\DETLOG.TXT"
+del /Q /F /A "%OSROOT%\SETUPLOG.TXT"
+del /Q /F /A "%OSROOT%\SCANDISK.LOG"
+del /Q /F /A "%OSROOT%\NETLOG.TXT"
 
 :: Copy oeminfo
 copy "%OEMINFO%"\*.* "%OSWINDIR%"\SYSTEM
