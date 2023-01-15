@@ -48,13 +48,12 @@ echo "Windows directory: $OSWINDIR"
 
 if [ -z "$OSWINDIR" ]; then
   echo "Windows directory not found."
-  exit -1
-
+  exit 1
 fi
 
 if [ -z "$OSWINCABDIR" ]; then
   echo "Windows CAB / CD directory not found."
-  exit -1
+  exit 1
 fi
 
 #Filter some garbage data first
@@ -103,7 +102,7 @@ cp -r $CDROOTSOURCE/* $OUTPUT/
 
 if [ ! -f "$OUTPUT/FULL.866" ] || [ ! -f "$OUTPUT/DRIVER.866" ]; then
   echo "The required .866 files do not exist, sysprep cannot continue."
-	exit -1
+	exit 1
 fi
 
 # Build ISO image.
