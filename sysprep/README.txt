@@ -8,6 +8,8 @@ Here are the steps to create an ISO:
 
 - If you are on linux, you must install the following prerequisites:
 
+  wine cdrtools p7zip-full
+
 - Install Windows 98 in a virtual machine or emulator, just as you want it.
   I recommend using 86Box using the following configuration:
   
