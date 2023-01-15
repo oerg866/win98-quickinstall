@@ -7,6 +7,9 @@
 [submodule "win98-driver-lib-base"]
 	path = win98-driver-lib-base
 	url = git@github.com:oerg866/win98-driver-lib-base.git
+[submodule "win98-driver-lib-extra"]
+	path = win98-driver-lib-extra
+	url = git@github.com:oerg866/win98-driver-lib-extra.git
 [submodule "dosfstools"]
 	path = dosfstools
 	url = https://github.com/dosfstools/dosfstools
