@@ -392,10 +392,11 @@ bool inst_main() {
     bool installSuccess = true;
     bool goToNext;
 
+    char installDataFilename[256];
+
     assert(getenv("CDROM"));
 
     // At the start, we initiate the filler thread so the actual OS data to install starts buffering in the background
-    char installDataFilename[256];
     snprintf(installDataFilename, sizeof(installDataFilename), "%s/%s", getenv("CDROM"), "FULL.866");
     pthread_t fillerThreadHandle = inst_startFillerThread(buf, installDataFilename, scratchBufferSize, &quit);
 
