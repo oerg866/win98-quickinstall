@@ -210,6 +210,17 @@ static bool inst_askUserToFormatPartition(util_Partition *part) {
     return (ret == 0);
 }
 
+
+/* Asks user if he wants to overwrite the MBR and set the partition active. Returns true if so. */
+static bool inst_askUserToOverwriteMBRAndSetActive(util_Partition *part) {
+    char dialogCmd[UTIL_MAX_CMD_LENGTH];
+    snprintf(dialogCmd, UTIL_MAX_CMD_LENGTH, "dialog " INST_BACKTITLE " --yesno "
+        "\"You have chosen the partition '%s'. Would you like to overwrite the Master Boot Record (MBR) and set the partition active (recommended)?\" 0 0",
+        part->device);
+    int ret = system(dialogCmd);
+    return (ret == 0);
+}
+
 /* Show message box informing user that mount failed. */
 static void inst_showFailedMount(util_Partition *part) {
     char dialogCmd[UTIL_MAX_CMD_LENGTH];
@@ -338,12 +349,17 @@ static bool inst_copyFiles(const char *installPath, ringbuf *buf, size_t scratch
     return success;
 }
 
-/* Inform user and setup boot sector and MBR. TODO: PROBABLY ASK USER IF HE WANTS TO OVERWRITE MBR? */
-static bool inst_setupBootSectorAndMBR(util_Partition *part) {
+/* Inform user and setup boot sector and MBR. */
+static bool inst_setupBootSectorAndMBR(util_Partition *part, bool setActiveAndDoMBR) {
     bool success = true;
     system("dialog " INST_BACKTITLE " --infobox \"Setting up Master Boot Record and Boot sector...\" 0 0");
     success &= util_writeWin98BootSectorToPartition(part);
-    success &= util_writeWin98MBRToDrive(part->parent);
+    if (setActiveAndDoMBR) {
+        success &= util_writeWin98MBRToDrive(part->parent);
+        char activateCmd[UTIL_MAX_CMD_LENGTH];
+        snprintf(activateCmd, UTIL_MAX_CMD_LENGTH, "sfdisk --activate %s %d", part->parent->device, part->index);
+        system(activateCmd);
+    }
     return success;
 }
 
@@ -443,7 +459,12 @@ bool inst_main() {
                 }
 
                 util_unmountPartition(destinationPartition);
-                installSuccess &= inst_setupBootSectorAndMBR(destinationPartition);
+
+                // Final step: update MBR, boot sector and boot flag.
+
+                bool setActiveAndDoMBR = inst_askUserToOverwriteMBRAndSetActive(destinationPartition);
+
+                installSuccess &= inst_setupBootSectorAndMBR(destinationPartition, setActiveAndDoMBR);
 
                 if (installSuccess) {                    
                     reboot = inst_showSuccessAndAskForReboot();

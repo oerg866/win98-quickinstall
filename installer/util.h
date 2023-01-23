@@ -43,6 +43,7 @@ typedef struct {
     uint32_t sectorSize;
     util_FileSystem fileSystem;
     struct util_HardDisk *parent;
+    int index;
     char *mountPath;
 } util_Partition;
 

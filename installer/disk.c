@@ -89,6 +89,7 @@ util_HardDiskArray util_getSystemHardDisks() {
         partitions[curPart].fileSystem = util_partitionTypeByteToUtilFilesystem((uint8_t) fsTypeByte);
         partitions[curPart].sectorSize = disks[curDisk].sectorSize;
         partitions[curPart].parent = &disks[curDisk];
+        partitions[curPart].index = atoi(partDevice + strlen(disks[curDisk].device));   // so for example "/dev/sda1" would have atoi called on the "1" part
         curPart++;
 
         disks[curDisk].partitionCount++;        
