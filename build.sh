@@ -116,8 +116,8 @@ cp -r win98-driver-lib-base/* "$OUTPUT/_DRIVER_"
 cp -r win98-driver-lib-extra/* "$OUTPUT/_EXTRA_DRIVER_"
 
 
-	zip -r "$BASE/Windows98QuickInstall_$(date +%Y%m%d_%H%M).zip" ./
 pushd "$OUTPUT"
+	zip -r "$BASE/Windows98QuickInstall_$(date +%Y%m%d_%H%M).zip" ./
 popd
 
 echo "Done. Output is in $OUTPUT."
