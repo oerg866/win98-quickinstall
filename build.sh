@@ -35,7 +35,7 @@ pushd filesystem
 	cp ../supplement/rc ./etc/init.d/rc
 	cp ../supplement/findcd.sh ./
 	cp ../supplement/setenv.sh ./
-	cp $PREFIX/share/terminfo/l/linux ./usr/lib/terminfo/l/linux
+	cp "$PREFIX/share/terminfo/l/linux" ./usr/lib/terminfo/l/linux
 	ln -s sbin/init init
 	chmod +x etc/init.d/rc
 	chmod +x ./findcd.sh
@@ -89,35 +89,35 @@ popd
 #sudo umount ./mnt
 
 # Copy linux kernel & binaries
-mkdir -p $CDROOT/bin
-cp bzImage $CDROOT/
-cp tiny-floppy-bootloader/disk.img $CDROOT/
-cp util-linux/OUTPUT/bin/* $CDROOT/bin/
-cp util-linux/OUTPUT/sbin/* $CDROOT/bin/
-cp util-linux/cfdisk $CDROOT/bin/
-cp util-linux/lsblk $CDROOT/bin/
-cp util-linux/mount $CDROOT/bin/mount2 #busybox provides mount, this is just for more compatibility
-cp dosfstools/OUTPUT/sbin/* $CDROOT/bin/
-cp dialog/dialog $CDROOT/bin/
-cp supplement/get* $CDROOT/bin/
+mkdir -p "$CDROOT/bin"
+cp bzImage "$CDROOT/"
+cp tiny-floppy-bootloader/disk.img "$CDROOT/"
+cp util-linux/OUTPUT/bin/* "$CDROOT/bin/"
+cp util-linux/OUTPUT/sbin/* "$CDROOT/bin/"
+cp util-linux/cfdisk "$CDROOT/bin/"
+cp util-linux/sfdisk "$CDROOT/bin/"
+cp util-linux/lsblk "$CDROOT/bin/"
+cp dosfstools/OUTPUT/sbin/* "$CDROOT/bin/"
+cp dialog/dialog "$CDROOT/bin/"
+cp supplement/get* "$CDROOT/bin/"
 
 # Our installer!
-cp supplement/install.txt $CDROOT/
-cp installer/lunmercy $CDROOT/bin/
+cp supplement/install.txt "$CDROOT/"
+cp installer/lunmercy "$CDROOT/bin/"
 
 # Copy sysprep tools & base drivers
-mkdir -p $OUTPUT/tools
-mkdir -p $OUTPUT/mercypak
-cp -r tools $OUTPUT
-cp -r mercypak/mercypak $OUTPUT/mercypak
-cp -r mercypak/*.exe $OUTPUT/mercypak
-cp -r sysprep/* $OUTPUT
-cp -r win98-driver-lib-base/* $OUTPUT/_DRIVER_
-cp -r win98-driver-lib-extra/* $OUTPUT/_EXTRA_DRIVER_
+mkdir -p "$OUTPUT/tools"
+mkdir -p "$OUTPUT/mercypak"
+cp -r tools "$OUTPUT"
+cp -r mercypak/mercypak "$OUTPUT/mercypak"
+cp -r mercypak/*.exe "$OUTPUT/mercypak"
+cp -r sysprep/* "$OUTPUT"
+cp -r win98-driver-lib-base/* "$OUTPUT/_DRIVER_"
+cp -r win98-driver-lib-extra/* "$OUTPUT/_EXTRA_DRIVER_"
 
 
-pushd $OUTPUT
 	zip -r "$BASE/Windows98QuickInstall_$(date +%Y%m%d_%H%M).zip" ./
+pushd "$OUTPUT"
 popd
 
 echo "Done. Output is in $OUTPUT."
