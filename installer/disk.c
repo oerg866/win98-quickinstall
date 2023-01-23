@@ -333,6 +333,8 @@ static bool util_modifyBootSector(util_Partition *part, util_BootSectorModifierL
             return false;
         }
 
+        // Copy the replacement data therefore injecting the boot sector code
+
         memcpy(sector + mod.offset, mod.replacementData, mod.length);
     }
 
@@ -346,12 +348,13 @@ static bool util_modifyBootSector(util_Partition *part, util_BootSectorModifierL
 }
 
 bool util_writeWin98BootSectorToPartition(util_Partition *part) {
+    // Fat16 only has one boot sector and smaller BPB, so we need to use a different, simpler modification list for it
+    util_BootSectorModifierList bsModifierList = part->fileSystem == fs_fat16 ? __WIN98_FAT16_BOOT_SECTOR_MODIFIER_LIST__ 
+                                                                              : __WIN98_FAT32_BOOT_SECTOR_MODIFIER_LIST__;
+    bool result = util_modifyBootSector(part, bsModifierList);
 
-    bool result = util_modifyBootSector(part, __WIN98_FAT32_BOOT_SECTOR_MODIFIER_LIST__);
-
-    if (result) {
-        // Copy sectors to backup now
-        // TODO SUPPORT FAT16
+    if (result && part->fileSystem == fs_fat32) {
+        // Copy sectors to backup now (FAT32 only, FAT16 has no backup it seems, at least not on Win9x)
         size_t backupSectorIndex = 0;
 
         for (size_t i = 0; i < 3; i++) {

@@ -37,7 +37,6 @@ A reference ISO built using this Package and 98Lite can be downloaded at **archi
 # BUGS / Limitations
 
 - Linux does not really have a concept of hidden files. It can be faked apparently with unused system attributes, but it might not work properly when copying the files out of the image. Unfortunately, at this time I don't have any solution for this.
-- DOES NOT SUPPORT FAT16 YET. IT WILL BREAK, DON'T USE IT.
 - Poor error handling
 - This menu uses the "dialog" tool, not libdialog, so it's inefficient.
 - Only supports CDROMs so far, sadly. USB flash drive support is in planning.

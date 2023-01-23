@@ -16,8 +16,6 @@ Features:
 - Can partition your hard drive(s)
 
 Bugs:
-- Only supports FAT32 so far, no FAT16. If you use a FAT16 partition,
-  things will break, badly.
 - Error handling is basically nonexistant. Sorry!
 - This menu uses the "dialog" tool, not libdialog, so it's inefficient.
 - Only supports CDROMs so far, sadly. USB flash drive support is in
