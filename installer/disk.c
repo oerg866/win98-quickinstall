@@ -129,17 +129,6 @@ util_FileSystem util_partitionTypeByteToUtilFilesystem(uint8_t partitionType) {
     }
 }
 
-util_FileSystem util_lsblkFsStringToUtilFilesystem(const char *device, const char* fsString) {
-    if (!device || !fsString) 
-        return fs_none;
-
-    if (util_stringEquals(fsString, "vfat"))
-        // TODO: Distinguish fat16 from fat32 which is oddly difficult in a pure environment for some reason
-        return fs_fat32;
-
-    return fs_unsupported;    
-}
-
 static const char *UTIL_FS_STRINGS[FS_ENUM_SIZE] = {
     "NO FILE SYSTEM",
     "UNSUPPORTED FILESYSTEM",

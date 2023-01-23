@@ -83,8 +83,6 @@ void util_hardDiskArrayDeinit(util_HardDiskArray hdds);
 
 // Converts a MBR patition type byte to an util_FileSystem enum value
 util_FileSystem util_partitionTypeByteToUtilFilesystem(uint8_t partitionType);
-// Converts a lsblk FSTYPE string to an util_FileSystem enum value
-util_FileSystem util_lsblkFsStringToUtilFilesystem(const char *device, const char* fsString);
 // Converts an util_FileSystem enum value to a string
 const char *util_utilFilesystemToString(util_FileSystem fs);
 // Gets the short version of a device string (after the last /, so /dev/sda1 becomes sda1)
