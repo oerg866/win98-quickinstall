@@ -306,7 +306,7 @@ static bool util_modifyBootSector(util_Partition *part, util_BootSectorModifierL
             sector = NULL;
         }
         
-        printf("%d %d %d %d\n", i, (int) mod.sectorIndex, (int) mod.offset, (int) mod.length);
+        // printf("%d %d %d %d\n", i, (int) mod.sectorIndex, (int) mod.offset, (int) mod.length);
         // util_hexDump(mod.replacementData, 0, mod.length);
 
         // If we need to read a new sector
