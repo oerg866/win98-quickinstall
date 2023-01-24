@@ -109,5 +109,5 @@ fi
 # TODO: Make ISOLINUX variant. 
 
 cd $OUTPUT
-mkisofs -r -V "Win98 QuickInstall" -o "$ISOFILE" -b disk.img .
+mkisofs -J -r -V "Win98 QuickInstall" -o "$ISOFILE" -b disk.img .
 cd $BASEDIR
