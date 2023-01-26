@@ -79,9 +79,10 @@ static void* inst_fillerThreadFunc(void* threadParam) {
                 if (bytesRead < 0) {
                     // ERROR
                     printf("Read error!\n");
+                    perror(NULL);
                     // TODO: Handle read error
                     assert(false);
-                } else if (bytesRead < bytesToRead) {
+                } else if (bytesRead == 0) {
                     // EOF
                     endOfFile = true;
                 }
