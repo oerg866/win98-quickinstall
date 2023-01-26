@@ -35,6 +35,13 @@ if [[ -z "$CD" ]] ; then
 	return 127
 else
 	echo CD-ROM found and mounted at $CD
+	# Copy some files to memory for faster execution
+	cp $CD/bin/lunmercy /bin
+	cp $CD/bin/cfdisk /bin
+	cp $CD/bin/lsblk /bin
+	cp $CD/bin/mkfs.fat /bin
+	cp $CD/bin/dialog /bin
+	
 	export CDROM=$CD
 	export PATH=$PATH:$CD/bin
 	return 0
