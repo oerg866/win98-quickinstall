@@ -40,7 +40,7 @@ else
 	cp $CD/bin/cfdisk /bin
 	cp $CD/bin/lsblk /bin
 	cp $CD/bin/mkfs.fat /bin
-	cp $CD/bin/dialog /bin
+	cp $CD/install.txt /
 	
 	export CDROM=$CD
 	export PATH=$PATH:$CD/bin

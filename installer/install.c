@@ -13,14 +13,17 @@
 #include <assert.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/reboot.h>
 #include <fcntl.h>
 #include <sched.h>
 #include <unistd.h>
 #include <errno.h>
 #include <utime.h>
+#include <unistd.h>
 
 #include "ringbuf.h"
 #include "util.h"
+#include "install_ui.h"
 
 
 typedef enum {
@@ -32,17 +35,12 @@ typedef enum {
     INSTALL_DO_INSTALL,
 } inst_InstallStep;
 
-#define INST_VERSION "0.2.2"
-#define INST_COPYRIGHT "(C) 2023 Eric Voirin"
-#define INST_BACKTITLE "--backtitle \"Win98SE QuickInstall -- Version " INST_VERSION " " INST_COPYRIGHT "\""
 
-// The text for the "FINISHED" option in dialogs.
-#define INST_DIALOG_FINISHED "< FINISHED >"
 // The file the dialog option will be printed to...
 #define INST_DIALOG_OPTION_TMP_FILE "/tmp/0"
 
-#define INST_DIALOG_CMD "dialog "
 #define INST_CFDISK_CMD "cfdisk "
+#define INST_COLS (74)
 
 /* Arguments for background OS data buffer thread */
 typedef struct {
@@ -55,7 +53,7 @@ typedef struct {
 /* Thread function for background OS data buffer thread */
 static void* inst_fillerThreadFunc(void* threadParam) {
     inst_FillerThreadArgs *args = (inst_FillerThreadArgs*) threadParam;
-    printf("FILLER THREAD STARTED filename %s ringbuf %p\n", args->filename, args->buf);
+    /* printf("FILLER THREAD STARTED filename %s ringbuf %p\n", args->filename, args->buf); */
 
     ringbuf *buf = args->buf;
     int file = open(args->filename, O_RDONLY);
@@ -93,7 +91,7 @@ static void* inst_fillerThreadFunc(void* threadParam) {
     }
 
     close(file);
-    printf("THREAD DONE\n");
+    /* printf("THREAD DONE\n"); */
     pthread_exit(threadParam);
 }
 
@@ -128,74 +126,103 @@ static void inst_stopFillerThread(pthread_t thread) {
     }
 }
 
+
 /* Shows disclaimer text */
 static void inst_showDisclaimer() {
-    char dialogCmd[UTIL_MAX_CMD_LENGTH];
-    snprintf(dialogCmd, UTIL_MAX_CMD_LENGTH, "dialog --exit-label \"Next\" " INST_BACKTITLE " --textbox %s/install.txt 20 75", getenv("CDROM"));
-    system(dialogCmd);
+    ui_showTextBox("DISCLAIMER", "/install.txt");
 }
 
 /* Shows welcome screen, returns false if user wants to exit to shell */
 static bool inst_showWelcomeScreen() {
-    int ret = system("dialog --yes-label \"Next\" --no-label \"Exit To Shell\" " INST_BACKTITLE " --yesno \"Welcome to Windows 98 QuickInstall!\" 0 0");
+    int ret = ui_showYesNoCustomLabels(ui_ButtonLabelNext, ui_ButtonLabelExitToShell, "Welcome to Windows 98 QuickInstall!");
     return (ret == 0);
 }
 
 /* Show partition wizard, returns true if user finished or false if he selected BACK. */
 static bool inst_showPartitionWizard(util_HardDiskArray *hdds) {
-    char dialogCmd[UTIL_MAX_CMD_LENGTH];
-    char *dialogCmdPos;
+    char cfdiskCmd[UTIL_MAX_CMD_LENGTH];
+    char **menuLabels;
+    int menuResult;
 
     while (1) {
-        dialogCmdPos = dialogCmd;
-        dialogCmdPos += snprintf(dialogCmdPos, UTIL_MAX_CMD_LENGTH - (dialogCmdPos - dialogCmd), "%s %s --ok-label \"Next\" --cancel-label \"Back\" --menu 'Select the drive to partition:' 0 0 0 ", INST_DIALOG_CMD, INST_BACKTITLE);
-        for (int i = 0; i < hdds->count; i++) // Fill the dialog command with all the system disks
-            dialogCmdPos += snprintf(dialogCmdPos, UTIL_MAX_CMD_LENGTH - (dialogCmdPos - dialogCmd), "\"%s\" \"Drive: [%s] - Size: %llu MB\" ", hdds->disks[i].device, hdds->disks[i].model, hdds->disks[i].size / 1024ULL / 1024ULL);
-        dialogCmdPos += snprintf(dialogCmdPos, UTIL_MAX_CMD_LENGTH - (dialogCmdPos - dialogCmd), "\"%s\" \"\" 2>%s", INST_DIALOG_FINISHED, INST_DIALOG_OPTION_TMP_FILE);
+        menuLabels = ui_allocateDialogMenuLabelList(hdds->count + 1); // +1 for the FINISHED label.
 
-        if (system(dialogCmd) != 0) // BACK was pressed.
-            return false;
-
-        char chosenOption[256];
-        util_readFirstLineFromFileIntoBuffer(INST_DIALOG_OPTION_TMP_FILE, chosenOption);
+        for (int i = 0; i < hdds->count; i++) {
+            ui_setMenuLabelListEntry(menuLabels, 
+                                     i, 
+                                     ui_makeDialogMenuLabel("%s", hdds->disks[i].device), 
+                                     ui_makeDialogMenuLabel("Drive: [%s] - Size: %llu MB", 
+                                                                hdds->disks[i].model, 
+                                                                hdds->disks[i].size / 1024ULL / 1024ULL));
+        }
         
-        // Invoke cfdisk command for chosen drive. the lookup will fail (reutnr SIZE_MAX) if BACK was chosen!
-        size_t selectedDisk = util_getHardDiskArrayIndexFromDevicestring(hdds, chosenOption);
-        if (selectedDisk == SIZE_MAX) return true;   // "FINISHED" was chosen.
+        ui_setMenuLabelListEntry(menuLabels, 
+                                hdds->count, 
+                                ui_makeDialogMenuLabel("%s", ui_ButtonLabelFinished), 
+                                ui_makeDialogMenuLabel("%s", ui_EmptyString));
 
-        snprintf(dialogCmd, UTIL_MAX_CMD_LENGTH, "%s%s", INST_CFDISK_CMD, hdds->disks[selectedDisk].device);      
-        system(dialogCmd);
+        menuResult = ui_showMenu("Select the Hard Disk you wish to partition", menuLabels);
+        ui_destroyDialogMenuLabelList(menuLabels);
+
+        if (menuResult == UI_MENU_CANCELED) // BACK was pressed.
+            return false;
+        
+        assert(menuResult != UI_MENU_ERROR);
+        
+        if (menuResult == hdds->count)
+            return true;
+        
+        // Invoke cfdisk command for chosen drive.
+        
+        snprintf(cfdiskCmd, UTIL_MAX_CMD_LENGTH, "%s%s", INST_CFDISK_CMD, hdds->disks[menuResult].device);      
+        system(cfdiskCmd);
     }
 }
 
 /* Shows partition selector. Returns pointer to the selected partition. A return value of NULL means the user wants to go back. */
 static util_Partition *inst_showPartitionSelector(util_HardDiskArray *hdds) {
-    char dialogCmd[UTIL_MAX_CMD_LENGTH];
-    char *dialogCmdPos;
+    char **menuLabels = ui_allocateDialogMenuLabelList(0);
+    int menuResult;
     util_Partition *result = NULL;
+    char chosenOption[256] = "/dev/";
 
-    dialogCmdPos = dialogCmd;
-    dialogCmdPos += snprintf(dialogCmdPos, UTIL_MAX_CMD_LENGTH - (dialogCmdPos - dialogCmd), "%s %s --ok-label \"Next\" --cancel-label \"Back\" --menu 'Select the partition to install to:' 0 0 0 ", INST_DIALOG_CMD, INST_BACKTITLE);
-    for (size_t disk = 0; disk < hdds->count; disk++) { // Fill the dialog command with all the system disks
+    for (size_t disk = 0; disk < hdds->count; disk++) {
         util_HardDisk *harddisk = &hdds->disks[disk];
 
         for (size_t part = 0; part < harddisk->partitionCount; part++) {
             util_Partition *partition = &harddisk->partitions[part];
-            dialogCmdPos += snprintf(dialogCmdPos, UTIL_MAX_CMD_LENGTH - (dialogCmdPos - dialogCmd), "\"%s\" \"(%s, %llu MB) on disk %s [%s]\" ", 
+
+            ui_addDialogMenuLabelToList(&menuLabels, 
+                ui_makeDialogMenuLabel("%s", util_shortDeviceString(partition->device)),
+                ui_makeDialogMenuLabel("(%s, %llu MB) on disk %s [%s]", 
+                    util_utilFilesystemToString(partition->fileSystem),
+                    partition->size / 1024ULL / 1024ULL,
+                    util_shortDeviceString(harddisk->device),
+                    harddisk->model));
+
+/*            dialogCmdPos += snprintf(dialogCmdPos, UTIL_MAX_CMD_LENGTH - (dialogCmdPos - dialogCmd), "\"%s\" \"(%s, %llu MB) on disk %s [%s]\" ",
                 util_shortDeviceString(partition->device),
                 util_utilFilesystemToString(partition->fileSystem),
                 partition->size / 1024ULL / 1024ULL,
                 util_shortDeviceString(harddisk->device),
-                harddisk->model);
+                harddisk->model);*/
         }
     }
-    dialogCmdPos += snprintf(dialogCmdPos, UTIL_MAX_CMD_LENGTH - (dialogCmdPos - dialogCmd), "2>%s", INST_DIALOG_OPTION_TMP_FILE);
 
-    if (system(dialogCmd) != 0) // User pessed BACK
+    if (ui_getMenuLabelListItemCount(menuLabels) == 0) {
+        ui_showMessageBox("No partitions were found! Partition your disk and try again!");
+        ui_destroyDialogMenuLabelList(menuLabels);
         return NULL;
+    }
 
-    char chosenOption[256] = "/dev/";
-    util_readFirstLineFromFileIntoBuffer(INST_DIALOG_OPTION_TMP_FILE, util_endOfString(chosenOption));
+    menuResult = ui_showMenu("Select the partition you wish to install to.", menuLabels);
+
+    strncat(chosenOption, ui_getMenuResultString(), sizeof(chosenOption) - strlen(chosenOption));
+
+    if (menuResult == UI_MENU_CANCELED) { // BACK was pressed.
+        return NULL;
+    }
+
     result = util_getPartitionFromDevicestring(hdds, chosenOption);
     assert(result);
     return result;
@@ -203,49 +230,44 @@ static util_Partition *inst_showPartitionSelector(util_HardDiskArray *hdds) {
 
 /* Asks user if he wants to format selected partition. Returns true if so. */
 static bool inst_askUserToFormatPartition(util_Partition *part) {
-    char dialogCmd[UTIL_MAX_CMD_LENGTH];
-    snprintf(dialogCmd, UTIL_MAX_CMD_LENGTH, "dialog " INST_BACKTITLE " --yesno "
-        "\"You have chosen the partition '%s'. Would you like to format it before the installation (recommended)?\" 0 0",
-        part->device);
-    int ret = system(dialogCmd);
+    char *prompt = ui_makeDialogMenuLabel("You have chosen the partition '%s'. Would you like to format it before the installation (recommended)?", part->device);
+    int ret = ui_showYesNoCustomLabels(ui_ButtonLabelYes, ui_ButtonLabelNo, prompt);
+    free(prompt);
     return (ret == 0);
 }
 
 
 /* Asks user if he wants to overwrite the MBR and set the partition active. Returns true if so. */
 static bool inst_askUserToOverwriteMBRAndSetActive(util_Partition *part) {
-    char dialogCmd[UTIL_MAX_CMD_LENGTH];
-    snprintf(dialogCmd, UTIL_MAX_CMD_LENGTH, "dialog " INST_BACKTITLE " --yesno "
-        "\"You have chosen the partition '%s'. Would you like to overwrite the Master Boot Record (MBR) and set the partition active (recommended)?\" 0 0",
-        part->device);
-    int ret = system(dialogCmd);
+    char *prompt = ui_makeDialogMenuLabel("You have chosen the partition '%s'. Would you like to overwrite the Master Boot Record (MBR) and set the partition active (recommended)?", part->device);
+    int ret = ui_showYesNoCustomLabels(ui_ButtonLabelYes, ui_ButtonLabelNo, prompt);
+    free(prompt);
     return (ret == 0);
 }
 
 /* Show message box informing user that mount failed. */
 static void inst_showFailedMount(util_Partition *part) {
-    char dialogCmd[UTIL_MAX_CMD_LENGTH];
-    snprintf(dialogCmd, UTIL_MAX_CMD_LENGTH, "dialog " INST_BACKTITLE " --msgbox \"The partition %s could not be accessed. "
-        "There may be a disk problem. You can try formatting the partition. Returning to the partition selector.\" 0 0", 
+    char *prompt = ui_makeDialogMenuLabel("The partition %s could not be accessed. "
+        "There may be a disk problem. You can try formatting the partition. Returning to the partition selector.", 
         part->device);
-    system(dialogCmd);
+    ui_showMessageBox(prompt);
+    free(prompt);
 }
 
 /* Ask user if he wants to install extra driver package */
 static bool inst_showDriverPrompt() {
-    int ret = system("dialog " INST_BACKTITLE " --yesno \"Would you like to install the integrated device drivers?\" 0 0");
+    int ret = ui_showYesNoCustomLabels(ui_ButtonLabelYes, ui_ButtonLabelNo, "Would you like to install the integrated device drivers?");
     return (ret == 0);
 }
 
-
 /* Shows "Creating directories" text... TODO: Make actual progress bar using libdialog */
 static void inst_showDirProgress() {
-    system("dialog " INST_BACKTITLE " --infobox \"Creating directories...\" 0 0");
+    ui_showInfoBox("Creating directories...");
 }
 
 /* Shows "Copying files" text... TODO: Make actual progress bar using libdialog */
 static void inst_showFileProgress() {
-    system("dialog " INST_BACKTITLE " --infobox \"Copying files...\" 0 0");
+    ui_showInfoBox("Copying files...");
 }
 
 /* Gets a MercyPak string (8 bit length + n chars) into dst. Must be a buffer of >= 256 bytes size. */
@@ -273,7 +295,7 @@ static bool inst_copyFiles(const char *installPath, ringbuf *buf, size_t scratch
     success &= rb_getUInt32(buf, &dirCount);
     success &= rb_getUInt32(buf, &fileCount);
 
-    printf("File header: %s, dirs %d files: %d\n", fileHeader, (int) dirCount, (int) fileCount);
+    /* printf("File header: %s, dirs %d files: %d\n", fileHeader, (int) dirCount, (int) fileCount); */
 
     assert(success);
 
@@ -283,32 +305,39 @@ static bool inst_copyFiles(const char *installPath, ringbuf *buf, size_t scratch
         return false;
     }
 
-    inst_showDirProgress();
+    ui_progressBoxInit("Creating Directories...");
 
     for (uint32_t d = 0; d < dirCount; d++) {
         uint8_t dirFlags;
+
+        ui_progressBoxUpdate(d, dirCount);
+
         success &= rb_getUInt8(buf, &dirFlags);
         success &= inst_getMercyPakString(buf, destPathAppend);
         util_stringReplaceChar(destPathAppend, '\\', '/'); // DOS paths innit
         success &= (mkdir(destPath, dirFlags) == 0 || (errno == EEXIST));    // An error value is ok if the directory already exists. It means we can write to it. IT'S FINE.
     }
 
+    ui_progressBoxDeinit();
+
     /*
      *  Extract and copy files from mercypak files
      */
-
-    inst_showFileProgress();
 
     uint8_t *scratchBuffer = malloc(scratchBufferSize);
     assert(scratchBuffer);
 
     success = true;
 
+    ui_progressBoxInit("Copying Files...");
+
     for (uint32_t f = 0; f < fileCount; f++) {
         uint8_t fileFlags;
         uint16_t fileDate;
         uint16_t fileTime;
         uint32_t fileSize;
+
+        ui_progressBoxUpdate(f, fileCount);
 
         /* Mercypak file metadata (see mercypak.txt) */
 
@@ -345,6 +374,9 @@ static bool inst_copyFiles(const char *installPath, ringbuf *buf, size_t scratch
         close(file);
     }
 
+    ui_progressBoxDeinit();
+
+
     free(scratchBuffer);
     free(destPath);
     return success;
@@ -353,13 +385,13 @@ static bool inst_copyFiles(const char *installPath, ringbuf *buf, size_t scratch
 /* Inform user and setup boot sector and MBR. */
 static bool inst_setupBootSectorAndMBR(util_Partition *part, bool setActiveAndDoMBR) {
     bool success = true;
-    system("dialog " INST_BACKTITLE " --infobox \"Setting up Master Boot Record and Boot sector...\" 0 0");
+    ui_showInfoBox("Setting up Master Boot Record and Boot sector...");
     success &= util_writeWin98BootSectorToPartition(part);
     if (setActiveAndDoMBR) {
         success &= util_writeWin98MBRToDrive(part->parent);
         char activateCmd[UTIL_MAX_CMD_LENGTH];
         snprintf(activateCmd, UTIL_MAX_CMD_LENGTH, "sfdisk --activate %s %d", part->parent->device, part->index);
-        system(activateCmd);
+        ui_runCommand("Activating partition...", activateCmd);
     }
     return success;
 }
@@ -367,19 +399,20 @@ static bool inst_setupBootSectorAndMBR(util_Partition *part, bool setActiveAndDo
 /* Show success screen. Ask user if he wants to reboot */
 static bool inst_showSuccessAndAskForReboot() {
     // Returns TRUE (meaning reboot = true) if YES (0) happens. sorry for the confusion.
-    return system("dialog --yes-label \"Reboot\" --no-label \"Exit to Shell\" " INST_BACKTITLE " --yesno \"Finished the Windows 98 Installation. Would you like to Reboot or exit to a shell?\" 0 0") == 0;
+    int ret = ui_showYesNoCustomLabels(ui_ButtonLabelReboot, ui_ButtonLabelExitToShell, "Finished the Windows 98 Installation. Would you like to Reboot or exit to a shell?");
+    return (ret == 0);
 }
 
 /* Show failure screen :( */
 static void inst_showFailMessage() {
-    system("dialog " INST_BACKTITLE " --msgbox \"There was a problem during installation! :( You can press OK to get to a shell and inspect the damage.\" 0 0");    
+    ui_showMessageBox("There was a problem during installation! :( You can press OK to get to a shell and inspect the damage.");    
 }
 
 /* Main installer process. Assumes the CDROM environment variable is set to a path with valid install.txt, FULL.866 and DRIVER.866 files. */
 bool inst_main() {
     // Important mem stuff!
-    uint64_t freeMemory = util_getProcSafeFreeMemory();
-    uint64_t ringBufferSize = MIN(0x20000000ULL, freeMemory/4ULL*3ULL); // Maximum 512MB
+    uint64_t freeMemory = util_getProcSafeFreeMemory() / 2ULL;
+    uint64_t ringBufferSize = MIN(0x20000000ULL, freeMemory*3ULL/4ULL); // Maximum 512MB
     uint64_t scratchBufferSize = MIN(0x080000ULL, (freeMemory - ringBufferSize) / 4ULL); // Maximum 4MB. Divided by 4 so we can allocate 2.
     ringbuf *buf = rb_init((size_t) ringBufferSize);
     util_HardDiskArray hda = { 0, NULL };
@@ -389,11 +422,15 @@ bool inst_main() {
 
     inst_InstallStep currentStep = INSTALL_WELCOME;
     bool quit = false;
-    bool reboot = false;
+    bool doReboot = false;
     bool installSuccess = true;
     bool goToNext;
 
     char installDataFilename[256];
+    
+    printf("\nfreeMemory: %llu\n ringBufferSize: %llu\n  scratchBufferSize: %llu\n", freeMemory, ringBufferSize, scratchBufferSize);
+
+    ui_init();
 
     assert(getenv("CDROM"));
 
@@ -469,7 +506,7 @@ bool inst_main() {
                 installSuccess &= inst_setupBootSectorAndMBR(destinationPartition, setActiveAndDoMBR);
 
                 if (installSuccess) {                    
-                    reboot = inst_showSuccessAndAskForReboot();
+                    doReboot = inst_showSuccessAndAskForReboot();
                 } else {
                     inst_showFailMessage();
                 }
@@ -490,9 +527,11 @@ bool inst_main() {
     
     rb_destroy(buf);
 
-    if (reboot) {
-        system("reboot");
+    if (doReboot) {
+        reboot(RB_AUTOBOOT);
     }
+
+    ui_deinit();
 
     return installSuccess;
 }
