@@ -4,11 +4,18 @@
                        (C) 2012-2023 Eric Voirin (oerg866)
 *****************************************************************************
 
+- System requirements:
+  - i486-class CPU, at least a 486SX (but it will be very slow)
+  - 24 MiB of memory
+  - CD-ROM boot functionality or floppy drive
+    The included "disk.img" is a boot floppy image.
+  - An IDE / SATA / SCSI controller supported by Linux
+
 Here are the steps to create an ISO:
 
 - If you are on linux, you must install the following prerequisites:
 
-  wine cdrtools p7zip-full
+  wine genisofs p7zip-full
 
 - Install Windows 98 in a virtual machine or emulator, just as you want it.
   I recommend using 86Box using the following configuration:
