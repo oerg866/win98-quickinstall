@@ -1,4 +1,4 @@
-WINDOWS 98 SE QUICKINSTALL -- VERSION 0.2.2
+WINDOWS 98 SE QUICKINSTALL -- VERSION 0.3
 Your friendly Linux-based Windows 98 SE Installer :)
 ----------------------------------------------------------------------
 
