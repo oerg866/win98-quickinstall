@@ -60,17 +60,15 @@ bool rb_read(ringbuf *rb, uint8_t *dst, size_t len) {
         sched_yield();
     }
 
-    rb_lock(rb);
-
     size_t readSize1 = MIN(rb->size - rb->r, len);
     size_t readSize2 = len - readSize1;
 
     memcpy(dst, &rb->buf[rb->r], readSize1);
     if (readSize2) memcpy(dst + readSize1, rb->buf, readSize2);
 
+    rb_lock(rb);
     rb->r = readSize2 ? readSize2 : rb->r + readSize1; // No need to do modulo here, just check if we wrapped around and use that value instead.
     rb->avail -= len;
-
     rb_unlock(rb);
 
     return true;
@@ -83,7 +81,6 @@ bool rb_write(ringbuf *rb, uint8_t *src, size_t len) {
         sched_yield();
     }
 
-    rb_lock(rb);
 
     size_t writeSize1 = MIN(rb->size - rb->w, len);
     size_t writeSize2 = len - writeSize1;
@@ -91,9 +88,9 @@ bool rb_write(ringbuf *rb, uint8_t *src, size_t len) {
     memcpy(&rb->buf[rb->w], src, writeSize1);
     if (writeSize2) memcpy(rb->buf, src + writeSize1, writeSize2);
 
+    rb_lock(rb);
     rb->w = writeSize2 ? writeSize2 : rb->w + writeSize1; // No need to do modulo here, just check if we wrapped around and use that value instead.
     rb->avail += len;
-
     rb_unlock(rb);
 
     return true;
