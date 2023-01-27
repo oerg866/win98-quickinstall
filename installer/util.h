@@ -19,7 +19,7 @@
 uint64_t util_getProcMeminfoValue(const char *key);
 
 // Gets safe free amount of memory the system has at current time in bytes. 
-#define util_getProcSafeFreeMemory() (MIN(util_getProcMeminfoValue("MemFree"), util_getProcMeminfoValue("MemAvailable")) * 1024UL)
+#define util_getProcSafeFreeMemory() (MIN(util_getProcMeminfoValue("MemFree"), util_getProcMeminfoValue("CommitLimit")) * 1024UL)
 
 size_t util_getCommandOutputLineCount(const char *command);
 size_t util_captureCommandOutput(const char *command, char *buf, size_t bufSize);
