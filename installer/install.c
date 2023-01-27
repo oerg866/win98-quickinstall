@@ -260,16 +260,6 @@ static bool inst_showDriverPrompt() {
     return (ret == 0);
 }
 
-/* Shows "Creating directories" text... TODO: Make actual progress bar using libdialog */
-static void inst_showDirProgress() {
-    ui_showInfoBox("Creating directories...");
-}
-
-/* Shows "Copying files" text... TODO: Make actual progress bar using libdialog */
-static void inst_showFileProgress() {
-    ui_showInfoBox("Copying files...");
-}
-
 /* Gets a MercyPak string (8 bit length + n chars) into dst. Must be a buffer of >= 256 bytes size. */
 static inline bool inst_getMercyPakString(ringbuf *buf, char *dst) {
     bool success;
