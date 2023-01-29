@@ -96,8 +96,8 @@ bool util_unmountPartition(util_Partition *part);
 // Checks if a partition is currently mounted.
 bool util_isPartitionMounted(util_Partition *part);
 
-// Formats a partition
-bool util_formatPartition(util_Partition *part, util_FileSystem fs);
+// Gets the command to format a partition. Returns false if there was an error, such as unsupported filesystem.
+bool util_getFormatCommand(util_Partition *part, util_FileSystem fs, char *buf, size_t bufSize);
 
 // Gets the index of the disk in 'hdds' that has the device string 'str'. Returns SIZE_MAX if not found.
 size_t util_getHardDiskArrayIndexFromDevicestring(util_HardDiskArray *hdds, const char *str);

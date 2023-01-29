@@ -134,11 +134,11 @@ void ui_showMessageBox(const char *message) {
     dialog_msgbox(NULL, message, 0, 0, 1);
 }
 
-void ui_runCommand(const char *message, const char *command) {
+int ui_runCommand(const char *message, const char *command) {
     FILE *fd = dlg_popen(command, "r");
     UI_PREPARE_DIALOG();
     dlg_progressbox(NULL, message, UI_COMMAND_HEIGHT, UI_COMMAND_WIDTH, 0, fd);
-    fclose(fd);
+    return WEXITSTATUS(pclose(fd));
 }
 
 void ui_showInfoBox(const char *message) {

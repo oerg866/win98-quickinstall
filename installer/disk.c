@@ -366,22 +366,24 @@ bool util_isPartitionMounted(util_Partition *part) {
     return (part->mountPath != NULL);
 }
 
-bool util_formatPartition(util_Partition *part, util_FileSystem fs) {
+bool util_getFormatCommand(util_Partition *part, util_FileSystem fs, char *buf, size_t bufSize) {
     assert(part);
     if (util_isPartitionMounted(part)) {
         util_unmountPartition(part);
     }
 
-    char formatCmd[1024];
     if (fs == fs_fat16) {
-        snprintf(formatCmd, sizeof(formatCmd), "mkfs.fat -S %d -F 16 %s", part->sectorSize, part->device); // no clue what win9x wants to see here tbh...
+        snprintf(buf, bufSize, "mkfs.fat -v -S %d -F 16 %s", part->sectorSize, part->device); // no clue what win9x wants to see here tbh...
     } else if (fs == fs_fat32) {
-        snprintf(formatCmd, sizeof(formatCmd), "mkfs.fat -S %d -s 8 -R 32 -f 2 -F 32 %s", part->sectorSize, part->device);
+        snprintf(buf, bufSize, "mkfs.fat -v -S %d -s 8 -R 32 -f 2 -F 32 %s", part->sectorSize, part->device);
     } else {
         assert(false && "Wrong file system");
         abort();
+        return false;
     }
-    return (system(formatCmd) == 0);
+    // Set partition file system to new file system
+    part->fileSystem = fs;    
+    return true;
 }
 
 bool util_copyFile(const char *src, const char *dst) {

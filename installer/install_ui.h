@@ -53,8 +53,8 @@ char *ui_getMenuResultString();
 int ui_showYesNoCustomLabels(char *yesLabel, char *noLabel, const char *prompt);
 /* Shows a message box. */
 void ui_showMessageBox(const char *message);
-/* Runs a command in a progress box */
-void ui_runCommand(const char *message, const char *command);
+/* Runs a command in a progress box, returns the command's exit code */
+int ui_runCommand(const char *message, const char *command);
 /* Shows an info box without any buttons */
 void ui_showInfoBox(const char *message);
 /* Initializes a progress bar window. Don't forget to call ui_progressBoxDeinit !! */

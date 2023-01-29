@@ -229,11 +229,20 @@ static util_Partition *inst_showPartitionSelector(util_HardDiskArray *hdds) {
 }
 
 /* Asks user if he wants to format selected partition. Returns true if so. */
-static bool inst_askUserToFormatPartition(util_Partition *part) {
+static bool inst_formatPartitionDialog(util_Partition *part) {
     char *prompt = ui_makeDialogMenuLabel("You have chosen the partition '%s'. Would you like to format it before the installation (recommended)?", part->device);
-    int ret = ui_showYesNoCustomLabels(ui_ButtonLabelYes, ui_ButtonLabelNo, prompt);
+    int choice = ui_showYesNoCustomLabels(ui_ButtonLabelYes, ui_ButtonLabelNo, prompt);
+    bool ret = true;
+    char formatCmd[UTIL_MAX_CMD_LENGTH];
     free(prompt);
-    return (ret == 0);
+    if (choice == 0) {
+        ret = util_getFormatCommand(part, part->fileSystem, formatCmd, UTIL_MAX_CMD_LENGTH);
+        assert(ret);
+        ret = (ui_runCommand("Formatting partition...", formatCmd) == 0);
+        return ret;
+    } else {
+        return true;
+    }
 }
 
 
@@ -450,17 +459,18 @@ bool inst_main() {
                 break;
             }
             case INSTALL_FORMAT_PARTITION_CHECK: {
-                // ask if partition should be formatted
-                if (inst_askUserToFormatPartition(destinationPartition)) {
-                    // If yes, we will try to format the partition and then mount it
-                    util_formatPartition(destinationPartition, destinationPartition->fileSystem);
-                } 
+                // ask if partition should be formatted & do so if yes
+                bool formatOK = inst_formatPartitionDialog(destinationPartition);
+                
+                // if formatting failed, this is SUPER bad (like, really very bad) so we assert
+                assert(formatOK && "\nError during formatting!!");
 
                 bool mountOK = util_mountPartition(destinationPartition);
                 // If mounting failed, we will display a message and go back after.
 
                 if (!mountOK)
                     inst_showFailedMount(destinationPartition);
+
                 goToNext = mountOK;
 
                 break;
