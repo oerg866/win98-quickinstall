@@ -152,13 +152,13 @@ static int ui_Progress = 0; */
 
 /* -4 for the spacing and border  2 for the edges of the actual progress bar*/
 #define UI_PROGRESS_BAR_TOTALWIDTH (UI_TEXTBOX_WIDTH - 4)
-#define UI_PROGRESS_BAR_WIDTH (UI_TEXTBOX_WIDTH - 4 - 3)
-#define UI_PROGRESS_VALUE(progress, maximum) ((progress + 1) * UI_PROGRESS_BAR_WIDTH / maximum)
+#define UI_PROGRESS_BAR_WIDTH (UI_TEXTBOX_WIDTH - 4 - 3 - 1)
+#define UI_PROGRESS_VALUE(progress, maximum) ((progress) * UI_PROGRESS_BAR_WIDTH / maximum)
 #define UI_PROGRESS_BAR_SET_TEXT_COLOR() printf("\033[30;47m");
-#define UI_SET_POSITION(x,y) printf("\033[%d;%dH", (y), (x))
+#define UI_SET_POSITION(x,y) { printf("\033[%d;%dH", (y), (x)); fflush (stdout); }
 
 /* No idea if it's possible to get this from libdialog so for now we hardcode it... */
-#define UI_PROGRESS_BAR_START_X (6)
+#define UI_PROGRESS_BAR_START_X (7)
 #define UI_PROGRESS_BAR_START_Y (12)
 
 static int ui_Progress = 0;
@@ -174,10 +174,15 @@ void ui_progressBoxInit(const char *title) {
 void ui_progressBoxUpdate(int progress, int maximum) {
     progress = UI_PROGRESS_VALUE(progress, maximum);
     if (ui_Progress != progress) {
-        UI_SET_POSITION(UI_PROGRESS_BAR_START_X + progress, UI_PROGRESS_BAR_START_Y);
-        putchar(' ');
+        //printf ("ui_Progress: %d, progress %d, count %d\n",ui_Progress, progress, progress - ui_Progress);
+        UI_SET_POSITION(UI_PROGRESS_BAR_START_X + ui_Progress, UI_PROGRESS_BAR_START_Y);
+
+        while(ui_Progress != progress) {
+            putchar(' ');
+            ui_Progress++;
+        }
+
         fflush(stdout);
-        ui_Progress = progress;
     }
 }
 
