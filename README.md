@@ -66,7 +66,7 @@ There are several provided methods to boot into Windows 98 QuickInstall:
 
 1. Removable media such as USB Flash Drives
 
-   Using SYSLINUX it is possible to boot 
+   Using SYSLINUX it is possible to create bootable USB images. The steps to do so are described below.
 
 # System requirements to build Windows 98 QuickInstall __ISO images__
 
