@@ -76,6 +76,9 @@ pushd mercypak
 	./build.sh
 popd
 
+pushd dosflop
+	./build.sh
+popd
 
 # Copy linux kernel & binaries
 mkdir -p "$CDROOT/bin"
@@ -96,6 +99,8 @@ cp mercypak/*.exe "$CDROOT/mercypak"
 # Boot floppies, also copy them to the CDROM root for ~user convenience~
 cp tiny-floppy-bootloader/floppy.img "$OUTPUT/"
 cp tiny-floppy-bootloader/floppy.img "$CDROOT/"
+cp dosflop/dosflop.img "$OUTPUT/"
+cp dosflop/dosflop.img "$CDROOT/"
 
 # Our installer!
 cp supplement/install.txt "$CDROOT/"

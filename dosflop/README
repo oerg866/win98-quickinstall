@@ -1,0 +1,5 @@
+This is the directory for the FreeDOS-based boot floppy.
+
+It Loads an ATAPI CD-ROM Driver and attempts to load bzImage.cd from the CD-ROM using LOADLIN.
+
+This is way faster than booting the XZ Kernel via floppy.img on a 486.
