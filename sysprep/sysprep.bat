@@ -134,7 +134,8 @@ if not exist "%OUTPUT%\DRIVER.866" (
 
 :: Create ISO
 pushd "%OUTPUT%"
-..\tools\mkisofs -J -r -V "Win98 QuickInstall" -o "%ISOFILE%" -b disk.img .
+del /Q /F /A %ISOFILE%
+..\tools\mkisofs -J -r -V "Win98 QuickInstall" -o "%ISOFILE%" -b cdrom.img .
 popd
 
 echo Done.

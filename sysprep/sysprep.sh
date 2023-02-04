@@ -172,5 +172,5 @@ fi
 # Build ISO image.
 
 cd $OUTPUT
-mkisofs -J -r -V "Win98 QuickInstall" -o "$ISOFILE" -b disk.img .
+mkisofs -J -r -V "Win98 QuickInstall" -o "$ISOFILE" -b cdrom.img .
 cd $BASEDIR

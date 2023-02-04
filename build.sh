@@ -45,8 +45,10 @@ pushd filesystem
 popd
 
 pushd linux
-	make -j8 bzImage
-    cp arch/x86/boot/bzImage ../
+	rm -f .config && cp ../buildscripts/linux_config.flp .config && make -j8 bzImage
+   	cp arch/x86/boot/bzImage ../bzImage.flp
+	rm -f .config && cp ../buildscripts/linux_config.cd .config && make -j8 bzImage
+	cp arch/x86/boot/bzImage ../bzImage.cd
 popd
 
 pushd dosfstools
@@ -62,7 +64,8 @@ pushd util-linux
 popd
 
 pushd tiny-floppy-bootloader
-	./build.sh
+	./build.sh ../bzImage.flp floppy.img 1474560	# Floppy disk boot
+	./build.sh ../bzImage.cd cdrom.img 2949120		# CD-ROM / 2.88M boot
 popd
 
 pushd installer
@@ -73,25 +76,12 @@ pushd mercypak
 	./build.sh
 popd
 
-# Ran out of space on the boot floppy, so we only can use the tiny floppy bootloader now =(
-#rm floppy.img
-#dd if=/dev/zero of=floppy.img bs=1k count=1440
-#mkdosfs -F 12 floppy.img
-#sudo syslinux/bios/linux/syslinux --stupid --install floppy.img
-#mkdir -p ./mnt
-#sudo mount -o loop floppy.img ./mnt
-#sudo cp ./syslinux/bios/com32/elflink/ldlinux/ldlinux.c32 ./mnt
-#sudo rm ./mnt/*.sys
-#sudo cp bzImage ./mnt
-#sudo cp rootfs.cpio.xz ./mnt
-#sudo cp supplement/syslinux.cfg ./mnt
-#sudo chmod +x ./mnt/syslinux.cfg
-#sudo umount ./mnt
 
 # Copy linux kernel & binaries
 mkdir -p "$CDROOT/bin"
-cp bzImage "$CDROOT/"
-cp tiny-floppy-bootloader/disk.img "$CDROOT/"
+mkdir -p "$CDROOT/mercypak"
+cp bzImage.cd "$CDROOT/"
+cp tiny-floppy-bootloader/cdrom.img "$CDROOT/"
 cp util-linux/OUTPUT/bin/* "$CDROOT/bin/"
 cp util-linux/OUTPUT/sbin/* "$CDROOT/bin/"
 cp util-linux/cfdisk "$CDROOT/bin/"
@@ -100,6 +90,9 @@ cp util-linux/lsblk "$CDROOT/bin/"
 cp dosfstools/OUTPUT/sbin/* "$CDROOT/bin/"
 cp dialog/dialog "$CDROOT/bin/"
 cp supplement/get* "$CDROOT/bin/"
+# Boot floppies, also copy them to the CDROM root for ~user convenience~
+cp tiny-floppy-bootloader/floppy.img "$OUTPUT/"
+cp tiny-floppy-bootloader/floppy.img "$CDROOT/"
 
 # Our installer!
 cp supplement/install.txt "$CDROOT/"
