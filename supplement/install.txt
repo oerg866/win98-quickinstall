@@ -11,13 +11,12 @@ DISCLAIMER:
 Features:
 - This will install Windows 98 in RECORD time.
 - Can include many patches and slipstreamed drivers
-- Writes MBR and boot sectors
+- Can boot from floppy, CD-ROM, USB, hard disks, ...
+- Writes MBR and boot sectors for FAT32/FAT16
 - Can partition your hard drive(s)
 
 Bugs:
 - Error handling is basically nonexistant. Sorry!
-- Only supports CDROMs so far, sadly. USB flash drive support is in
-  planning.
 
 Special thanks to TRW, ChrisR3tro and kext :3
 
