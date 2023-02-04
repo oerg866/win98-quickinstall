@@ -29,3 +29,5 @@ tools/tmp.ddf
 # build output
 installer/lunmercy
 __BIN__
+bzImage.*
+drivercopy
