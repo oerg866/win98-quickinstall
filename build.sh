@@ -117,7 +117,7 @@ cp -r mercypak/*.exe "$OUTPUT/mercypak"
 cp -r sysprep/* "$OUTPUT"
 cp -r win98-driver-lib-base/* "$OUTPUT/_DRIVER_"
 cp -r win98-driver-lib-extra/* "$OUTPUT/_EXTRA_DRIVER_"
-
+cp README.md "$OUTPUT"
 
 pushd "$OUTPUT"
 	zip -r "$BASE/Windows98QuickInstall_$(date +%Y%m%d_%H%M).zip" ./

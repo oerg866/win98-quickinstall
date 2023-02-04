@@ -120,3 +120,4 @@ pushd util-linux
 popd
 
 echo "Assuming nothing went wrong, this should be ready to go! :)"
+echo "Run ./build.sh to generate the framework!"
