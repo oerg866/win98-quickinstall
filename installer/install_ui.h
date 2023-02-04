@@ -7,6 +7,7 @@
  */
 
 #include <stdint.h>
+#include <stdbool.h>
 
 #define UI_PREPARE_DIALOG() { clear(); dlg_clear(); dlg_put_backtitle(); }
 #define UI_DIALOG_LABEL_LENGTH  1024
@@ -36,7 +37,7 @@ void ui_destroyDialogMenuLabelList(char **list);
 /* Sets a label/description pair in a MenuLabelList at given index. 
     the strings MUST be allocated specifically for this and free-able! 
     ui_makeDialogMenuLabel may be used for this. */
-#define ui_setMenuLabelListEntry(list, index, label, description) { (list)[index*2+0] = label; (list)[index*2+1] = description; }
+#define ui_setMenuLabelListEntry(list, index, label, description) { (list)[(index)*2+0] = label; (list)[(index)*2+1] = description; }
 /* Get amount of entries in a MenuLabelList */
 int ui_getMenuLabelListItemCount(char **list);
 /* Reallocates and adds a new entry to a MenuLabelList. This is slow as hell so use sparsly. */
@@ -46,7 +47,7 @@ void ui_addDialogMenuLabelToList(char ***ptrToList, char *label, char *descripti
 int ui_showTextBox(const char *title, const char *fileName);
 /* Shows a menu. Accepts a Dialog Menu Label List created by makeDialogMenuLabelList as parameter. 
    Contrary to dialog's API, this returns the INDEX of the option that was selected.*/
-int ui_showMenu(const char *prompt, char **menuItems);
+int ui_showMenu(const char *prompt, char **menuItems, bool showBackButton);
 /* Get the result string of the menu.*/
 char *ui_getMenuResultString();
 /* Shows a "Yes / No" dialog box with custom labels for the yes and no buttons. */

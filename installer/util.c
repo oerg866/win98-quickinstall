@@ -171,3 +171,7 @@ mode_t util_dosFileAttributeToUnixMode(uint8_t dosFlags) {
 
     return ret;
 }
+
+bool util_fileExists(const char *filename) {
+    return (access(filename, F_OK) == 0);
+}

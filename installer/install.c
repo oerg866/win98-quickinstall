@@ -31,6 +31,8 @@ typedef enum {
     INSTALL_PARTITION_WIZARD,
     INSTALL_SELECT_DESTINATION_PARTITION,
     INSTALL_FORMAT_PARTITION_CHECK,
+    INSTALL_MBR_ACTIVE_BOOT_PROMPT,
+    INSTALL_REGISTRY_VARIANT_PROMPT,
     INSTALL_INTEGRATED_DRIVERS_PROMPT,
     INSTALL_DO_INSTALL,
 } inst_InstallStep;
@@ -42,6 +44,10 @@ typedef enum {
 #define INST_CFDISK_CMD "cfdisk "
 #define INST_COLS (74)
 
+#define INST_SYSROOT_FILE "FULL.866"
+#define INST_DRIVER_FILE  "DRIVER.866"
+#define INST_SLOWPNP_FILE "SLOWPNP.866"
+#define INST_FASTPNP_FILE "FASTPNP.866"
 /* Arguments for background OS data buffer thread */
 typedef struct {
     char *filename;             // Filename to buffer
@@ -50,8 +56,16 @@ typedef struct {
     bool *quitFlag;             // Pointer to quit flag
 } inst_FillerThreadArgs;
 
+/* Gets the absolute CDROM path of a file. */
+static const char *inst_getCDFilePath(const char *filepath) {
+    static char staticPathBuf[1024];
+    const char *cdrompath = getenv("CDROM");
+    assert(cdrompath);
+    snprintf(staticPathBuf, sizeof(staticPathBuf), "%s/%s", cdrompath, filepath);
+    return staticPathBuf;
+}
 /* Thread function for background OS data buffer thread */
-static void* inst_fillerThreadFunc(void* threadParam) {
+static void *inst_fillerThreadFunc(void* threadParam) {
     inst_FillerThreadArgs *args = (inst_FillerThreadArgs*) threadParam;
     /* printf("FILLER THREAD STARTED filename %s ringbuf %p\n", args->filename, args->buf); */
 
@@ -95,24 +109,6 @@ static void* inst_fillerThreadFunc(void* threadParam) {
     pthread_exit(threadParam);
 }
 
-/* Stop the background thread buffering Win98 install files. 
-   Filename is Mercypak file to buffer
-   scratchBufferSize is essentially maximum chunk sizes.
-   quitFlag is a pointer to a bool that indicates when the buffering should stop.*/
-static pthread_t inst_startFillerThread(ringbuf *buf, const char *filename, size_t scratchBufferSize, bool *quitFlag) {
-    pthread_t ret;
-    
-    inst_FillerThreadArgs *args = calloc(sizeof(inst_FillerThreadArgs), 1);
-    assert(args);
-    args->buf = buf;
-    args->filename = strdup(filename);
-    args->scratchBufferSize = scratchBufferSize;
-    args->quitFlag = quitFlag;
-
-    if (pthread_create(&ret, NULL, inst_fillerThreadFunc, (void*)args) != 0)
-        free(args);
-    return ret;
-}
 
 /* Stop the background thread buffering Win98 install files */
 static void inst_stopFillerThread(pthread_t thread) {
@@ -124,6 +120,40 @@ static void inst_stopFillerThread(pthread_t thread) {
         free(ret->filename);
         free(ret);
     }
+}
+
+/* Start the background thread buffering Win98 install files. 
+   oldHandle can be NULL, point to a handle of an existing thread, which will be stopped before starting a new one.
+   Filename is Mercypak file to buffer, relative to the BASE DIRECTORY OF THE INSTALL MEDIA
+   scratchBufferSize is essentially maximum chunk sizes.
+   quitFlag is a pointer to a bool that indicates when the buffering should stop.*/
+static pthread_t inst_startFillerThread(pthread_t oldHandle, ringbuf *buf, const char *filename, size_t scratchBufferSize, bool *quitFlag) {
+    pthread_t ret;
+    inst_FillerThreadArgs *args = calloc(sizeof(inst_FillerThreadArgs), 1);
+    
+    assert(args);
+
+    // Stop old thread if one was given
+    if (oldHandle) {
+        *quitFlag = true;
+        inst_stopFillerThread(oldHandle);
+    }
+
+    rb_reset(buf);
+    *quitFlag = false;
+ 
+    args->buf = buf;
+    args->filename = strdup(inst_getCDFilePath(filename));
+
+    args->scratchBufferSize = scratchBufferSize;
+    args->quitFlag = quitFlag;
+
+    assert(util_fileExists(args->filename));
+
+    if (pthread_create(&ret, NULL, inst_fillerThreadFunc, (void*)args) != 0)
+        free(args);
+
+    return ret;
 }
 
 
@@ -161,7 +191,7 @@ static bool inst_showPartitionWizard(util_HardDiskArray *hdds) {
                                 ui_makeDialogMenuLabel("%s", ui_ButtonLabelFinished), 
                                 ui_makeDialogMenuLabel("%s", ui_EmptyString));
 
-        menuResult = ui_showMenu("Select the Hard Disk you wish to partition", menuLabels);
+        menuResult = ui_showMenu("Select the Hard Disk you wish to partition", menuLabels, true);
         ui_destroyDialogMenuLabelList(menuLabels);
 
         if (menuResult == UI_MENU_CANCELED) // BACK was pressed.
@@ -407,6 +437,37 @@ static void inst_showFailMessage() {
     ui_showMessageBox("There was a problem during installation! :( You can press OK to get to a shell and inspect the damage.");    
 }
 
+/* Asks user which version of the hardware detection scheme he wants */
+static const char *inst_askUserForRegistryVariant() {
+    static const char fastpnp[] = "FASTPNP.866";
+    static const char slowpnp[] = "SLOWPNP.866";
+    static const char *options[] = { fastpnp, slowpnp };
+    char **menuLabels;
+
+    // only do this if SLOWPNP exists, as windows 95 doesn't have a non-pnp init so we have to apply fastpnp anyway...
+    assert(util_fileExists(inst_getCDFilePath(fastpnp)));
+    if (!util_fileExists(inst_getCDFilePath(slowpnp)))
+        return fastpnp;
+    
+    menuLabels = ui_allocateDialogMenuLabelList(0);
+
+    ui_addDialogMenuLabelToList(&menuLabels, 
+                                ui_makeDialogMenuLabel("fast"),
+                                ui_makeDialogMenuLabel("Fast hardware detection, skipping most non-PNP devices."));
+
+    printf("%s %s\n", menuLabels[0], menuLabels[1]);
+
+    ui_addDialogMenuLabelToList(&menuLabels, 
+                                ui_makeDialogMenuLabel("slow"),
+                                ui_makeDialogMenuLabel("Full hardware detection including non-PNP devices."));
+
+    int menuResult = ui_showMenu("Select hardware detection method...", menuLabels, false);
+    ui_destroyDialogMenuLabelList(menuLabels);
+    
+    assert(menuResult >= 0 && menuResult < 2);
+    return options[menuResult];
+}
+
 /* Main installer process. Assumes the CDROM environment variable is set to a path with valid install.txt, FULL.866 and DRIVER.866 files. */
 bool inst_main() {
     // Important mem stuff!
@@ -415,17 +476,16 @@ bool inst_main() {
     uint64_t scratchBufferSize = MIN(0x080000ULL, (freeMemory - ringBufferSize) / 4ULL); // Maximum 4MB. Divided by 4 so we can allocate 2.
     ringbuf *buf = rb_init((size_t) ringBufferSize);
     util_HardDiskArray hda = { 0, NULL };
-
+    const char *registryUnpackFile;
     util_Partition *destinationPartition = NULL;
     bool installDrivers;
+    bool setActiveAndDoMBR;
 
     inst_InstallStep currentStep = INSTALL_WELCOME;
     bool quit = false;
     bool doReboot = false;
     bool installSuccess = true;
     bool goToNext;
-
-    char installDataFilename[256];
     
     printf("\nfreeMemory: %llu\n ringBufferSize: %llu\n  scratchBufferSize: %llu\n", freeMemory, ringBufferSize, scratchBufferSize);
 
@@ -434,8 +494,7 @@ bool inst_main() {
     assert(getenv("CDROM"));
 
     // At the start, we initiate the filler thread so the actual OS data to install starts buffering in the background
-    snprintf(installDataFilename, sizeof(installDataFilename), "%s/%s", getenv("CDROM"), "FULL.866");
-    pthread_t fillerThreadHandle = inst_startFillerThread(buf, installDataFilename, scratchBufferSize, &quit);
+    pthread_t fillerThreadHandle = inst_startFillerThread(NULL, buf, INST_SYSROOT_FILE, scratchBufferSize, &quit);
 
     while (!quit) {
         switch (currentStep) {
@@ -475,6 +534,18 @@ bool inst_main() {
 
                 break;
             }
+
+            case INSTALL_MBR_ACTIVE_BOOT_PROMPT: {
+                setActiveAndDoMBR = inst_askUserToOverwriteMBRAndSetActive(destinationPartition);
+                goToNext = true;
+                break;
+            }
+
+            case INSTALL_REGISTRY_VARIANT_PROMPT: {
+                registryUnpackFile = inst_askUserForRegistryVariant();
+                goToNext = true;
+                break;
+            }
   
             case INSTALL_INTEGRATED_DRIVERS_PROMPT: {
                 installDrivers = inst_showDriverPrompt();
@@ -484,33 +555,33 @@ bool inst_main() {
 
             case INSTALL_DO_INSTALL: {
                 installSuccess = inst_copyFiles(destinationPartition->mountPath, buf, scratchBufferSize);
-
-                quit = true;
                 
                 if (installSuccess && installDrivers) {
                     // If the main data copy was successful, we stop the filler and restart it with the driver file.
-                    inst_stopFillerThread(fillerThreadHandle);
-                    rb_reset(buf);
-                    quit = false;
-                    snprintf(installDataFilename, sizeof(installDataFilename), "%s/%s", getenv("CDROM"), "DRIVER.866");
-                    fillerThreadHandle = inst_startFillerThread(buf, installDataFilename, scratchBufferSize, &quit);
+                    fillerThreadHandle = inst_startFillerThread(fillerThreadHandle, buf, INST_DRIVER_FILE, scratchBufferSize, &quit);
+                    installSuccess = inst_copyFiles(destinationPartition->mountPath, buf, scratchBufferSize);
+                }
+
+                if (installSuccess) {
+                    // Install registry for selceted hardware detection variant
+                    fillerThreadHandle = inst_startFillerThread(fillerThreadHandle, buf, registryUnpackFile, scratchBufferSize, &quit);
                     installSuccess = inst_copyFiles(destinationPartition->mountPath, buf, scratchBufferSize);
                 }
 
                 util_unmountPartition(destinationPartition);
 
                 // Final step: update MBR, boot sector and boot flag.
-
-                bool setActiveAndDoMBR = inst_askUserToOverwriteMBRAndSetActive(destinationPartition);
-
-                installSuccess &= inst_setupBootSectorAndMBR(destinationPartition, setActiveAndDoMBR);
+                if (installSuccess && setActiveAndDoMBR) {
+                    installSuccess = inst_setupBootSectorAndMBR(destinationPartition, setActiveAndDoMBR);
+                }
 
                 if (installSuccess) {                    
                     doReboot = inst_showSuccessAndAskForReboot();
                 } else {
                     inst_showFailMessage();
                 }
-                quit = true;                                
+
+                quit = true;
                 break;
             }           
 

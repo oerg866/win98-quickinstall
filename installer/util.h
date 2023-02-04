@@ -128,6 +128,8 @@ bool util_copyFile(const char *src, const char *dst);
 bool util_setDosFileTime(int fd, uint16_t dosDate, uint16_t dosTime);
 // Sets an open file's attributes
 bool util_setDosFileAttributes(int fd, int attributes);
+// Checks if a file exists.
+bool util_fileExists(const char *filename);
 
 /* String functions */
 
@@ -157,5 +159,6 @@ bool util_readFirstLineFromFileIntoBuffer(const char *filename, char *dest);
 time_t util_dosTimeToUnixTime(uint16_t dosDate, uint16_t dosTime);
 // Converts a DOS Flag byte to a mode_t for use with chmod or somesuch
 mode_t util_dosFileAttributeToUnixMode(uint8_t dosFlags);
+
 
 #endif

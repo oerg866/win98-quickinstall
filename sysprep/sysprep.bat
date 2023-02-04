@@ -13,6 +13,7 @@ SET EXTRA=%CD%\_EXTRA_CD_FILES_
 SET OUTPUT=%CD%\__OUTPUT__
 SET DRIVEREXOUTPUT=%OUTPUT%\DRIVER.EX
 SET OSROOT=%CD%\_OS_ROOT_
+SET REGTMP=%CD%\.regtmp
 SET OEMINFO=%CD%\_OEMINFO_
 SET CDROOTSOURCE=%CD%\cdromroot
 
@@ -31,15 +32,39 @@ for /R %%f in (PRECOPY2.CAB) do @IF EXIST %%f set OSWINCABDIR=%%~dpf
 for /R %%f in (WIN.COM) do @IF EXIST %%f set OSWINDIR=%%~dpf
 popd
 
+CALL set OSRELATIVECABDIR=%%OSWINCABDIR:%OSROOT%=%%
+CALL set OSRELATIVEWINDIR=%%OSWINDIR:%OSROOT%=%%
+
 if ("%OSWINDIR%"=="") (
     echo "Windows diectory not found."    
-    exit -1
+    exit /b -1
 )
 
 if ("%OSWINCABDIR%"=="") (
     echo "Windows CAB / CD directory not found."    
-    exit -1
+    exit /b -1
 )
+
+echo Relative CAB dir: %OSRELATIVECABDIR%
+echo Relative WIN dir: %OSRELATIVEWINDIR%
+
+:: Prepare registry
+:: Find SYSTEM.DAT and USER.DAT files
+
+set SYSTEMDAT=%OSWINDIR%\SYSTEM.DAT
+set USERDAT=%OSWINDIR%\USER.DAT
+
+if not exist "%SYSTEMDAT%" (
+    echo "Registry not found."
+    exit /b -1
+)
+
+:: Process registry
+
+pushd registry
+    call :make_registry "%SYSTEMDAT%" "%USERDAT%" slowpnp.reg "%OUTPUT%\SLOWPNP.866"
+    call :make_registry "%SYSTEMDAT%" "%USERDAT%" fastpnp.reg "%OUTPUT%\FASTPNP.866"
+popd
 
 :: Filter some garbage data first
 del /Q /F /A "%OSWINDIR%\WIN386.SWP"
@@ -73,8 +98,6 @@ del makecab.exe
 popd
 
 :: Important step: separate INFs and CABs
-CALL set OSRELATIVECABDIR=%%OSWINCABDIR:%OSROOT%=%%
-echo %OSRELATIVECABDIR%
 md "%DRIVERTMP%\%OSRELATIVECABDIR%"
 md "%DRIVERINFOUTPUT%"
 move "%DRIVERTMP%\*.cab" "%DRIVERTMP%\%OSRELATIVECABDIR%"
@@ -109,10 +132,32 @@ popd
 
 echo Done.
 echo The ISO file was created at %ISOFILE%.
-
-goto END
+exit /b
 
 :NOTFOUND
 echo The required .866 files do not exist, sysprep cannot continue.
+exit /b
 
-:END
+:: Realpath equivalent for Windows, quite hacky...
+:realpath
+    set RET=%~f1
+    exit /b
+
+:: Make registry adjustments
+:: %1 = SYSTEM.DAT path
+:: %2 = USER.DAT path
+:: %3 = registry file
+:: %4 = output 866 file
+:make_registry
+    echo Adding %3 to the registry.
+    rmdir /S /Q %REGTMP%
+    mkdir "%REGTMP%\%OSRELATIVEWINDIR%"
+    del /Q /F /A SYSTEM.DAT
+    del /Q /F /A USER.DAT
+    xcopy /H /Y %1 .
+    xcopy /H /Y %2 .
+    %BASEDIR%\tools\msdos.exe regedit.exe /L:SYSTEM.DAT /R:USER.DAT %3
+    xcopy /H /Y SYSTEM.DAT "%REGTMP%\%OSRELATIVEWINDIR%"
+    xcopy /H /Y USER.DAT "%REGTMP%\%OSRELATIVEWINDIR%"
+    %BASEDIR%\mercypak\mercypak32.exe "%REGTMP%" %4
+    exit /b

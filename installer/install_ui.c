@@ -93,17 +93,22 @@ int ui_showTextBox(const char *title, const char *fileName) {
     return dialog_textbox(title, fileName, UI_TEXTBOX_HEIGHT, UI_TEXTBOX_WIDTH);
 }
 
-int ui_showMenu(const char *prompt, char **menuItems) {
+int ui_showMenu(const char *prompt, char **menuItems, bool showBackButton) {
     int ret = 0;
+    bool oldNoCancelVar = dialog_vars.nocancel;
 
     UI_PREPARE_DIALOG();
     
     dlg_clr_result();
 
     dialog_vars.ok_label = ui_ButtonLabelNext;
-    dialog_vars.cancel_label = ui_ButtonLabelBack;
+    dialog_vars.cancel_label = ui_ButtonLabelBack;   
+    dialog_vars.nocancel = !showBackButton;
     
     ret = dialog_menu(NULL, prompt, 0, 0, 0, ui_getMenuLabelListItemCount(menuItems), menuItems);
+
+    // Reset nocancel so later UI functions don't get into trouble
+    dialog_vars.nocancel = oldNoCancelVar;
 
     if (ret == 0) {
         ret = ui_getMenuLabelIndexFromString(menuItems, dialog_vars.input_result);

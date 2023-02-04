@@ -37,14 +37,30 @@ mkdir -p $ISODIR
 
 # Build OS data package
 
+
+# Figure out OS root directory and ISO path
+OSROOT=$1
+ISOFILE=$(realpath $2)
+if [ -z "$ISOFILE" ]; then
+  ISOFILE=$ISODIR/win98qi_$(date +%Y%m%d_%H%M).iso
+fi
+
+if [ -z "$OSROOT" ]; then
+  OSROOT=./_OS_ROOT_
+fi
+
+# Build OS data package
+
 # Find windows CAB dir
 OSWINCABDIR=$(find "$OSROOT" -iname "precopy2.cab" -printf '%h\n' -quit)
 OSWINDIR=$(find "$OSROOT" -iname "win.com" -printf '%h\n' -quit)
 OSRELATIVECABDIR=$(echo "$OSWINCABDIR" | sed "s|$OSROOT/||")
+OSRELATIVEWINDIR=$(echo "$OSWINDIR" | sed "s|$OSROOT/||")
 
+echo "Windows directory: $OSWINDIR"
+echo "Relative Windows directory within OS root: $OSRELATIVEWINDIR"
 echo "Windows CAB directory: $OSWINCABDIR"
 echo "Relative CAB path within OS root: $OSRELATIVECABDIR"
-echo "Windows directory: $OSWINDIR"
 
 if [ -z "$OSWINDIR" ]; then
   echo "Windows directory not found."
@@ -56,18 +72,56 @@ if [ -z "$OSWINCABDIR" ]; then
   exit 1
 fi
 
+# Prepare registry
+# Find SYSTEM.DAT and USER.DAT files
+SYSTEMDAT=$(find "$OSWINDIR" -maxdepth 1 -iname "SYSTEM.DAT" -print -quit)
+USERDAT=$(find "$OSWINDIR" -maxdepth 1 -iname "USER.DAT" -print -quit)
+
+if [ ! -f "$SYSTEMDAT" ]; then
+  echo "Windows registry not found."
+  exit 127
+fi
+
+# Process registry
+
+cd registry
+
+make_registry () {
+  local system_dat=$1
+  local user_dat=$2
+  local reg_file=$3
+  local output_file=$4
+  echo Adding $reg_file to registry...
+  rm -rf "$REGTMP"
+  mkdir -p "$REGTMP/$OSRELATIVEWINDIR" 
+  cp -f "$system_dat" ./SYSTEM.DAT
+  cp -f "$user_dat" ./USER.DAT
+  wine ../tools/msdos.exe regedit.exe /L:SYSTEM.DAT /R:USER.DAT $reg_file
+  cp -f ./SYSTEM.DAT "$REGTMP/$OSRELATIVEWINDIR"
+  cp -f ./USER.DAT "$REGTMP/$OSRELATIVEWINDIR"
+  $MERCYPAK "$REGTMP" "$output_file"
+}
+
+# Do Slow Non-PNP detection variant
+make_registry "$SYSTEMDAT" "$USERDAT" slowpnp.reg "$OUTPUT/SLOWPNP.866"
+# Fast PNP-only detection variant
+make_registry "$SYSTEMDAT" "$USERDAT" fastpnp.reg "$OUTPUT/FASTPNP.866"
+
+cd "$BASEDIR"
+
 #Filter some garbage data first
-osroot_file_delete $OSWINDIR/win386.swp
-osroot_file_delete $OSWINDIR/sysbckup/*
-osroot_file_delete $OSWINDIR/inf/mdm*.inf
-osroot_file_delete $OSWINDIR/inf/wdma_*.inf
-osroot_file_delete $OSWINDIR/recent/*
-osroot_file_delete $OSROOT/bootlog.*
-osroot_file_delete $OSROOT/frunlog.txt
-osroot_file_delete $OSROOT/detlog.txt
-osroot_file_delete $OSROOT/setuplog.txt
-osroot_file_delete $OSROOT/scandisk.log
-osroot_file_delete $OSROOT/netlog.txt
+osroot_file_delete "$OSWINDIR" win386.swp
+osroot_file_delete "$OSWINDIR" sysbckup/*
+osroot_file_delete "$OSWINDIR" inf/mdm*.inf
+osroot_file_delete "$OSWINDIR" inf/wdma_*.inf
+osroot_file_delete "$OSWINDIR" recent/*
+osroot_file_delete "$OSROOT" bootlog.*
+osroot_file_delete "$OSROOT" frunlog.txt
+osroot_file_delete "$OSROOT" detlog.txt
+osroot_file_delete "$OSROOT" setuplog.txt
+osroot_file_delete "$OSROOT" scandisk.log
+osroot_file_delete "$OSROOT" netlog.txt
+osroot_file_delete "$OSROOT" suhdlog.dat
 
 # Copy oeminfo
 cp $OEMINFO/* $OSWINDIR/SYSTEM
