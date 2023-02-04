@@ -1,7 +1,6 @@
 :: @ECHO OFF
 
 :: This script builds the Win98QI ISO.
-:: It expects the OS files to be in _OS_ROOT_
 
 SET BASEDIR=%CD%
 SET ISODIR=%CD%\__ISO__
@@ -12,13 +11,21 @@ SET DRIVERINFOUTPUT=%DRIVERTMP%\DRIVER
 SET EXTRA=%CD%\_EXTRA_CD_FILES_
 SET OUTPUT=%CD%\__OUTPUT__
 SET DRIVEREXOUTPUT=%OUTPUT%\DRIVER.EX
-SET OSROOT=%CD%\_OS_ROOT_
 SET REGTMP=%CD%\.regtmp
 SET OEMINFO=%CD%\_OEMINFO_
 SET CDROOTSOURCE=%CD%\cdromroot
 
-:: no timestamps, sorry
-SET ISOFILE=%ISODIR%\win98qi.iso
+:: If the OS ROOT and ISO FILE parameters are given, set variables to them
+CALL :realpath "%1"
+SET OSROOT=%RET%
+CALL :realpath "%2"
+SET ISOFILE=%RET%
+
+if [%OSROOT%] == [] SET OSROOT=%CD%\_OS_ROOT_
+
+if [%ISOFILE%] == [] SET ISOFILE=%ISODIR%\win98qi.iso
+
+echo OS Root: %OSROOT%
 
 rmdir /S /Q "%OUTPUT%"
 rmdir /S /Q "%ISODIR%"

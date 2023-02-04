@@ -9,25 +9,22 @@ echo "Building Windows 98 QuickInstall ISO"
 
 BASEDIR=$PWD
 ISODIR=$(realpath .)/__ISO__
-ISOFILE=$ISODIR/win98qi_$(date +%Y%m%d_%H%M).iso
-OUTPUT=./__OUTPUT__
-EXTRA=./_EXTRA_CD_FILES_
-DRIVER=$(realpath ./_DRIVER_)
-DRIVEREX=./_EXTRA_DRIVER_
+OUTPUT=$PWD/__OUTPUT__
+EXTRA=$PWD/_EXTRA_CD_FILES_
+DRIVER=$PWD/_DRIVER_
+DRIVEREX=$PWD/_EXTRA_DRIVER_
 DRIVEREXOUTPUT=$OUTPUT/DRIVER.EX
-DRIVERTMP=./.drvtmp
-OSROOT=./_OS_ROOT_
-CDROOTSOURCE=./cdromroot
-OEMINFO=./_OEMINFO_
+REGTMP=$PWD/.regtmp
+CDROOTSOURCE=$PWD/cdromroot
+OEMINFO=$PWD/_OEMINFO_
 
 # Sorry, too busy right now to natively port this to linux :(
-MERCYPAK="mercypak/mercypak"
+MERCYPAK=$(realpath "./mercypak/mercypak")
 DRIVERCOPY="wine tools/drivercopy.exe"
 
+# This is necessary because windows doesn't care about cases but linux does...
 osroot_file_delete () {
-  local file_name=$1
-  echo $file_name
-  find . -iwholename "$file_name" -delete
+  find "$1" -iwholename "*$2" -print -delete
 }
 
 rm -rf $OUTPUT
@@ -137,9 +134,15 @@ $MERCYPAK $OSROOT $OUTPUT/FULL.866
 # Win9x style INF file exactly has to look.
 mkdir -p $DRIVEREXOUTPUT
 cp tools/makecab.exe .
-$DRIVERCOPY "$DRIVER" "$DRIVERTMP"
-$DRIVERCOPY "$DRIVEREX" "$DRIVEREXOUTPUT"
-rm -f makecab.exe
+WINE_DRIVER=$(winepath -w "$DRIVER")
+WINE_DRIVEREX=$(winepath -w "$DRIVEREX")
+
+# Working around a bug in drivercopy (or more specifically makecab) where the output has to be relative
+# So all the cab files go into a local directory.
+
+DRIVERTMP=.drvtmp
+
+$DRIVERCOPY "$WINE_DRIVER" "$DRIVERTMP"
 
 # Important step: separate INFs and CABs
 mkdir -p "$DRIVERTMP/$OSRELATIVECABDIR"
@@ -147,7 +150,14 @@ mkdir -p "$DRIVERTMP/DRIVER"
 mv "$DRIVERTMP"/*.cab "$DRIVERTMP/$OSRELATIVECABDIR" || true
 mv "$DRIVERTMP"/*.inf "$DRIVERTMP/DRIVER" || true
 
-$MERCYPAK $DRIVERTMP $OUTPUT/DRIVER.866
+$MERCYPAK "$DRIVERTMP" "$OUTPUT/DRIVER.866"
+
+rm -rf "$DRIVERTMP"/*
+
+$DRIVERCOPY "$WINE_DRIVEREX" "$DRIVERTMP"
+cp -rf "$DRIVERTMP"/* "$DRIVEREXOUTPUT"
+
+rm -f makecab.exe
 
 # Copy extra CD files
 mkdir -p $OUTPUT/extras
@@ -156,11 +166,10 @@ cp -r $CDROOTSOURCE/* $OUTPUT/
 
 if [ ! -f "$OUTPUT/FULL.866" ] || [ ! -f "$OUTPUT/DRIVER.866" ]; then
   echo "The required .866 files do not exist, sysprep cannot continue."
-	exit 1
+exit 1
 fi
 
 # Build ISO image.
-# TODO: Make ISOLINUX variant. 
 
 cd $OUTPUT
 mkisofs -J -r -V "Win98 QuickInstall" -o "$ISOFILE" -b disk.img .
