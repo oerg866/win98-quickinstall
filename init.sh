@@ -82,7 +82,7 @@ cp buildscripts/busybox_config busybox/.config
 
 # Build the dependencies. 
 
-BUILDSCRIPTS="ncurses dialog dosfstools util-linux busybox"
+BUILDSCRIPTS="ncurses dialog dosfstools util-linux busybox syslinux"
 
 for dep in $BUILDSCRIPTS
 do
