@@ -48,6 +48,7 @@ typedef enum {
 #define INST_DRIVER_FILE  "DRIVER.866"
 #define INST_SLOWPNP_FILE "SLOWPNP.866"
 #define INST_FASTPNP_FILE "FASTPNP.866"
+
 /* Arguments for background OS data buffer thread */
 typedef struct {
     char *filename;             // Filename to buffer
@@ -64,6 +65,7 @@ static const char *inst_getCDFilePath(const char *filepath) {
     snprintf(staticPathBuf, sizeof(staticPathBuf), "%s/%s", cdrompath, filepath);
     return staticPathBuf;
 }
+
 /* Thread function for background OS data buffer thread */
 static void *inst_fillerThreadFunc(void* threadParam) {
     inst_FillerThreadArgs *args = (inst_FillerThreadArgs*) threadParam;
@@ -168,6 +170,30 @@ static bool inst_showWelcomeScreen() {
     return (ret == 0);
 }
 
+/* Checks if given hard disk contains the installation source */
+static bool inst_isInstallationSourceDisk(util_HardDisk *disk) {
+    char *installSourceDevice = getenv("CDDEV");
+    assert(installSourceDevice);
+    return (installSourceDevice && util_stringStartsWith(installSourceDevice, disk->device));
+}
+
+/* Checks if given partition is the installation source */
+static bool inst_isInstallationSourcePartition(util_Partition *part) {
+    char *installSourceDevice = getenv("CDDEV");
+    assert(installSourceDevice);
+    return (installSourceDevice && util_stringEquals(installSourceDevice, part->device));
+}
+
+/* Tells the user he is trying to partition the install source disk */
+static void inst_showInstallationSourceDiskError() {
+    ui_showMessageBox("The selected disk contains the installation source. It can not be partitioned.");
+}
+
+/* Tells the user he is trying to partition the install source partition */
+static void inst_showInstallationSourcePartitionError() {
+    ui_showMessageBox("The selected partition contains the installation source, it cannot be the installation destination.");
+}
+
 /* Show partition wizard, returns true if user finished or false if he selected BACK. */
 static bool inst_showPartitionWizard(util_HardDiskArray *hdds) {
     char cfdiskCmd[UTIL_MAX_CMD_LENGTH];
@@ -181,9 +207,11 @@ static bool inst_showPartitionWizard(util_HardDiskArray *hdds) {
             ui_setMenuLabelListEntry(menuLabels, 
                                      i, 
                                      ui_makeDialogMenuLabel("%s", hdds->disks[i].device), 
-                                     ui_makeDialogMenuLabel("Drive: [%s] - Size: %llu MB", 
+                                     ui_makeDialogMenuLabel("Drive: [%s] - Size: %llu MB %s", 
                                                                 hdds->disks[i].model, 
-                                                                hdds->disks[i].size / 1024ULL / 1024ULL));
+                                                                hdds->disks[i].size / 1024ULL / 1024ULL,
+                                                                inst_isInstallationSourceDisk(&hdds->disks[i]) ? "(*)" : ""
+                                                                ));
         }
         
         ui_setMenuLabelListEntry(menuLabels, 
@@ -202,8 +230,13 @@ static bool inst_showPartitionWizard(util_HardDiskArray *hdds) {
         if (menuResult == hdds->count)
             return true;
         
+        // Check if we're trying to partition the install source disk. If so, warn user and continue looping.
+        if (inst_isInstallationSourceDisk(&hdds->disks[menuResult])) {
+            inst_showInstallationSourceDiskError();
+            continue;
+        }
+
         // Invoke cfdisk command for chosen drive.
-        
         snprintf(cfdiskCmd, UTIL_MAX_CMD_LENGTH, "%s%s", INST_CFDISK_CMD, hdds->disks[menuResult].device);      
         system(cfdiskCmd);
     }
@@ -211,51 +244,61 @@ static bool inst_showPartitionWizard(util_HardDiskArray *hdds) {
 
 /* Shows partition selector. Returns pointer to the selected partition. A return value of NULL means the user wants to go back. */
 static util_Partition *inst_showPartitionSelector(util_HardDiskArray *hdds) {
-    char **menuLabels = ui_allocateDialogMenuLabelList(0);
+    char **menuLabels = NULL;
     int menuResult;
     util_Partition *result = NULL;
     char chosenOption[256] = "/dev/";
 
-    for (size_t disk = 0; disk < hdds->count; disk++) {
-        util_HardDisk *harddisk = &hdds->disks[disk];
+    while (1) {
+        menuLabels = ui_allocateDialogMenuLabelList(0);
+        
+        assert(menuLabels);
 
-        for (size_t part = 0; part < harddisk->partitionCount; part++) {
-            util_Partition *partition = &harddisk->partitions[part];
+        for (size_t disk = 0; disk < hdds->count; disk++) {
+            util_HardDisk *harddisk = &hdds->disks[disk];
 
-            ui_addDialogMenuLabelToList(&menuLabels, 
-                ui_makeDialogMenuLabel("%s", util_shortDeviceString(partition->device)),
-                ui_makeDialogMenuLabel("(%s, %llu MB) on disk %s [%s]", 
-                    util_utilFilesystemToString(partition->fileSystem),
-                    partition->size / 1024ULL / 1024ULL,
-                    util_shortDeviceString(harddisk->device),
-                    harddisk->model));
+            for (size_t part = 0; part < harddisk->partitionCount; part++) {
+                util_Partition *partition = &harddisk->partitions[part];
 
-/*            dialogCmdPos += snprintf(dialogCmdPos, UTIL_MAX_CMD_LENGTH - (dialogCmdPos - dialogCmd), "\"%s\" \"(%s, %llu MB) on disk %s [%s]\" ",
-                util_shortDeviceString(partition->device),
-                util_utilFilesystemToString(partition->fileSystem),
-                partition->size / 1024ULL / 1024ULL,
-                util_shortDeviceString(harddisk->device),
-                harddisk->model);*/
+                ui_addDialogMenuLabelToList(&menuLabels, 
+                    ui_makeDialogMenuLabel("%s", util_shortDeviceString(partition->device)),
+                    ui_makeDialogMenuLabel("(%s, %llu MB) on disk %s [%s] %s", 
+                        util_utilFilesystemToString(partition->fileSystem),
+                        partition->size / 1024ULL / 1024ULL,
+                        util_shortDeviceString(harddisk->device),
+                        harddisk->model,
+                        inst_isInstallationSourcePartition(partition) ? "(*)" : ""
+                        ));
+            }
         }
-    }
 
-    if (ui_getMenuLabelListItemCount(menuLabels) == 0) {
-        ui_showMessageBox("No partitions were found! Partition your disk and try again!");
+        if (ui_getMenuLabelListItemCount(menuLabels) == 0) {
+            ui_showMessageBox("No partitions were found! Partition your disk and try again!");
+            ui_destroyDialogMenuLabelList(menuLabels);
+            return NULL;
+        }
+
+        menuResult = ui_showMenu("Select the partition you wish to install to.", menuLabels, true);
+
+        strncat(chosenOption, ui_getMenuResultString(), sizeof(chosenOption) - strlen(chosenOption));
+
+        if (menuResult == UI_MENU_CANCELED) { // BACK was pressed.
+            return NULL;
+        }
+
+        result = util_getPartitionFromDevicestring(hdds, chosenOption);
+        assert(result);
+
         ui_destroyDialogMenuLabelList(menuLabels);
-        return NULL;
+
+        // Is this the installation source? If yes, show menu again.
+        if (inst_isInstallationSourcePartition(result)) {
+            inst_showInstallationSourcePartitionError();
+            continue;
+        }
+
+        return result;
     }
-
-    menuResult = ui_showMenu("Select the partition you wish to install to.", menuLabels);
-
-    strncat(chosenOption, ui_getMenuResultString(), sizeof(chosenOption) - strlen(chosenOption));
-
-    if (menuResult == UI_MENU_CANCELED) { // BACK was pressed.
-        return NULL;
-    }
-
-    result = util_getPartitionFromDevicestring(hdds, chosenOption);
-    assert(result);
-    return result;
 }
 
 /* Asks user if he wants to format selected partition. Returns true if so. */
@@ -582,6 +625,7 @@ bool inst_main() {
                 }
 
                 quit = true;
+
                 break;
             }           
 

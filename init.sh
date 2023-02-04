@@ -6,7 +6,7 @@ set -e
 #trap read debug
 
 # required packages
-# build-essential gcc-7 tic python3 gunzip libuuid wine dd nasm cdrtools zip
+# build-essential gcc-7 tic python3 gunzip libuuid wine dd nasm mkisofs zip mtools syslinux
 
 # Find GCC version
 gcc_version=$(gcc -dumpversion)
@@ -91,7 +91,7 @@ done
 
 # We build SYSLINUX anew because it *must* be built with GCC7, with GCC9 it fails on <i686.
 pushd syslinux
-	make bios 
+	make -j8 bios
 popd
 
 # Prepare things to be built properly
