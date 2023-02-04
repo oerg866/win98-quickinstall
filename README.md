@@ -191,8 +191,8 @@ There are several provided methods to boot into Windows 98 QuickInstall:
 - Follow the steps under **How to create an ISO file**
 
 - Run the following command:
-  - Windows: `makeusb.bat <ISO File> <Output USB image file>`
-  - Linux: `./makeusb.sh <ISO File> <Output USB image file>`
+  - Windows: `makeusb.bat <Output USB image file>`
+  - Linux: `./makeusb.sh <Output USB image file>`
 
 ***NOTE***: On Windows, the file size may not exceed 2GiB due to `cmd`'s arithmetic limitations.
 
