@@ -49,12 +49,14 @@ typedef enum {
 #define INST_SLOWPNP_FILE "SLOWPNP.866"
 #define INST_FASTPNP_FILE "FASTPNP.866"
 
+#define INST_CDROM_IO_SIZE (512*1024)
+#define INST_DISK_IO_SIZE (512*1024)
+
 /* Arguments for background OS data buffer thread */
 typedef struct {
     char *filename;             // Filename to buffer
     ringbuf *buf;               // Ringbuffer to buffer into
-    size_t scratchBufferSize;   // Scratch buffer / maximum chunk size
-    bool *quitFlag;             // Pointer to quit flag
+    volatile bool *quitFlag;             // Pointer to quit flag
 } inst_FillerThreadArgs;
 
 /* Gets the absolute CDROM path of a file. */
@@ -74,36 +76,30 @@ static void *inst_fillerThreadFunc(void* threadParam) {
     ringbuf *buf = args->buf;
     FILE *file = fopen(args->filename, "rb");
     assert(file);
-    size_t fillerThreshold = buf->size / 4 * 3;
-    size_t scratchBufferSize = args->scratchBufferSize;
-    uint8_t *scratchBuffer = malloc(scratchBufferSize);
 
     bool endOfFile = false;
-    bool *quit = args->quitFlag;
+    volatile bool *quit = args->quitFlag;
 
-    assert(scratchBuffer);
+    size_t ringbufSpace;
 
     while (!endOfFile && !(*quit)) {        
-        if (rb_avail(buf) < fillerThreshold) {
-            // We dipped below the filler threshold. Which means we must now fill all of it
-            size_t leftToFill = rb_space(buf);
-            while (!endOfFile && leftToFill && !(*quit)) {
-                size_t bytesToRead = MIN(scratchBufferSize, leftToFill);
-                rb_fread_write(buf, bytesToRead, file);
-                if (ferror_unlocked(file)) {
-                    // ERROR
-                    printf("Read error!\n");
-                    perror(NULL);
-                    // TODO: Handle read error
-                    assert(false);
-                } else if (feof_unlocked(file)) {
-                    // EOF
-                    endOfFile = true;
-                }
-                leftToFill -= bytesToRead;
-//                assert(rb_write(buf, scratchBuffer, bytesRead));
+        ringbufSpace = rb_space(buf);
+        if (ringbufSpace >= INST_CDROM_IO_SIZE) {
+            // We dipped below the filler threshold. Which means we must now fill all of it, in CDROM IO size multiples.
+            size_t bytesToRead = ringbufSpace & (~INST_CDROM_IO_SIZE);
+            rb_fread_write(buf, bytesToRead, file);
+            if (ferror_unlocked(file)) {
+                // ERROR
+                printf("Read error!\n");
+                perror(NULL);
+                // TODO: Handle read error
+                assert(false);
+            } else if (feof_unlocked(file)) {
+                // EOF
+                endOfFile = true;
             }
-        } 
+        }
+        sched_yield();
     }
 
     fclose(file);
@@ -127,9 +123,8 @@ static void inst_stopFillerThread(pthread_t thread) {
 /* Start the background thread buffering Win98 install files. 
    oldHandle can be NULL, point to a handle of an existing thread, which will be stopped before starting a new one.
    Filename is Mercypak file to buffer, relative to the BASE DIRECTORY OF THE INSTALL MEDIA
-   scratchBufferSize is essentially maximum chunk sizes.
    quitFlag is a pointer to a bool that indicates when the buffering should stop.*/
-static pthread_t inst_startFillerThread(pthread_t oldHandle, ringbuf *buf, const char *filename, size_t scratchBufferSize, bool *quitFlag) {
+static pthread_t inst_startFillerThread(pthread_t oldHandle, ringbuf *buf, const char *filename, bool *quitFlag) {
     pthread_t ret;
     inst_FillerThreadArgs *args = calloc(sizeof(inst_FillerThreadArgs), 1);
     
@@ -147,7 +142,6 @@ static pthread_t inst_startFillerThread(pthread_t oldHandle, ringbuf *buf, const
     args->buf = buf;
     args->filename = strdup(inst_getCDFilePath(filename));
 
-    args->scratchBufferSize = scratchBufferSize;
     args->quitFlag = quitFlag;
 
     assert(util_fileExists(args->filename));
@@ -352,7 +346,7 @@ static inline bool inst_getMercyPakString(ringbuf *buf, char *dst) {
     return success;
 }
 
-static bool inst_copyFiles(const char *installPath, ringbuf *buf, size_t scratchBufferSize) {
+static bool inst_copyFiles(const char *installPath, ringbuf *buf) {
     char fileHeader[5] = {0};
     char *destPath = malloc(strlen(installPath) + 256 + 1);   // Full path of destination dir/file, the +256 is because mercypak strings can only be 255 chars max
     char *destPathAppend = destPath + strlen(installPath) + 1;  // Pointer to first char after the base install path in the destination path + 1 for the extra "/" we're gonna append
@@ -396,8 +390,6 @@ static bool inst_copyFiles(const char *installPath, ringbuf *buf, size_t scratch
      *  Extract and copy files from mercypak files
      */
 
-    uint8_t *scratchBuffer = malloc(scratchBufferSize);
-    assert(scratchBuffer);
 
     success = true;
 
@@ -426,10 +418,8 @@ static bool inst_copyFiles(const char *installPath, ringbuf *buf, size_t scratch
         uint32_t leftToWrite = fileSize;
 
         while (leftToWrite) {
-            // scratchBufferSize is max chunk size, make sure not to write too much though
-            size_t bytesToWrite = MIN(scratchBufferSize, leftToWrite);
-            //success &= rb_read(buf, scratchBuffer, bytesToWrite);
-
+            size_t bytesToWrite = MIN(INST_DISK_IO_SIZE, leftToWrite);
+            
             if (!rb_read_fwrite(buf, bytesToWrite, file)) {
                 printf("WRITE ERROR! Errno: %d\n", errno);
                 assert(false);
@@ -447,8 +437,6 @@ static bool inst_copyFiles(const char *installPath, ringbuf *buf, size_t scratch
 
     ui_progressBoxDeinit();
 
-
-    free(scratchBuffer);
     free(destPath);
     return success;
 }
@@ -515,7 +503,6 @@ bool inst_main() {
     // Important mem stuff!
     uint64_t freeMemory = util_getProcSafeFreeMemory() / 2ULL;
     uint64_t ringBufferSize = MIN(0x20000000ULL, freeMemory*3ULL/4ULL); // Maximum 512MB
-    uint64_t scratchBufferSize = MIN(0x080000ULL, (freeMemory - ringBufferSize) / 4ULL); // Maximum 4MB. Divided by 4 so we can allocate 2.
     ringbuf *buf = rb_init((size_t) ringBufferSize);
     util_HardDiskArray hda = { 0, NULL };
     const char *registryUnpackFile;
@@ -527,16 +514,16 @@ bool inst_main() {
     bool quit = false;
     bool doReboot = false;
     bool installSuccess = true;
-    bool goToNext;
+    bool goToNext = false;
     
-    printf("\nfreeMemory: %llu\n ringBufferSize: %llu\n  scratchBufferSize: %llu\n", freeMemory, ringBufferSize, scratchBufferSize);
+    printf("\nfreeMemory: %llu\n ringBufferSize: %llu\n", freeMemory, ringBufferSize);
 
     ui_init();
 
     assert(getenv("CDROM"));
 
     // At the start, we initiate the filler thread so the actual OS data to install starts buffering in the background
-    pthread_t fillerThreadHandle = inst_startFillerThread(NULL, buf, INST_SYSROOT_FILE, scratchBufferSize, &quit);
+    pthread_t fillerThreadHandle = inst_startFillerThread(NULL, buf, INST_SYSROOT_FILE, &quit);
 
     while (!quit) {
         switch (currentStep) {
@@ -596,18 +583,18 @@ bool inst_main() {
             }
 
             case INSTALL_DO_INSTALL: {
-                installSuccess = inst_copyFiles(destinationPartition->mountPath, buf, scratchBufferSize);
+                installSuccess = inst_copyFiles(destinationPartition->mountPath, buf);
                 
                 if (installSuccess && installDrivers) {
                     // If the main data copy was successful, we stop the filler and restart it with the driver file.
-                    fillerThreadHandle = inst_startFillerThread(fillerThreadHandle, buf, INST_DRIVER_FILE, scratchBufferSize, &quit);
-                    installSuccess = inst_copyFiles(destinationPartition->mountPath, buf, scratchBufferSize);
+                    fillerThreadHandle = inst_startFillerThread(fillerThreadHandle, buf, INST_DRIVER_FILE, &quit);
+                    installSuccess = inst_copyFiles(destinationPartition->mountPath, buf);
                 }
 
                 if (installSuccess) {
                     // Install registry for selceted hardware detection variant
-                    fillerThreadHandle = inst_startFillerThread(fillerThreadHandle, buf, registryUnpackFile, scratchBufferSize, &quit);
-                    installSuccess = inst_copyFiles(destinationPartition->mountPath, buf, scratchBufferSize);
+                    fillerThreadHandle = inst_startFillerThread(fillerThreadHandle, buf, registryUnpackFile, &quit);
+                    installSuccess = inst_copyFiles(destinationPartition->mountPath, buf);
                 }
 
                 util_unmountPartition(destinationPartition);
