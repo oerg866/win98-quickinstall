@@ -72,7 +72,7 @@ static void *inst_fillerThreadFunc(void* threadParam) {
     /* printf("FILLER THREAD STARTED filename %s ringbuf %p\n", args->filename, args->buf); */
 
     ringbuf *buf = args->buf;
-    int file = open(args->filename, O_RDONLY);
+    FILE *file = fopen(args->filename, "rb");
     assert(file);
     size_t fillerThreshold = buf->size / 4 * 3;
     size_t scratchBufferSize = args->scratchBufferSize;
@@ -89,14 +89,14 @@ static void *inst_fillerThreadFunc(void* threadParam) {
             size_t leftToFill = rb_space(buf);
             while (!endOfFile && leftToFill && !(*quit)) {
                 size_t bytesToRead = MIN(scratchBufferSize, leftToFill);
-                ssize_t bytesRead = read(file, scratchBuffer, bytesToRead);
-                if (bytesRead < 0) {
+                size_t bytesRead = fread_unlocked(scratchBuffer, 1, bytesToRead, file);
+                if (ferror_unlocked(file)) {
                     // ERROR
                     printf("Read error!\n");
                     perror(NULL);
                     // TODO: Handle read error
                     assert(false);
-                } else if (bytesRead == 0) {
+                } else if (feof_unlocked(file)) {
                     // EOF
                     endOfFile = true;
                 }
@@ -106,7 +106,7 @@ static void *inst_fillerThreadFunc(void* threadParam) {
         } 
     }
 
-    close(file);
+    fclose(file);
     /* printf("THREAD DONE\n"); */
     pthread_exit(threadParam);
 }
@@ -420,8 +420,8 @@ static bool inst_copyFiles(const char *installPath, ringbuf *buf, size_t scratch
         success &= rb_getUInt16(buf, &fileTime);                // DOS Timestamp
         success &= rb_getUInt32(buf, &fileSize);                // File size
 
-        int file = open(destPath, O_WRONLY | O_CREAT | O_TRUNC);
-        success &= (file >= 0);
+        FILE *file = fopen(destPath, "wb");
+        success &= (file != NULL);
         
         uint32_t leftToWrite = fileSize;
 
@@ -429,7 +429,7 @@ static bool inst_copyFiles(const char *installPath, ringbuf *buf, size_t scratch
             // scratchBufferSize is max chunk size, make sure not to write too much though
             size_t bytesToWrite = MIN(scratchBufferSize, leftToWrite);
             success &= rb_read(buf, scratchBuffer, bytesToWrite);
-            ssize_t bytesWritten = write(file, scratchBuffer, bytesToWrite);
+            ssize_t bytesWritten = fwrite(scratchBuffer, 1, bytesToWrite, file);
            
             if (bytesWritten < bytesToWrite) {
                 printf("WRITE ERROR! Errno: %d\n", errno);
@@ -440,10 +440,10 @@ static bool inst_copyFiles(const char *installPath, ringbuf *buf, size_t scratch
             leftToWrite -= bytesWritten;
         }
         
-        success &= util_setDosFileTime(file, fileDate, fileTime);
-        success &= util_setDosFileAttributes(file, fileFlags);
+        success &= util_setDosFileTime(fileno_unlocked(file), fileDate, fileTime);
+        success &= util_setDosFileAttributes(fileno_unlocked(file), fileFlags);
 
-        close(file);
+        fclose(file);
     }
 
     ui_progressBoxDeinit();
