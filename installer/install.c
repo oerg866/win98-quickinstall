@@ -429,7 +429,7 @@ static bool inst_copyFiles(const char *installPath, ringbuf *buf, size_t scratch
             // scratchBufferSize is max chunk size, make sure not to write too much though
             size_t bytesToWrite = MIN(scratchBufferSize, leftToWrite);
             success &= rb_read(buf, scratchBuffer, bytesToWrite);
-            ssize_t bytesWritten = fwrite(scratchBuffer, 1, bytesToWrite, file);
+            ssize_t bytesWritten = fwrite_unlocked(scratchBuffer, 1, bytesToWrite, file);
            
             if (bytesWritten < bytesToWrite) {
                 printf("WRITE ERROR! Errno: %d\n", errno);
