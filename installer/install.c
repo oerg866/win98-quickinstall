@@ -89,7 +89,7 @@ static void *inst_fillerThreadFunc(void* threadParam) {
             size_t leftToFill = rb_space(buf);
             while (!endOfFile && leftToFill && !(*quit)) {
                 size_t bytesToRead = MIN(scratchBufferSize, leftToFill);
-                size_t bytesRead = fread_unlocked(scratchBuffer, 1, bytesToRead, file);
+                rb_fread_write(buf, bytesToRead, file);
                 if (ferror_unlocked(file)) {
                     // ERROR
                     printf("Read error!\n");
@@ -100,8 +100,8 @@ static void *inst_fillerThreadFunc(void* threadParam) {
                     // EOF
                     endOfFile = true;
                 }
-                leftToFill -= bytesRead;
-                assert(rb_write(buf, scratchBuffer, bytesRead));
+                leftToFill -= bytesToRead;
+//                assert(rb_write(buf, scratchBuffer, bytesRead));
             }
         } 
     }
@@ -428,16 +428,15 @@ static bool inst_copyFiles(const char *installPath, ringbuf *buf, size_t scratch
         while (leftToWrite) {
             // scratchBufferSize is max chunk size, make sure not to write too much though
             size_t bytesToWrite = MIN(scratchBufferSize, leftToWrite);
-            success &= rb_read(buf, scratchBuffer, bytesToWrite);
-            ssize_t bytesWritten = fwrite_unlocked(scratchBuffer, 1, bytesToWrite, file);
-           
-            if (bytesWritten < bytesToWrite) {
+            //success &= rb_read(buf, scratchBuffer, bytesToWrite);
+
+            if (!rb_read_fwrite(buf, bytesToWrite, file)) {
                 printf("WRITE ERROR! Errno: %d\n", errno);
                 assert(false);
                 abort();
             } 
 
-            leftToWrite -= bytesWritten;
+            leftToWrite -= bytesToWrite;
         }
         
         success &= util_setDosFileTime(fileno_unlocked(file), fileDate, fileTime);

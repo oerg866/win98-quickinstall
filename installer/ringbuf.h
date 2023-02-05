@@ -9,6 +9,7 @@
 #include <pthread.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <stdio.h>
 
 typedef struct {
     uint8_t *buf;
@@ -28,6 +29,9 @@ bool rb_read(ringbuf *rb, uint8_t *dst, size_t len);
 bool rb_write(ringbuf *rb, uint8_t *src, size_t len);
 void rb_destroy(ringbuf *rb);
 void rb_reset(ringbuf *rb);
+
+bool rb_read_fwrite(ringbuf *rb, size_t len, FILE *file);
+bool rb_fread_write(ringbuf *rb, size_t len, FILE *file);
 
 #define rb_getUInt32(rb, dst) (rb_read(rb, (uint8_t*) dst, 4))
 #define rb_getUInt16(rb, dst) (rb_read(rb, (uint8_t*) dst, 2))

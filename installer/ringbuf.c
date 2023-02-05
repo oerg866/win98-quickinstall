@@ -96,6 +96,57 @@ bool rb_write(ringbuf *rb, uint8_t *src, size_t len) {
     return true;
 }
 
+bool rb_read_fwrite(ringbuf *rb, size_t len, FILE *file) {
+    assert(len <= rb->size);
+
+    while(rb_avail(rb) < len) {
+        sched_yield();
+    }
+
+    size_t readSize1 = MIN(rb->size - rb->r, len);
+    size_t readSize2 = len - readSize1;
+
+    size_t written = fwrite_unlocked(&rb->buf[rb->r], 1, readSize1, file);
+    if (readSize2) written += fwrite_unlocked(rb->buf, 1, readSize2, file);
+
+    rb_lock(rb);
+    rb->r = readSize2 ? readSize2 : rb->r + readSize1; // No need to do modulo here, just check if we wrapped around and use that value instead.
+    rb->avail -= written;
+    rb_unlock(rb);
+
+    return written == len;
+}
+
+inline static size_t do_safe_fread(uint8_t *buf, size_t len, FILE *file) {
+    size_t ret = 0;
+    while (ret < len && !ferror_unlocked(file) && !feof_unlocked(file)) {
+        ret += fread_unlocked(buf, 1, len, file);
+    }
+    return ret;
+}
+
+bool rb_fread_write(ringbuf *rb, size_t len, FILE *file) {
+    assert(len <= rb->size);
+
+    while(rb_space(rb) < len) {
+        sched_yield();
+    }
+
+    size_t writeSize1 = MIN(rb->size - rb->w, len);
+    size_t writeSize2 = len - writeSize1;
+
+    size_t read = do_safe_fread(&rb->buf[rb->w], writeSize1, file);
+    if (writeSize2) read += do_safe_fread(rb->buf, writeSize2, file);
+
+    rb_lock(rb);
+    rb->w = writeSize2 ? writeSize2 : rb->w + writeSize1; // No need to do modulo here, just check if we wrapped around and use that value instead.
+    rb->avail += read;
+    rb_unlock(rb);
+
+    return read == len;
+}
+
+
 void rb_destroy(ringbuf *rb) {
     pthread_mutex_destroy(&rb->lock);
     free(rb->buf);
