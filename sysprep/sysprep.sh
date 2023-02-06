@@ -37,14 +37,17 @@ mkdir -p $ISODIR
 
 # Figure out OS root directory and ISO path
 OSROOT=$1
-ISOFILE=$(realpath $2)
-if [ -z "$ISOFILE" ]; then
+if [ -z "$2" ]; then
   ISOFILE=$ISODIR/win98qi_$(date +%Y%m%d_%H%M).iso
 fi
+
+ISOFILE=$(realpath $ISOFILE)
 
 if [ -z "$OSROOT" ]; then
   OSROOT=./_OS_ROOT_
 fi
+
+OSROOT=$(realpath $OSROOT)
 
 # Build OS data package
 
