@@ -62,7 +62,7 @@ There are several provided methods to boot into Windows 98 QuickInstall:
 
    **Recommended only** if you have QuickInstall on a non-ATA/ATAPI media and your BIOS does not support CD-ROM boot.
 
-   **The kernel on this image does not support USB or kernel logs (`dmesg`)**
+   **The kernel on this image does not support kernel logs (`dmesg`)**
 
 1. Removable media such as USB Flash Drives
 
