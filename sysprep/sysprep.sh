@@ -115,6 +115,7 @@ osroot_file_delete "$OSWINDIR" sysbckup/*
 osroot_file_delete "$OSWINDIR" inf/mdm*.inf
 osroot_file_delete "$OSWINDIR" inf/wdma_*.inf
 osroot_file_delete "$OSWINDIR" recent/*
+osroot_file_delete "$OSROOT" win386.swp
 osroot_file_delete "$OSROOT" bootlog.*
 osroot_file_delete "$OSROOT" frunlog.txt
 osroot_file_delete "$OSROOT" detlog.txt

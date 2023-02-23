@@ -79,6 +79,7 @@ del /Q /F /A "%OSWINDIR%"\SYSBCKUP\*
 del /Q /F /A "%OSWINDIR%"\INF\MDM*.INF
 del /Q /F /A "%OSWINDIR%"\INF\WDMA_*.INF
 del /Q /F /A "%OSWINDIR%"\RECENT\*
+del /Q /F /A "%OSROOT%\WIN386.SWP"
 del /Q /F /A "%OSROOT%"\BOOTLOG.*
 del /Q /F /A "%OSROOT%\FRUNLOG.TXT"
 del /Q /F /A "%OSROOT%\DETLOG.TXT"
