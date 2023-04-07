@@ -206,3 +206,11 @@ There are several provided methods to boot into Windows 98 QuickInstall:
 - On Windows, you can use the following tools:
   - `dd` For Windows: http://www.chrysocome.net/dd
   - `Win32 DiskImager`: https://sourceforge.net/projects/win32diskimager/
+
+# FAQ
+
+## Q: Windows complains about missing CAT files when installing a driver from the extra drivers
+
+A: 98Lite deletes the catalog root directory to save installation space. Unpack them from the Win98 CAB files to prevent this.
+
+More FAQs to come!
