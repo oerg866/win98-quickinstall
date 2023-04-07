@@ -5,8 +5,13 @@ REGEDIT4
 "OtherDevicePath"="C:\\DRIVER"
 
 [HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\RunOnce]
-; "Reboot"="C:\\WINDOWS\\RUNDLL.EXE USER.EXE,ExitWindowsExec"
-"Reboot"="C:\\WINDOWS\\RUNDLL32.EXE SHELL32.W98,SHExitWindowsEx 2"
+;Uncomment this for reboot without BIOS
+; "Reboot"="RUNDLL.EXE USER.EXE,ExitWindowsExec"
+
+; 98Lite reboot
+"Reboot"="RUNDLL32.EXE SHELL32.W98,SHExitWindowsEx 2"
+; Stock Win98 reboot
+"Reboot2"="RUNDLL32.EXE SHELL32.DLL,SHExitWindowsEx 2"
 
 [-HKEY_LOCAL_MACHINE\Enum]
 
