@@ -330,10 +330,14 @@ static void inst_showFailedMount(util_Partition *part) {
     free(prompt);
 }
 
-/* Ask user if he wants to install extra driver package */
+/* Ask user if he wants to install driver package */
 static bool inst_showDriverPrompt() {
-    int ret = ui_showYesNoCustomLabels(ui_ButtonLabelYes, ui_ButtonLabelNo, "Would you like to install the integrated device drivers?");
-    return (ret == 0);
+    // If driver package doesn't exist, we need not ínstall it
+    if (util_fileExists(inst_getCDFilePath("DRIVER.866"))) {
+        int ret = ui_showYesNoCustomLabels(ui_ButtonLabelYes, ui_ButtonLabelNo, "Would you like to install the integrated device drivers?");
+        return (ret == 0);
+    }
+    return false;
 }
 
 /* Gets a MercyPak string (8 bit length + n chars) into dst. Must be a buffer of >= 256 bytes size. */
