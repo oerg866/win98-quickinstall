@@ -165,7 +165,7 @@ exit /b
     del /Q /F /A USER.DAT
     xcopy /H /Y %1 .
     xcopy /H /Y %2 .
-    xcopy /H /Y %3 .\tmp.reg
+    copy %3 tmp.reg
 
     if exist "%OSWINDIR%\SYSTEM\SHELL32.W98" (
         echo 98Lite on Win98 detected, using SHELL32.W98 reboot method
