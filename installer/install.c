@@ -21,7 +21,7 @@
 #include <utime.h>
 #include <unistd.h>
 
-#include "ringbuf.h"
+#include "mappedfile.h"
 #include "util.h"
 #include "install_ui.h"
 
@@ -52,13 +52,6 @@ typedef enum {
 #define INST_CDROM_IO_SIZE (512*1024)
 #define INST_DISK_IO_SIZE (512*1024)
 
-/* Arguments for background OS data buffer thread */
-typedef struct {
-    char *filename;             // Filename to buffer
-    ringbuf *buf;               // Ringbuffer to buffer into
-    volatile bool *quitFlag;             // Pointer to quit flag
-} inst_FillerThreadArgs;
-
 /* Gets the absolute CDROM path of a file. */
 static const char *inst_getCDFilePath(const char *filepath) {
     static char staticPathBuf[1024];
@@ -68,90 +61,9 @@ static const char *inst_getCDFilePath(const char *filepath) {
     return staticPathBuf;
 }
 
-/* Thread function for background OS data buffer thread */
-static void *inst_fillerThreadFunc(void* threadParam) {
-    inst_FillerThreadArgs *args = (inst_FillerThreadArgs*) threadParam;
-    /* printf("FILLER THREAD STARTED filename %s ringbuf %p\n", args->filename, args->buf); */
-
-    ringbuf *buf = args->buf;
-    FILE *file = fopen(args->filename, "rb");
-    assert(file);
-
-    bool endOfFile = false;
-    volatile bool *quit = args->quitFlag;
-
-    size_t ringbufSpace;
-
-    while (!endOfFile && !(*quit)) {        
-        ringbufSpace = rb_space(buf);
-        if (ringbufSpace >= INST_CDROM_IO_SIZE) {
-            // We dipped below the filler threshold. Which means we must now fill all of it, in CDROM IO size multiples.
-            size_t bytesToRead = ringbufSpace & (~INST_CDROM_IO_SIZE);
-            rb_fread_write(buf, bytesToRead, file);
-            if (ferror_unlocked(file)) {
-                // ERROR
-                printf("Read error!\n");
-                perror(NULL);
-                // TODO: Handle read error
-                assert(false);
-            } else if (feof_unlocked(file)) {
-                // EOF
-                endOfFile = true;
-            }
-        }
-        sched_yield();
-    }
-
-    fclose(file);
-    /* printf("THREAD DONE\n"); */
-    pthread_exit(threadParam);
+static mappedFile *inst_openSourceFile(const char *filename, size_t readahead) {
+    return mappedFile_open(inst_getCDFilePath(filename), readahead);
 }
-
-
-/* Stop the background thread buffering Win98 install files */
-static void inst_stopFillerThread(pthread_t thread) {
-    inst_FillerThreadArgs *ret = NULL;
-    pthread_join(thread, (void*) &ret);
-
-    // Free the parameters allocated previously
-    if (ret) {
-        free(ret->filename);
-        free(ret);
-    }
-}
-
-/* Start the background thread buffering Win98 install files. 
-   oldHandle can be NULL, point to a handle of an existing thread, which will be stopped before starting a new one.
-   Filename is Mercypak file to buffer, relative to the BASE DIRECTORY OF THE INSTALL MEDIA
-   quitFlag is a pointer to a bool that indicates when the buffering should stop.*/
-static pthread_t inst_startFillerThread(pthread_t oldHandle, ringbuf *buf, const char *filename, bool *quitFlag) {
-    pthread_t ret;
-    inst_FillerThreadArgs *args = calloc(sizeof(inst_FillerThreadArgs), 1);
-    
-    assert(args);
-
-    // Stop old thread if one was given
-    if (oldHandle) {
-        *quitFlag = true;
-        inst_stopFillerThread(oldHandle);
-    }
-
-    rb_reset(buf);
-    *quitFlag = false;
- 
-    args->buf = buf;
-    args->filename = strdup(inst_getCDFilePath(filename));
-
-    args->quitFlag = quitFlag;
-
-    assert(util_fileExists(args->filename));
-
-    if (pthread_create(&ret, NULL, inst_fillerThreadFunc, (void*)args) != 0)
-        free(args);
-
-    return ret;
-}
-
 
 /* Shows disclaimer text */
 static void inst_showDisclaimer() {
@@ -341,16 +253,16 @@ static bool inst_showDriverPrompt() {
 }
 
 /* Gets a MercyPak string (8 bit length + n chars) into dst. Must be a buffer of >= 256 bytes size. */
-static inline bool inst_getMercyPakString(ringbuf *buf, char *dst) {
+static inline bool inst_getMercyPakString(mappedFile *file, char *dst) {
     bool success;
     uint8_t count;
-    success = rb_getUInt8(buf, &count);
-    success &= rb_read(buf, (uint8_t*) dst, (size_t) (count));
+    success = mappedFile_getUInt8(file, &count);
+    success &= mappedFile_read(file, (uint8_t*) dst, (size_t) (count));
     dst[(size_t) count] = 0x00;
     return success;
 }
 
-static bool inst_copyFiles(const char *installPath, ringbuf *buf) {
+static bool inst_copyFiles(mappedFile *file, const char *installPath) {
     char fileHeader[5] = {0};
     char *destPath = malloc(strlen(installPath) + 256 + 1);   // Full path of destination dir/file, the +256 is because mercypak strings can only be 255 chars max
     char *destPathAppend = destPath + strlen(installPath) + 1;  // Pointer to first char after the base install path in the destination path + 1 for the extra "/" we're gonna append
@@ -361,13 +273,15 @@ static bool inst_copyFiles(const char *installPath, ringbuf *buf) {
     uint32_t fileCount;
     bool success = true;
 
-    success &= rb_read(buf, (uint8_t*) fileHeader, 4);
-    success &= rb_getUInt32(buf, &dirCount);
-    success &= rb_getUInt32(buf, &fileCount);
+    success &= mappedFile_read(file, (uint8_t*) fileHeader, 4);
+    assert(success && "fileHeader");
+    success &= mappedFile_getUInt32(file, &dirCount);
+    assert(success && "dirCount");
+    success &= mappedFile_getUInt32(file, &fileCount);
+    assert(success && "fileCount");
 
     /* printf("File header: %s, dirs %d files: %d\n", fileHeader, (int) dirCount, (int) fileCount); */
 
-    assert(success);
 
     if (!util_stringEquals(fileHeader, "ZIEG")) {
         assert(false && "File header wrong");
@@ -382,8 +296,8 @@ static bool inst_copyFiles(const char *installPath, ringbuf *buf) {
 
         ui_progressBoxUpdate(d, dirCount);
 
-        success &= rb_getUInt8(buf, &dirFlags);
-        success &= inst_getMercyPakString(buf, destPathAppend);
+        success &= mappedFile_getUInt8(file, &dirFlags);
+        success &= inst_getMercyPakString(file, destPathAppend);
         util_stringReplaceChar(destPathAppend, '\\', '/'); // DOS paths innit
         success &= (mkdir(destPath, dirFlags) == 0 || (errno == EEXIST));    // An error value is ok if the directory already exists. It means we can write to it. IT'S FINE.
     }
@@ -409,34 +323,23 @@ static bool inst_copyFiles(const char *installPath, ringbuf *buf) {
 
         /* Mercypak file metadata (see mercypak.txt) */
 
-        success &= inst_getMercyPakString(buf, destPathAppend); // First, filename string
-        util_stringReplaceChar(destPathAppend, '\\', '/');      // DOS paths innit 
-        success &= rb_getUInt8(buf, &fileFlags);                // DOS Flags byte 
-        success &= rb_getUInt16(buf, &fileDate);                // DOS Date
-        success &= rb_getUInt16(buf, &fileTime);                // DOS Timestamp
-        success &= rb_getUInt32(buf, &fileSize);                // File size
+        success &= inst_getMercyPakString(file, destPathAppend);    // First, filename string
+        util_stringReplaceChar(destPathAppend, '\\', '/');          // DOS paths innit 
+        success &= mappedFile_getUInt8(file, &fileFlags);           // DOS Flags byte 
+        success &= mappedFile_getUInt16(file, &fileDate);           // DOS Date
+        success &= mappedFile_getUInt16(file, &fileTime);           // DOS Timestamp
+        success &= mappedFile_getUInt32(file, &fileSize);           // File size
 
-        FILE *file = fopen(destPath, "wb");
-        success &= (file != NULL);
-        
-        uint32_t leftToWrite = fileSize;
+        int outfd = open(destPath,  O_WRONLY | O_CREAT | O_TRUNC);
+        assert(outfd >= 0);
 
-        while (leftToWrite) {
-            size_t bytesToWrite = MIN(INST_DISK_IO_SIZE, leftToWrite);
-            
-            if (!rb_read_fwrite(buf, bytesToWrite, file)) {
-                printf("WRITE ERROR! Errno: %d\n", errno);
-                assert(false);
-                abort();
-            } 
+        success &= mappedFile_copyToFile(file, outfd, fileSize);
 
-            leftToWrite -= bytesToWrite;
-        }
-        
-        success &= util_setDosFileTime(fileno_unlocked(file), fileDate, fileTime);
-        success &= util_setDosFileAttributes(fileno_unlocked(file), fileFlags);
+        success &= util_setDosFileTime(outfd, fileDate, fileTime);
+        success &= util_setDosFileAttributes(outfd, fileFlags);
 
-        fclose(file);
+        close(outfd);
+
     }
 
     ui_progressBoxDeinit();
@@ -504,30 +407,31 @@ static const char *inst_askUserForRegistryVariant() {
 
 /* Main installer process. Assumes the CDROM environment variable is set to a path with valid install.txt, FULL.866 and DRIVER.866 files. */
 bool inst_main() {
-    // Important mem stuff!
-    uint64_t freeMemory = util_getProcSafeFreeMemory() / 2ULL;
-    uint64_t ringBufferSize = MIN(0x20000000ULL, freeMemory*3ULL/4ULL); // Maximum 512MB
-    ringbuf *buf = rb_init((size_t) ringBufferSize);
+    mappedFile *sourceFile = NULL;
+    size_t readahead = util_getProcSafeFreeMemory() / 2;
     util_HardDiskArray hda = { 0, NULL };
-    const char *registryUnpackFile;
+    const char *registryUnpackFile = NULL;
     util_Partition *destinationPartition = NULL;
-    bool installDrivers;
-    bool setActiveAndDoMBR;
-
     inst_InstallStep currentStep = INSTALL_WELCOME;
+
+    bool installDrivers = false;
+    bool setActiveAndDoMBR = false;
     bool quit = false;
     bool doReboot = false;
     bool installSuccess = true;
     bool goToNext = false;
-    
-    printf("\nfreeMemory: %llu\n ringBufferSize: %llu\n", freeMemory, ringBufferSize);
 
     ui_init();
 
     assert(getenv("CDROM"));
 
     // At the start, we initiate the filler thread so the actual OS data to install starts buffering in the background
-    pthread_t fillerThreadHandle = inst_startFillerThread(NULL, buf, INST_SYSROOT_FILE, &quit);
+
+    sourceFile = inst_openSourceFile(INST_SYSROOT_FILE, readahead);
+
+    if (sourceFile == NULL) {
+        assert(false && "Failed to open Source File");
+    }
 
     while (!quit) {
         switch (currentStep) {
@@ -587,18 +491,25 @@ bool inst_main() {
             }
 
             case INSTALL_DO_INSTALL: {
-                installSuccess = inst_copyFiles(destinationPartition->mountPath, buf);
-                
+                // sourceFile is already opened at this point for readahead prebuffering
+                installSuccess = inst_copyFiles(sourceFile, destinationPartition->mountPath);
+                mappedFile_close(sourceFile);
+
+
                 if (installSuccess && installDrivers) {
                     // If the main data copy was successful, we stop the filler and restart it with the driver file.
-                    fillerThreadHandle = inst_startFillerThread(fillerThreadHandle, buf, INST_DRIVER_FILE, &quit);
-                    installSuccess = inst_copyFiles(destinationPartition->mountPath, buf);
+                    sourceFile = inst_openSourceFile(INST_DRIVER_FILE, readahead);
+                    assert(sourceFile && "Failed to open driver file");
+                    installSuccess = inst_copyFiles(sourceFile, destinationPartition->mountPath);
+                    mappedFile_close(sourceFile);
                 }
 
                 if (installSuccess) {
                     // Install registry for selceted hardware detection variant
-                    fillerThreadHandle = inst_startFillerThread(fillerThreadHandle, buf, registryUnpackFile, &quit);
-                    installSuccess = inst_copyFiles(destinationPartition->mountPath, buf);
+                    sourceFile = inst_openSourceFile(registryUnpackFile, readahead);
+                    assert(sourceFile && "Failed to open registry file");
+                    installSuccess = inst_copyFiles(sourceFile, destinationPartition->mountPath);
+                    mappedFile_close(sourceFile);
                 }
 
                 util_unmountPartition(destinationPartition);
@@ -627,10 +538,6 @@ bool inst_main() {
 
     sync();
     system("clear");
-
-    inst_stopFillerThread(fillerThreadHandle);
-    
-    rb_destroy(buf);
 
     if (doReboot) {
         reboot(RB_AUTOBOOT);
