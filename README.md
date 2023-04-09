@@ -213,4 +213,6 @@ There are several provided methods to boot into Windows 98 QuickInstall:
 
 A: 98Lite deletes the catalog root directory to save installation space. Unpack them from the Win98 CAB files to prevent this.
 
-More FAQs to come!
+## Q: I'm having weird problems with file names on international Windows 98 versions.
+
+A: This problem was reported by *r1me* on the TRW Discord. There is no fix for this at the moment (because I'm an idiot), please use English Windows 98/ME for now. 
