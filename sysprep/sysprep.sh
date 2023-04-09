@@ -27,6 +27,14 @@ osroot_file_delete () {
   find "$1" -iwholename "*$2" -print -delete
 }
 
+file_exists_case_insensitive() {
+    if find "$1" -iwholename "*$2" -print -quit | grep -q .; then
+        return 0  # File exists
+    else
+        return 1  # File does not exist
+    fi
+}
+
 rm -rf $OUTPUT
 rm -rf $ISODIR
 mkdir -p $OUTPUT
@@ -86,6 +94,8 @@ fi
 
 cd registry
 
+# Creates a mercypak file with existing system registry + reboot runonce entry + specified reg file
+
 make_registry () {
   local system_dat=$1
   local user_dat=$2
@@ -96,7 +106,26 @@ make_registry () {
   mkdir -p "$REGTMP/$OSRELATIVEWINDIR" 
   cp -f "$system_dat" ./SYSTEM.DAT
   cp -f "$user_dat" ./USER.DAT
-  wine ../tools/msdos.exe regedit.exe /L:SYSTEM.DAT /R:USER.DAT $reg_file
+
+  cp "$reg_file" ./tmp.reg
+
+  #reboot hack, find appropriate shell32 version
+
+  if    (file_exists_case_insensitive "$OSWINDIR" shell32.w98) then
+    echo "98Lite on Win98 detected, using SHELL32.W98 reboot method"
+    echo "\"Reboot\"=\"RUNDLL32.EXE SHELL32.W98,SHExitWindowsEx 2\"" >>./tmp.reg
+  elif  (file_exists_case_insensitive "$OSWINDIR" shell32.wme) then
+    echo "98Lite on WinME detected, using SHELL32.WME reboot method"
+    echo "\"Reboot\"=\"RUNDLL32.EXE SHELL32.WME,SHExitWindowsEx 2\"" >>./tmp.reg
+  else
+    echo "Stock Win98 detected, using SHELL32.DLL reboot method"
+    echo "\"Reboot\"=\"RUNDLL32.EXE SHELL32.DLL,SHExitWindowsEx 2\"" >>./tmp.reg
+  fi
+
+  wine ../tools/msdos.exe regedit.exe /L:SYSTEM.DAT /R:USER.DAT tmp.reg
+
+  rm -f tmp.reg
+
   cp -f ./SYSTEM.DAT "$REGTMP/$OSRELATIVEWINDIR"
   cp -f ./USER.DAT "$REGTMP/$OSRELATIVEWINDIR"
   $MERCYPAK "$REGTMP" "$output_file"
