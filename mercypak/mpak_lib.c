@@ -279,30 +279,53 @@ static bool mp_MercyPackContext_writeString(MercyPackContext *ctx, const char* s
 }
 
 /* Hopefully platform independent way of getting the DOS date out of an open file... */
-static void mp_getDosDateFromFile(FILE *file, uint16_t *date, uint16_t *time) {
+
+static long mp_getUTCDifference() {
+    static bool calculated = false;
+    static long offset = 0;
+
+    if (!calculated) {
+        time_t now = time(NULL);
+        struct tm local_time = *localtime(&now);
+        struct tm utc_time = *gmtime(&now);
+
+        offset = difftime(mktime(&local_time), mktime(&utc_time));
+        if (local_time.tm_isdst) {
+            offset += 3600;
+        }
+        calculated = true;
+    }
+    return offset;
+}
+
+static void mp_getDosDateFromFile(FILE *file, uint16_t *dosdate, uint16_t *dostime) {
     struct stat statBuf;
     int result = fstat(fileno(file), &statBuf);
-    time_t mtime = statBuf.st_mtime;
-    struct tm *tm_struct;
+    time_t dsttime = statBuf.st_mtime;
+    struct tm *dst_tm;
     assert(result == 0);
 
-    tm_struct = localtime(&mtime);
+    dst_tm = gmtime(&dsttime);
   
 #if !defined(_WIN32)
 
-   /* This is a really ugly hack... There's either a bug on windows or on linux, I don't know. If the timestamp 
-       falls within DST, there is an extra offset of 1 hour here. No idea what layer is causing this, but Windows
-       doesn't do it. So we turn the tm_struct back into a unix epoch and if there's a difference of an hour, we subtract it from the localtime. */
+    /* on windows there seems to be an extra offset here if DST is active... wth? */
 
-    if (tm_struct->tm_isdst) {
-        mtime -= 3600;
-        tm_struct = localtime(&mtime);
+    if (dst_tm->tm_isdst > 0) {
+        dsttime -= 3600;
     }
     
 #endif
-    
-    *date = ((tm_struct->tm_year - 80) << 9) | ((tm_struct->tm_mon + 1) << 5) | tm_struct->tm_mday;
-    *time = (tm_struct->tm_hour << 11) | (tm_struct->tm_min << 5) | (tm_struct->tm_sec >> 1);
+
+    /* If host has DST, the time is interpreted differently, too. */
+    /* printf("dst_tm->tm_isdst == %d, hosttime = %ld, utctime = %ld, dsttime %ld, getutcdifference= %ld\n", dst_tm->tm_isdst, hostTime, utcTime, dsttime, getUTCDifference()); */
+
+    dsttime += mp_getUTCDifference();
+
+    dst_tm = gmtime(&dsttime);
+
+    *dosdate = ((dst_tm->tm_year - 80) << 9) | ((dst_tm->tm_mon + 1) << 5) | dst_tm->tm_mday;
+    *dostime = (dst_tm->tm_hour << 11) | (dst_tm->tm_min << 5) | (dst_tm->tm_sec >> 1);
 }
 
 /* Write the file data block to the MercyPak output file */
