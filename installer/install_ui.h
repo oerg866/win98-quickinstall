@@ -38,6 +38,8 @@ void ui_destroyDialogMenuLabelList(char **list);
     the strings MUST be allocated specifically for this and free-able! 
     ui_makeDialogMenuLabel may be used for this. */
 #define ui_setMenuLabelListEntry(list, index, label, description) { (list)[(index)*2+0] = label; (list)[(index)*2+1] = description; }
+/* Gets a pointer to label/description pair in a MenuLabelList at given index. */
+#define ui_getMenuLabelListEntry(list, index) (&(list)[(index)*2])
 /* Get amount of entries in a MenuLabelList */
 int ui_getMenuLabelListItemCount(char **list);
 /* Reallocates and adds a new entry to a MenuLabelList. This is slow as hell so use sparsly. */

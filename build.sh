@@ -72,10 +72,6 @@ pushd installer
 	./build.sh
 popd
 
-pushd mercypak
-	./build.sh
-popd
-
 pushd dosflop
 	./build.sh
 popd
@@ -94,7 +90,6 @@ cp dosfstools/OUTPUT/sbin/* "$CDROOT/bin/"
 cp dialog/dialog "$CDROOT/bin/"
 cp supplement/get* "$CDROOT/bin/"
 cp supplement/syslinux.cfg "$CDROOT"
-cp mercypak/*.exe "$CDROOT/mercypak"
 
 # Boot floppies, also copy them to the CDROM root for ~user convenience~
 cp tiny-floppy-bootloader/floppy.img "$OUTPUT/"
@@ -110,10 +105,13 @@ cp installer/lunmercy "$CDROOT/bin/"
 mkdir -p "$OUTPUT/tools"
 mkdir -p "$OUTPUT/mercypak"
 cp -r tools "$OUTPUT"
+
+# SYSLINUX: Extract mbr and bootsector, as well as ldlinux loader files
 cp syslinux/bios/mbr/mbr.bin "$OUTPUT/tools/syslinux_mbr.bin"
-cp syslinux/bios/win32/syslinux.exe "$OUTPUT/tools"
-cp -r mercypak/mercypak "$OUTPUT/mercypak"
-cp -r mercypak/*.exe "$OUTPUT/mercypak"
+objcopy -O binary -j .data syslinux/bios/linux/bootsect_bin.o "$OUTPUT/tools/syslinux_bs.bin"
+cp syslinux/bios/com32/elflink/ldlinux/ldlinux.c32 "$OUTPUT/tools"
+cp syslinux/bios/core/ldlinux.sys "$OUTPUT/tools"
+
 cp -r sysprep/* "$OUTPUT"
 cp -r win98-driver-lib-base/* "$OUTPUT/_DRIVER_"
 cp -r win98-driver-lib-extra/* "$OUTPUT/_EXTRA_DRIVER_"

@@ -127,7 +127,7 @@ bool util_copyFile(const char *src, const char *dst);
 // Convert DOS time to Unix Time and then apply it to an open file descriptor
 bool util_setDosFileTime(int fd, uint16_t dosDate, uint16_t dosTime);
 // Sets an open file's attributes
-bool util_setDosFileAttributes(int fd, int attributes);
+bool util_setDosFileAttributes(int fd, uint32_t attributes);
 // Checks if a file exists.
 bool util_fileExists(const char *filename);
 

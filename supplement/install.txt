@@ -1,5 +1,5 @@
 WINDOWS 98 SE QUICKINSTALL -- VERSION 0.9
-Your friendly Linux-based Windows 98 SE Installer :)
+Your friendly Linux-based Windows 98 / ME Installer :)
 ----------------------------------------------------------------------
 
 DISCLAIMER:
@@ -9,7 +9,7 @@ DISCLAIMER:
  Please don't sue me I just like old computers :(
 
 Features:
-- This will install Windows 98 in RECORD time.
+- This will install Windows 98 / ME in RECORD time.
 - Can include many patches and slipstreamed drivers
 - Can boot from floppy, CD-ROM, USB, hard disks, ...
 - Writes MBR and boot sectors for FAT32/FAT16
@@ -18,6 +18,7 @@ Features:
 Bugs:
 - Error handling is basically nonexistant. Sorry!
 
-Special thanks to TRW, ChrisR3tro and kext :3
+Special thanks to TRW, ChrisR3tro, Greed, Rigo, TheRealZago
+and all the other people that helped with testing!
 
 Reach out to me on Discord: oerg#0866

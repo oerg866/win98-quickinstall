@@ -20,14 +20,19 @@
 #include <errno.h>
 #include <utime.h>
 #include <unistd.h>
+#include <dirent.h>
+#include <locale.h>
 
 #include "mappedfile.h"
 #include "util.h"
 #include "install_ui.h"
 
 
+#define CD_FILE_PATH_ROOT   (0)
+
 typedef enum {
     INSTALL_WELCOME = 0,
+    INSTALL_OSROOT_VARIANT_SELECT,
     INSTALL_PARTITION_WIZARD,
     INSTALL_SELECT_DESTINATION_PARTITION,
     INSTALL_FORMAT_PARTITION_CHECK,
@@ -36,10 +41,6 @@ typedef enum {
     INSTALL_INTEGRATED_DRIVERS_PROMPT,
     INSTALL_DO_INSTALL,
 } inst_InstallStep;
-
-
-// The file the dialog option will be printed to...
-#define INST_DIALOG_OPTION_TMP_FILE "/tmp/0"
 
 #define INST_CFDISK_CMD "cfdisk "
 #define INST_COLS (74)
@@ -52,17 +53,25 @@ typedef enum {
 #define INST_CDROM_IO_SIZE (512*1024)
 #define INST_DISK_IO_SIZE (512*1024)
 
-/* Gets the absolute CDROM path of a file. */
-static const char *inst_getCDFilePath(const char *filepath) {
+static const char *cdrompath = NULL;    // Path to install source media
+static const char *cdromdev = NULL;     // Block device for install source media
+                                        // ^ initialized in install_main
+
+/* Gets the absolute CDROM path of a file. 
+   osVariantIndex is the index for the source variant, 0 means from the root. */
+static const char *inst_getCDFilePath(size_t osVariantIndex, const char *filepath) {
     static char staticPathBuf[1024];
-    const char *cdrompath = getenv("CDROM");
-    assert(cdrompath);
-    snprintf(staticPathBuf, sizeof(staticPathBuf), "%s/%s", cdrompath, filepath);
+    if (osVariantIndex > 0) {
+        snprintf(staticPathBuf, sizeof(staticPathBuf), "%s/osroots/%zu/%s", cdrompath, osVariantIndex, filepath);
+    } else {
+        snprintf(staticPathBuf, sizeof(staticPathBuf), "%s/%s", cdrompath, filepath);
+    }
     return staticPathBuf;
 }
 
-static mappedFile *inst_openSourceFile(const char *filename, size_t readahead) {
-    return mappedFile_open(inst_getCDFilePath(filename), readahead);
+/* Opens a file from the source media. osVariantIndex is the index for the source variant, 0 means from the root. */
+static mappedFile *inst_openSourceFile(size_t osVariantIndex, const char *filename, size_t readahead) {
+    return mappedFile_open(inst_getCDFilePath(osVariantIndex, filename), readahead);
 }
 
 /* Shows disclaimer text */
@@ -78,16 +87,12 @@ static bool inst_showWelcomeScreen() {
 
 /* Checks if given hard disk contains the installation source */
 static bool inst_isInstallationSourceDisk(util_HardDisk *disk) {
-    char *installSourceDevice = getenv("CDDEV");
-    assert(installSourceDevice);
-    return (installSourceDevice && util_stringStartsWith(installSourceDevice, disk->device));
+    return (util_stringStartsWith(cdromdev, disk->device));
 }
 
 /* Checks if given partition is the installation source */
 static bool inst_isInstallationSourcePartition(util_Partition *part) {
-    char *installSourceDevice = getenv("CDDEV");
-    assert(installSourceDevice);
-    return (installSourceDevice && util_stringEquals(installSourceDevice, part->device));
+    return (util_stringEquals(cdromdev, part->device));
 }
 
 /* Tells the user he is trying to partition the install source disk */
@@ -95,7 +100,7 @@ static void inst_showInstallationSourceDiskError() {
     ui_showMessageBox("The selected disk contains the installation source. It can not be partitioned.");
 }
 
-/* Tells the user he is trying to partition the install source partition */
+/* Tells the user he is trying to install to the install source partition */
 static void inst_showInstallationSourcePartitionError() {
     ui_showMessageBox("The selected partition contains the installation source, it cannot be the installation destination.");
 }
@@ -335,12 +340,8 @@ static void inst_showFailedMount(util_Partition *part) {
 
 /* Ask user if he wants to install driver package */
 static bool inst_showDriverPrompt() {
-    // If driver package doesn't exist, we need not ínstall it
-    if (util_fileExists(inst_getCDFilePath("DRIVER.866"))) {
-        int ret = ui_showYesNoCustomLabels(ui_ButtonLabelYes, ui_ButtonLabelNo, "Would you like to install the integrated device drivers?");
-        return (ret == 0);
-    }
-    return false;
+    int ret = ui_showYesNoCustomLabels(ui_ButtonLabelYes, ui_ButtonLabelNo, "Would you like to install the integrated device drivers?");
+    return (ret == 0);
 }
 
 /* Gets a MercyPak string (8 bit length + n chars) into dst. Must be a buffer of >= 256 bytes size. */
@@ -466,15 +467,15 @@ static void inst_showFailMessage() {
 }
 
 /* Asks user which version of the hardware detection scheme he wants */
-static const char *inst_askUserForRegistryVariant() {
+static const char *inst_askUserForRegistryVariant(uint32_t osVariantIndex) {
     static const char fastpnp[] = "FASTPNP.866";
     static const char slowpnp[] = "SLOWPNP.866";
     static const char *options[] = { fastpnp, slowpnp };
     char **menuLabels;
 
     // only do this if SLOWPNP exists, as windows 95 doesn't have a non-pnp init so we have to apply fastpnp anyway...
-    assert(util_fileExists(inst_getCDFilePath(fastpnp)));
-    if (!util_fileExists(inst_getCDFilePath(slowpnp)))
+    assert(util_fileExists(inst_getCDFilePath(osVariantIndex, fastpnp)));
+    if (!util_fileExists(inst_getCDFilePath(osVariantIndex, slowpnp)))
         return fastpnp;
     
     menuLabels = ui_allocateDialogMenuLabelList(0);
@@ -504,6 +505,7 @@ bool inst_main() {
     const char *registryUnpackFile = NULL;
     util_Partition *destinationPartition = NULL;
     inst_InstallStep currentStep = INSTALL_WELCOME;
+    size_t osVariantIndex = 0;
 
     bool installDrivers = false;
     bool setActiveAndDoMBR = false;
@@ -519,11 +521,6 @@ bool inst_main() {
     cdrompath = getenv("CDROM");
     cdromdev = getenv("CDDEV");
 
-    sourceFile = inst_openSourceFile(INST_SYSROOT_FILE, readahead);
-
-    if (sourceFile == NULL) {
-        assert(false && "Failed to open Source File");
-    }
     assert(cdrompath);
     assert(cdromdev);
 
@@ -534,6 +531,29 @@ bool inst_main() {
                 goToNext = inst_showWelcomeScreen();
                 quit |= !goToNext; // First step so we will quit if user pressed exit to shell ...
                 break;
+
+            case INSTALL_OSROOT_VARIANT_SELECT: {
+                bool previousGoToNext = goToNext;
+                size_t osVariantCount = 0;
+
+                goToNext = inst_showOSVariantSelect(&osVariantIndex, &osVariantCount);
+
+                if (osVariantCount == 1 && previousGoToNext == false) {
+                    // If there's only one OS variant the variant select will just return "true"
+                    // since the user doesn't get to press back we need to handle this here.
+                    // so if the previous go to next was false we will go back outright.
+                    goToNext = false;
+                } else if (goToNext) {
+                    sourceFile = inst_openSourceFile(osVariantIndex, INST_SYSROOT_FILE, readahead);
+
+                    if (sourceFile == NULL) {
+                        inst_showFileError();
+                        continue;
+                    }
+                }
+
+                break;
+            }
             case INSTALL_PARTITION_WIZARD: {
                 if (hda.disks == NULL)
                     hda = util_getSystemHardDisks();
@@ -573,13 +593,18 @@ bool inst_main() {
             }
 
             case INSTALL_REGISTRY_VARIANT_PROMPT: {
-                registryUnpackFile = inst_askUserForRegistryVariant();
+                registryUnpackFile = inst_askUserForRegistryVariant(osVariantIndex);
                 goToNext = true;
                 break;
             }
   
             case INSTALL_INTEGRATED_DRIVERS_PROMPT: {
-                installDrivers = inst_showDriverPrompt();
+                installDrivers = false;
+                // If driver package doesn't exist, we need not ínstall it
+                if (util_fileExists(inst_getCDFilePath(osVariantIndex, INST_DRIVER_FILE))) {
+                    installDrivers = inst_showDriverPrompt();
+                }
+
                 goToNext = true;
                 break;
             }
@@ -592,7 +617,7 @@ bool inst_main() {
 
                 if (installSuccess && installDrivers) {
                     // If the main data copy was successful, we stop the filler and restart it with the driver file.
-                    sourceFile = inst_openSourceFile(INST_DRIVER_FILE, readahead);
+                    sourceFile = inst_openSourceFile(osVariantIndex, INST_DRIVER_FILE, readahead);
                     assert(sourceFile && "Failed to open driver file");
                     installSuccess = inst_copyFiles(sourceFile, destinationPartition->mountPath);
                     mappedFile_close(sourceFile);
@@ -600,7 +625,7 @@ bool inst_main() {
 
                 if (installSuccess) {
                     // Install registry for selceted hardware detection variant
-                    sourceFile = inst_openSourceFile(registryUnpackFile, readahead);
+                    sourceFile = inst_openSourceFile(osVariantIndex, registryUnpackFile, readahead);
                     assert(sourceFile && "Failed to open registry file");
                     installSuccess = inst_copyFiles(sourceFile, destinationPartition->mountPath);
                     mappedFile_close(sourceFile);
