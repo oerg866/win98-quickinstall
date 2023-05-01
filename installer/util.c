@@ -140,12 +140,12 @@ bool util_setDosFileTime(int fd, uint16_t dosDate, uint16_t dosTime) {
 
 bool util_readFirstLineFromFileIntoBuffer(const char *filename, char *dest) {
     FILE *fp = fopen(filename, "r");
-    fscanf(fp, "%[^\n]", dest);
+    fscanf(fp, "%255[^\n]", dest);
     fclose(fp);
     return fp != NULL;
 }
 
-bool util_setDosFileAttributes(int fd, int attributes) {
+bool util_setDosFileAttributes(int fd, uint32_t attributes) {
     int ret = ioctl(fd, FAT_IOCTL_SET_ATTRIBUTES, &attributes);
     return ret == 0;
 }
