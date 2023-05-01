@@ -103,13 +103,13 @@ export LIBDIR=$PREFIX/lib
 export INCLUDEDIR=$PREFIX/include
 
 pushd ncurses
-	./configure --prefix=$PREFIX --host=i486-linux-musl --with-termlib
+	./configure --prefix=$PREFIX --host=i486-linux-musl --enable-widec
 	./build.sh
 popd
 
 pushd dialog
 	# binary goes in dialog/OUTPUT, lib & include goes in compiler dir
-	./configure --host=i486-linux-musl --prefix=$PWD/OUTPUT --libdir=$LIBDIR --includedir=$INCLUDEDIR
+	./configure --host=i486-linux-musl --prefix=$PWD/OUTPUT --libdir=$LIBDIR --includedir=$INCLUDEDIR --with-ncursesw
 	./build.sh
 popd
 

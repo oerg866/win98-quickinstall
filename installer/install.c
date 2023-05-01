@@ -514,15 +514,18 @@ bool inst_main() {
 
     ui_init();
 
-    assert(getenv("CDROM"));
+    setlocale(LC_ALL, "C.UTF-8");
 
-    // At the start, we initiate the filler thread so the actual OS data to install starts buffering in the background
+    cdrompath = getenv("CDROM");
+    cdromdev = getenv("CDDEV");
 
     sourceFile = inst_openSourceFile(INST_SYSROOT_FILE, readahead);
 
     if (sourceFile == NULL) {
         assert(false && "Failed to open Source File");
     }
+    assert(cdrompath);
+    assert(cdromdev);
 
     while (!quit) {
         switch (currentStep) {
