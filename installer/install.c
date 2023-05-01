@@ -100,6 +100,89 @@ static void inst_showInstallationSourcePartitionError() {
     ui_showMessageBox("The selected partition contains the installation source, it cannot be the installation destination.");
 }
 
+/* Tells the user he is trying to install to a non-FAT partition */
+static void inst_showUnsupportedFileSystemError() {
+    ui_showMessageBox("The selected partition has an unsupported file system, it cannot be the installation destination.");
+}
+
+/* Tells the user about an oopsie trying to open a file for reading. */
+static void inst_showFileError() {
+    char errorMsg[1024];
+    snprintf(errorMsg, sizeof(errorMsg), "ERROR: A problem occured handling a file for this OS variant. (%d: %s)", errno, strerror(errno)); 
+    ui_showMessageBox(errorMsg);
+}
+
+/* 
+    Shows OS Variant select. This is a bit peculiar because the dialog is not shown if
+    there is only one OS variant choice. In that case it always returns "true".
+    Otherwise it can return "false" if the user selected BACK.
+*/
+static bool inst_showOSVariantSelect(size_t *variantIndex, size_t *variantCount) {
+    char osRootsDir[256];
+    char **menuLabels = ui_allocateDialogMenuLabelList(0);
+    int menuResult;
+    struct dirent *entry;
+    struct stat st;
+
+    // Get available OS variants.
+    *variantCount = 0;
+
+    snprintf(osRootsDir, sizeof(osRootsDir), "%s/osroots", cdrompath);
+
+    DIR *dir = opendir(osRootsDir);
+    assert(dir);
+
+    while ((entry = readdir(dir)) != NULL) {
+        size_t currentVariantIndex;
+        char path[512];
+        char currentVariantLabel[256];
+
+        snprintf(path, sizeof(path), "%s/%s", osRootsDir, entry->d_name);
+
+        if (stat(path, &st) == -1) {
+            perror("stat");
+            continue;
+        }
+
+        if (S_ISDIR(st.st_mode) && entry->d_name[0] != '.') {
+            // Get the label from the "WIN98QI.INF" file.
+            currentVariantIndex = atoi(entry->d_name);
+            const char *win98qiInfPath = inst_getCDFilePath(currentVariantIndex, "win98qi.inf");
+
+            assert(currentVariantIndex > 0 && util_fileExists(win98qiInfPath));
+            util_readFirstLineFromFileIntoBuffer(win98qiInfPath, currentVariantLabel);      
+
+            ui_addDialogMenuLabelToList(&menuLabels, 
+                                        ui_makeDialogMenuLabel("%zu", currentVariantIndex),
+                                        ui_makeDialogMenuLabel("%s", currentVariantLabel) 
+                                        );
+            *variantCount += 1;
+        }
+    }
+
+    if (*variantCount > 1) {
+        menuResult = ui_showMenu("Select the operating system variant you wish to install.", menuLabels, true);
+    } else {
+        // Don't have to show a menu if we have no choice to do innit.
+        menuResult = 0;
+    }
+
+    assert(menuResult != UI_MENU_ERROR);
+
+    if (menuResult == UI_MENU_CANCELED) {
+        // BACK was pressed.
+        ui_destroyDialogMenuLabelList(menuLabels);
+        return false;
+    } else {
+        *variantIndex = atoi(ui_getMenuLabelListEntry(menuLabels, menuResult)[0]); // Just in case the directory listing is out of order for some reason...
+
+        assert(*variantIndex > 0);
+
+        ui_destroyDialogMenuLabelList(menuLabels);
+        return true;   
+    }    
+}
+
 /* Show partition wizard, returns true if user finished or false if he selected BACK. */
 static bool inst_showPartitionWizard(util_HardDiskArray *hdds) {
     char cfdiskCmd[UTIL_MAX_CMD_LENGTH];
@@ -203,6 +286,11 @@ static util_Partition *inst_showPartitionSelector(util_HardDiskArray *hdds) {
         // Is this the installation source? If yes, show menu again.
         if (inst_isInstallationSourcePartition(result)) {
             inst_showInstallationSourcePartitionError();
+            continue;
+        }
+        
+        if (result->fileSystem == fs_unsupported || result->fileSystem == fs_none) {
+            inst_showUnsupportedFileSystemError();
             continue;
         }
 
