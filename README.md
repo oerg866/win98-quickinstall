@@ -30,12 +30,26 @@ On a Pentium III class machine with ATA / ATAPI Ultra DMA available for all stor
 
 See [BUILDING.md](./BUILDING.md).
 
-# System requirements to run Windows 98 QuickInstall
+# I don't want to read and/or do all of this.
+
+Okay. Go on **archive.org** and search for `win98qi`!
+
+# Supported Target Operating Systems
+
+* Microsoft Windows **98** (Build 4.10.1998)
+* Microsoft Windows **98 Second Edition** (Build 4.10.2222)
+* Microsoft Windows **Millenium Edition** (Build 4.90.3000)
+
+Support for international versions is not properly tested. It should work and in my testing it does, but YMMV. Please report bugs!
+
+**NO versions of Windows 95 are supported due to non-PNP device detection being part of the DOS-based installer stage.**
+
+# System requirements to use QuickInstall
   - i486-class CPU, at least a 486SX (but it will be very slow)
   - 24 MiB of memory
   - An IDE / SATA / SCSI controller supported by Linux
 
-# How to boot Windows 98 QuickInstall
+# How to boot a QuickInstall image
 
 There are several provided methods to boot into Windows 98 QuickInstall:
 
@@ -66,28 +80,128 @@ There are several provided methods to boot into Windows 98 QuickInstall:
 
 1. Removable media such as USB Flash Drives
 
-   Using SYSLINUX it is possible to create bootable USB images. The steps to do so are described below.
+   Using the system preparation script it is possible to create bootable USB images. The steps to do so are described below.
 
-# System requirements to build Windows 98 QuickInstall __ISO images__
+# System requirements to build QuickInstall **Images**
 
-- Reasonably modern Windows version (7 and upwards should be okay) 
-  OR reasonably modern Linux variant. This was tested with Ubuntu 20.04 on WSL.
+- **Windows 7, 8.1, 10 or 11**
 
-- `wine` (Linux only)
-
-  **I know this sounds very odd, but:**
+  OR
   
-  Many parts of the ISO building process are Windows specific and not able to be cleanly implemented natively on Linux, such as modifying system registry, parsing driver INF files, etc.
+  **Modern Linux variant or *WSL***
+
+  Tested with:
+
+  * **Windows 10** 21H2, Build 19044.2846
+  * Windows Subsystem For Linux (Ubuntu 20.04.5 LTS)
+  * Ubuntu 20.04.4 LTS (native)
+
+- `python` (3.5 or newer)
+
+  * On **Windows 7 and 8.1**:
+
+    Download a python installation package from https://www.python.org/downloads/
+
+  * On **Windows 10 and 11**:
+  
+    Use the Microsoft Store to download an appropriate variant.
+  
+  * On **Linux (Debian, Ubuntu)**:
+
+    `sudo apt install python3.8`
+
+- **Script requirements**
+
+  Run the following command in the framework directory:
+
+  `pip3 install -r requirements.txt`
+
+- `mkisofs` from cdrtools
+  - On **Windows**:
+  
+    Tool is bundled with the framework, no action required.
+
+  - On **Linux (Debian, Ubuntu):**
+
+    `sudo apt install genisofs`
+
+- `wine` (**Linux Only**)
+
+  `sudo apt install wine`
+
+  *Many parts of the ISO building process are Windows specific and not able to be cleanly implemented natively on Linux, such as modifying system registry, parsing driver INF files, etc.*
 
 - 86Box (recommended) or another virtual machine capable of installing Windows 9x
+
 - Software to extract files from a hard disk image
   
   e.g. 7zip (on Linux: `sudo apt install p7zip-full`)
-- `cdrtools` OR `mkisofs` OR `genisofs`
-  - Windows version is bundled
-  - Linux users must install it (`sudo apt install genisofs`)
 
-# How to create an ISO file
+# The system preparation script (`sysprep.py`) 
+
+  This script serves the purpose of preparing an installation for packaging into an ISO and/or USB image file.
+
+  It takes the following parameters:
+
+  * `--iso <ISO>`
+    
+    Instructs the script to create an ISO image with the given file name
+  
+  * `--usb <USB>`
+
+    Instructs the script to create an USB key image with the given file name
+  
+  * `--osroot <OSROOT>`
+
+    Specifies a Windows 98 / ME system root directory ("*OS Root*") to be used.
+
+    **This can be specified multiple times, in which case the installation wizard will show a selection menu.**
+
+  * `--extra <EXTRA>`
+
+    Instructs the script to add the files in this directory to the final ISO/USB output.
+
+    Default: `_EXTRA_CD_FILES_` in the framework directory
+
+    **This can be specified multiple times, all the files in all the directories will be added in this case**
+
+  * `--drivers <DRIVERS>`
+
+    Instructs the script to process *slipstream* all drivers in this directory.
+
+    *Slipstream* means that these drivers will be installed automatically when the hardware for them is detected at any point of the installation's lifetime, even when the hardware is not yet present at the time of installation.
+
+    Default: `_DRIVER_` in the framework directory. It already contains a curated selection of drivers.
+
+    **This parameter can only be specified once.**
+
+  * `--extradrivers <EXTRADRIVERS>`
+
+    Instructs the script to process all drivers in this directory and add them into the extra drivers directory.
+
+    **These drivers are NOT slipstreamed** and thus not automatically installed. They are however made available on the resulting installation media and can be installed by pointing the Windows 98 / ME `Add New Hardware` wizard to the `DRIVER.EX` directory on the media.
+
+    The reason for this folder's existence is the vast selection of hardware available for the operating systems and the varying compatibility / size of them.
+    
+    Very large drivers are recommended to go in here, as well as drivers for which it cannot be assumed that different versions have different compatibility and speed.
+
+    For example, it is better to choose an older driver for an older *nVidia GeForce* card even though a newer one would also support this hardware for speed reasons, whilst the newer driver should also be available, in case newer hardware is present.
+
+    Default: `_EXTRA_DRIVER_` in the framework directory. It already contains a curated selection of drivers.
+
+    **This parameter can only be specified once.**
+
+  * `--verbose VERBOSE`
+
+  This parameter controls console output verbosity of the script.
+
+  Where `VERBOSE` is either `True` or `False`.
+
+  The default is `False`.
+
+  **This parameter is currently broken, sorry. It's always quiet.**
+
+# Preparing a Windows 98 / ME installation for packaging
 
 - Install Windows 98 in a virtual machine or emulator, just as you want it.
   I recommend using 86Box using the following configuration:
@@ -124,7 +238,7 @@ There are several provided methods to boot into Windows 98 QuickInstall:
 - Use 7zip or an imaging software and extract the entire root of the 
   partition you installed Windows 98 to.
   
-  Extract all files into the `_OS_ROOT_` directory.
+  Extract all files into a directory. We will call this the *OS Root*. The default for this is `_OS_ROOT_` in the framework directory.
 
   On Windows, you can open the image file using the 7zip File Manager or the 7zip context menu. Or WinImage, et cetera.
   
@@ -137,66 +251,62 @@ There are several provided methods to boot into Windows 98 QuickInstall:
   *INFO: The script detects the Windows directory by finding `WIN.COM`*
   *INFO: The CAB file directory is detected by finding `PRECOPY2.CAB`*
 
-  You can choose a directory other than `_OS_ROOT_`, see below for details.
+  **This location must be specified when running the script by using the `--osroot` parameter.**
 
-- Copy drivers that you want slipstreamed to the `_DRIVER_` directory.
+# Preparing & Packaging
 
-  *NOTE: This directory is already filled with a curated selection of drivers. Ycan remove these, if you wish.*
+- Copy drivers that you want slipstreamed into a directory of your choice. By default this is `_DRIVER_` in the framework directory directory.
 
-- Copy extra drivers that will not be slipstreamed but added to the
-  "_EXTRA_DRIVER_" directory.
+  *NOTE: `_DRIVER_` is already filled with a curated selection of drivers. Ycan remove these, if you wish.*
+
+  **If you choose a non-default directory for this, you must specify it using the `--drivers` parameter.**
+
+- Copy extra drivers that will not be slipstreamed but added to a directory of your choice. By default this is `_EXTRA_DRIVER_` in the framework directory.
 
   *NOTE: These drivers will be processed in the same way as the slipstreamed ones but will not be copied to the hard drive during installation.*
 
   *INFO: This folder will be named `DRIVER.EX` on the ISO. You can point the Windows 98 hardware wizard to this folder and the drivers will be found and installed correctly.*
 
-- Add any extra files you wish added to the ISO to the `_EXTRA_CD_FILES` directory.
+  *NOTE: `_EXTRA_DRIVER_` is already filled with a curated selection of drivers. Ycan remove these, if you wish.*
+
+  **If you choose a non-default directory for this, you must specify it using the `--extradrivers` parameter.**
+
+- Add any extra files you wish added to the ISO to a directory of your choice. By default this is `_EXTRA_CD_FILES` in the framework directory.
 
   This can include drivers that you do not wish to be processed with the QuickInstall tools, e.g. drivers that contain bundled software.
 
-- Run the following command to build an ISO:
+  **If you choose a non-default directory for this, you must specify it using the `--extra` parameter.**
 
-  - Windows: `sysprep.bat [Extracted OS directory] [ISO file name]`
-  - Linux:   `./sysprep.sh [Extracted OS directory] [ISO file name]`
+- Run the following command to build the package:
 
-  The two parameters are optional. 
-  
+  `sysprep.py --osroot <OS Root Folder>`
 
-  **HOWEVER,** if you copied the system root to a directory other than `_OS_ROOT_`, then they must be specified.
+  NOTE: *You must add the other parameters if you deviate from the defaults.*
 
-  **NOTE:** If you wish to specify one, you *must* also specify the other.
+  This will build the installation package in the `_OUTPUT_` directory in the Framework directory.
 
-  Unless otherwise specified, the `__ISO__` directory will contain the output ISO image.
+  If you want to create an ISO image or a bootable USB key image, see below. 
 
-  **WARNING: THE OS DIRECTORY WILL BE MODIFIED IN PLACE!**
+  **WARNING: THE OS DIRECTORIES WILL BE MODIFIED IN PLACE!**
 
-- Do not hesitate to contact me on Discord if you need help:
+## Creating a bootable ISO image
 
-  `oerg#0866`
+- Use the `--iso` parameter for the `sysprep.py` script.
 
-- Enjoy!
+  e.g. adding `--iso output.iso` to the command line will yield a file named `output.iso` that can be burned to a CD/DVD/Blu-Ray or used in a virtual machine.
 
-# How to create a bootable USB key
+  Refer to the parameter descriptions above for more information.
 
-- Extra requirements:
-  - `mtools` (Linux only)
-  - `dosfstools` (Linux only)
-  - `parted` (Linux only)
-  - `syslinux` (Linux only)
 
-  `sudo apt install mtools dosfstools parted syslinux`
+## Creating a bootable USB key image
 
-  The windows script uses the integrated `diskpart`, as well as the included windows ports of `syslinux` and `dd`
+- Use the `--usb` parameter for the `sysprep.py` script.
 
-- Follow the steps under **How to create an ISO file**
+  e.g. adding `--usb output.img` to the command line will yield a file named `output.img` that can be written to a USB key, SD or CF card, hard disk or other media.
 
-- Run the following command:
-  - Windows: `makeusb.bat <Output USB image file>`
-  - Linux: `./makeusb.sh <Output USB image file>`
+  Refer to the parameter descriptions above for more information.
 
-***NOTE***: On Windows, the file size may not exceed 2GiB due to `cmd`'s arithmetic limitations.
-
-## How to write the bootable USB image to a USB flash drive
+### How to write the bootable USB image to a USB flash drive
 
 - On Linux, you can use `dd`
   - `dd if=<USB image file> of=/dev/sdX bs=1024k status=progress`
@@ -207,12 +317,51 @@ There are several provided methods to boot into Windows 98 QuickInstall:
   - `dd` For Windows: http://www.chrysocome.net/dd
   - `Win32 DiskImager`: https://sourceforge.net/projects/win32diskimager/
 
+# Packaging multiple operating systems in one image
+
+This is an advanced feature.
+
+By specifying the `--osroot` parameter multiple times, you can create a multi-variant installation image. In this case a selection menu will appear during installation prompting the user which variant should be installed.
+
+Example:
+
+`python3 sysprep.py --osroot D:\quickinstall\Windows98SE --osroot D:\quickinstall\WindowsME --iso multi.iso`
+
+## `win98qi.inf`
+
+This file should be present in every *OS Root* directory. **It contains the display name of the installation in the variant selection menu shown in the installer.**
+
+It should fit on the screen.
+
+It can be ASCII or UTF8 encoded.
+
 # FAQ
 
-## Q: Windows complains about missing CAT files when installing a driver from the extra drivers
+## Q: This is cool. But are you single?
+
+A: Do you think this project would exist otherwise? 🤪
+
+## Q: Windows 98 / ME complains about missing CAT files when installing a driver from the extra drivers
 
 A: 98Lite deletes the catalog root directory to save installation space. Unpack them from the Win98 CAB files to prevent this.
 
-## Q: I'm having weird problems with file names on international Windows 98 versions.
+## Q: I'm getting a python error about non-zero return code in `msdos.exe` right after `Using SHELL32.xxx to reboot!`
 
-A: This problem was reported by *r1me* on the TRW Discord. There is no fix for this at the moment (because I'm an idiot), please use English Windows 98/ME for now. 
+Example:
+```
+subprocess.CalledProcessError: Command '['L:\\win98-installer\\__BIN__\\tools\\msdos.exe', 'L:\\win98-installer\\__BIN__\\registry\\regedit.exe', '/L:SYSTEM.DAT', '/R:USER.DAT', 'tmp.reg']' returned non-zero exit status 1.
+```
+
+A: This problem happens when running the script on Windows whilst the script directory is in a share hosted by a WSL session (Windows Subsystem for Linux). This causes some incompatibilities. Run the script from the WSL Linux shell instead.
+
+## Q: All the operating system files are un-hidden after installation! Why?
+
+A: You've probably used Linux to do the image creation. Linux has no concept of hidden files, therefore this file property cannot be replicated in the images.
+
+## Q: I'm getting CD-ROM read errors, segmentation faults and other weird behavior when installing from CD on a Pentium Pro / Intel 440FX based machine.
+
+A: Yeah I have this problem too and I have no idea how to fix it. It seems to be a bug in the Intel IDE driver in linux.
+
+You can use the bootable USB image and write it to a hard drive or CF card.
+
+This also **only happens when the CD-ROM is connected to the on-board IDE controller**. You an work around this problem by using a PCI SCSI or IDE adapter card that supports CD-ROM boot or has DOS drivers with the **DOS boot floppy option**.
