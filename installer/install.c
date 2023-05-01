@@ -155,7 +155,8 @@ static util_Partition *inst_showPartitionSelector(util_HardDiskArray *hdds) {
     char **menuLabels = NULL;
     int menuResult;
     util_Partition *result = NULL;
-    char chosenOption[256] = "/dev/";
+    const char devPrefix[] = "/dev/";
+    char chosenOption[256] = "";
 
     while (1) {
         menuLabels = ui_allocateDialogMenuLabelList(0);
@@ -188,7 +189,7 @@ static util_Partition *inst_showPartitionSelector(util_HardDiskArray *hdds) {
 
         menuResult = ui_showMenu("Select the partition you wish to install to.", menuLabels, true);
 
-        strncat(chosenOption, ui_getMenuResultString(), sizeof(chosenOption) - strlen(chosenOption));
+        snprintf(chosenOption, sizeof(chosenOption), "%s%s", devPrefix, ui_getMenuResultString());
 
         if (menuResult == UI_MENU_CANCELED) { // BACK was pressed.
             return NULL;
