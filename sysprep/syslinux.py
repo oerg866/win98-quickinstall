@@ -297,7 +297,7 @@ def get_padded_size(size, padding):
     return (size + padding - 1) // padding * padding
 
 def install_syslinux(filename, partition_starting_sector, bytes_per_sector=512):
-    print('Installing SYSLINUX bootloader to image "{filename}"')
+    print(f'Installing SYSLINUX bootloader to image "{filename}"')
 
     protocol_file = f'fat://{fs.path.normpath(os.path.abspath(filename))}?offset={partition_starting_sector * bytes_per_sector}'
 
