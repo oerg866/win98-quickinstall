@@ -55,14 +55,17 @@ def delete_file(directory, filename):
     if not os.path.exists(directory):
         return
 
+    result = False
+
     for file in os.listdir(directory):
         if re.match(fnmatch.translate(filename), file, re.IGNORECASE):
             try:
+                print(file)
                 os.remove(os.path.join(directory, file))
-                return True
+                result = True
             except OSError:
                 return False
-    return False
+    return result
 
 # Create directory, ignore if it already exists
 def mkdir(path):
