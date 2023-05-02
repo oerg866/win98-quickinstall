@@ -104,7 +104,7 @@ def get_win_dir(osroot_path):
 def get_cab_dir(osroot_path):
     for root, dirs, files in os.walk(osroot_path):
         for file_name in files:
-            if file_name.upper() == 'PRECOPY2.CAB'.upper():
+            if file_name.upper() == 'PRECOPY1.CAB'.upper():
                 return root
     return None
 
