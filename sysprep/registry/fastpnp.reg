@@ -25,6 +25,8 @@ REGEDIT4
 
 [HKEY_LOCAL_MACHINE\Enum\Root]
 
+[-HKEY_LOCAL_MACHINE\Enum\Root\*PNP0900]
+
 [HKEY_LOCAL_MACHINE\Enum\Root\Processor_Update]
 
 [HKEY_LOCAL_MACHINE\Enum\Root\Processor_Update\0000]
