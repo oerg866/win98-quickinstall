@@ -391,6 +391,9 @@ for osroot in input_osroots:
     delete_file(osroot,                                     'scandisk.log')
     delete_file(osroot,                                     'netlog.txt')
     delete_file(osroot,                                     'suhdlog.dat')
+    delete_file(osroot,                                     'msdos.---')
+    delete_file(osroot,                                     'config.bak')
+    delete_file(osroot,                                     'autoexec.bak')
 
     # Copy oeminfo
     shutil.copy2(os.path.join(input_oeminfo, 'oeminfo.ini'), case_insensitive_to_sensitive(osroot_windir, 'system'))
