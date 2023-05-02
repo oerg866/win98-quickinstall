@@ -6,7 +6,7 @@ set -e
 #trap read debug
 
 # required packages
-# build-essential gcc-7 tic python3 gunzip libuuid wine dd nasm mkisofs zip mtools syslinux
+# build-essential gcc-7 tic python3 gunzip libuuid wine dd nasm mkisofs zip syslinux
 
 # Find GCC version
 gcc_version=$(gcc -dumpversion)
