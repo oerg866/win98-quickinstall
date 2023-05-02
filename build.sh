@@ -122,4 +122,4 @@ pushd "$OUTPUT"
 popd
 
 echo "Done. Output is in $OUTPUT."
-echo "Run sysprep.sh (Linux) or sysprep.bat (Windows) to build an ISO image."
+echo "Run sysprep.py to build an image."
