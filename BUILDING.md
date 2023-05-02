@@ -1,10 +1,4 @@
-# Download reference ISO
-
-A reference ISO built using this Package and 98Lite can be downloaded at **archive.org**.
-
-Search for "Windows 98 QuickInstall".
-
-# Build process
+# Build Process Summary
 
 Here is a summary of the build process:
 
@@ -38,15 +32,18 @@ Here is a summary of the build process:
 
 - Linux does not really have a concept of hidden files. It can be faked apparently with unused system attributes, but it might not work properly when copying the files out of the image. Unfortunately, at this time I don't have any solution for this.
 - Poor error handling
-- Only supports CDROMs so far, sadly. USB flash drive support is in planning.
 
 # Building
 
-This was built and tested using Ubuntu 20.04 running natively as well as under **Windows Subsystem For Linux**.
+## Requirements
 
-- Install the following packages:
+The framework must be built on Linux. It was tested using Ubuntu 20.04 running natively as well as under **Windows Subsystem For Linux**.
 
-  (TODO, sorry, figure this one out yourself :D)
+You must install the following packages:
+
+`build-essential gcc-7 tic python3 gunzip libuuid wine dd nasm mkisofs zip syslinux`
+
+(this might be incomplete, be warned)
 
 - Clone this repository
 - run init.sh 
