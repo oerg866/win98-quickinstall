@@ -356,7 +356,7 @@ for osroot in input_osroots:
         raise ValueError("Could not find WIN.COM in directory tree")
     
     if osroot_cabdir is None:
-        raise ValueError("Could not find WIN.COM in directory tree")
+        raise ValueError("Could not find CAB files in directory tree")
 
     osroot_windir_relative = os.path.relpath(osroot_windir, osroot)
     osroot_cabdir_relative = os.path.relpath(osroot_cabdir, osroot)
