@@ -163,7 +163,7 @@ def mercypak_pack(dir_path, output_file):
             file_stat = os.stat(file_abs_path)
             file_dos_date = dos_date(file_stat.st_mtime)
             file_dos_time = dos_time(file_stat.st_mtime)
-            file_dos_attr = getfatattr(dir_abs_path)
+            file_dos_attr = getfatattr(file_abs_path)
             with open(file_abs_path, 'rb') as f:
                 file_data = f.read()
             file_info.append((file_rel_path.encode(), file_dos_attr, file_dos_date, file_dos_time, len(file_data), file_data))
