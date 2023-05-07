@@ -3,6 +3,8 @@
 MercyPak is a simple binary blob "packer" (not compressor!) intended 
 for old computers.
 
+Version 2.0
+
 !!! THIS IS ALL SLOPPY AND UNSAFE, DO NOT USE IN PRODUCTION ENVIRONMENT !!!
 
 You have been warned :P
@@ -16,46 +18,78 @@ File extension: don't really care, but you can use ".866" :-)
 
 FILE HEADER:
 
-* ASCII File identifier ("ZIEG")            4 Bytes ASCII
+* ASCII File identifier                     4 Bytes ASCII
+
+    V1: "ZIEG"
+    V2: "MRCY"
+
 * Directory count                           UINT32
 * File count                                UINT32
 
 Per directory (repeat "directory count"-times):
 
-* Dir attributes (hidden, sys, etc)         BYTE
+    * Dir attributes (hidden, sys, etc)         BYTE
 
-  Combination of flags (taken from direct.h in OWC)
+    Combination of flags (taken from direct.h in OWC)
 
-  _A_NORMAL       0x00    /* Normal file - read/write permitted */
-  _A_RDONLY       0x01    /* Read-only file */
-  _A_HIDDEN       0x02    /* Hidden file */
-  _A_SYSTEM       0x04    /* System file */
-  _A_VOLID        0x08    /* Volume-ID entry */
-  _A_SUBDIR       0x10    /* Subdirectory */
-  _A_ARCH         0x20    /* Archive file */
+    _A_NORMAL       0x00    /* Normal file - read/write permitted */
+    _A_RDONLY       0x01    /* Read-only file */
+    _A_HIDDEN       0x02    /* Hidden file */
+    _A_SYSTEM       0x04    /* System file */
+    _A_VOLID        0x08    /* Volume-ID entry */
+    _A_SUBDIR       0x10    /* Subdirectory */
+    _A_ARCH         0x20    /* Archive file */
 
-* Directory String length                   UINT8
-* Directory String                          BYTE [ * Directory String Length ]
-  String is NOT terminated.
+    * Directory String length                   UINT8
+    * Directory String                          BYTE [ x Directory String Length ]
+    String is NOT terminated.
 
-Per file (repeat "file count"-times):
+For each file:
 
-* File Name String length                   UINT8
-* File Name String                          BYTE [ * File Name String Length ]
-  String is NOT terminated.
+    V1:
 
-  Includes subidrectory. Example:
-  "FOLDER1\FILE2.DAT"
+        * File Name String length                   UINT8
+        * File Name String                          BYTE [ x File Name String Length ]
+        String is NOT terminated.
 
-* File attributes                           BYTE
+        Includes subidrectory. Example:
+        "FOLDER1\FILE2.DAT"
 
-  (See "Dir attributes")
+        * File attributes                           BYTE
 
-* File Date                                 UINT16 packed MS-DOS System Date
-* File Time                                 UINT16 packed MS-DOS System Time
-* File size (Max 4GB, sorry)                UINT32
+        (See "Dir attributes")
 
-* Binary blob of the actual file            BYTE * (file size)
+        * File Date                                 UINT16 packed MS-DOS System Date
+        * File Time                                 UINT16 packed MS-DOS System Time
+
+        * File size (Max 4GB, sorry)                UINT32
+        * Binary blob of the actual file            BYTE * (file size)
+
+    V2:
+
+        * Amount of identical files following       UINT8
+
+        For each of those files:
+
+            * File Name String length                   UINT8
+            * File Name String                          BYTE [ x File Name String Length ]
+            String is NOT terminated.
+
+            Includes subidrectory. Example:
+            "FOLDER1\FILE2.DAT"
+
+            * File attributes                           BYTE
+
+            (See "Dir attributes")
+
+            * File Date                                 UINT16 packed MS-DOS System Date
+            * File Time                                 UINT16 packed MS-DOS System Time
+
+        * File size (Max 4GB, sorry)                UINT32
+        * Binary blob of the actual file            BYTE * (file size)
+
+          In V2 this is only once and this one block is used for every identical file (see above)
+
 
 And that's it! simplistic as hell
 '''
@@ -66,13 +100,17 @@ import datetime
 import sys
 import subprocess
 import time
+import hashlib
 
-MERCYPAK_MAGIC = b'ZIEG'
+MERCYPAK_V1_MAGIC = b'ZIEG'
+MERCYPAK_V2_MAGIC = b'MRCY'
 
 FS_FAT      = 3
 FS_NTFS     = 2
 FS_OTHER    = 1
 FS_UNK      = 0
+
+MAX_FILES_PER_KNOWN_DATA = 8
 
 mpak_fs_type = FS_UNK
 
@@ -104,11 +142,11 @@ def getfstype(path):
             return FS_OTHER
 
 def getfatattr(path):
-    global mpak_fs_type
     if sys.platform == 'win32':
         file_stat = os.stat(path)
         return file_stat.st_file_attributes & 0xff
     else:
+        global mpak_fs_type
         if mpak_fs_type == FS_UNK:
             mpak_fs_type = getfstype(path)
 
@@ -141,19 +179,55 @@ def getfatattr(path):
                 attr |= 0x20  
             return attr
 
+class fileInfo:
+    def __init__(self, filename: str, attribute: int, dos_date: int, dos_time: int):
+        self.filename = filename
+        self.attribute = attribute
+        self.dos_date = dos_date
+        self.dos_time = dos_time
 
-def mercypak_pack(dir_path, output_file):
+
+class fileData:
+    def __init__(self, data: bytearray):
+        self.data = data
+        self.hash = hashlib.sha256()
+        self.hash.update(self.data)
+        self.files_with_this_data = list[fileInfo]()
+    
+    def add_file(self, filename: str, attribute, dos_date, dos_time):
+        self.files_with_this_data.append(fileInfo(filename, attribute, dos_date, dos_time))
+
+def add_to_known_files(file_data_list: list[fileData], data:bytearray, filename, attribute, dos_date, dos_time):
+            
+    hash = hashlib.sha256()
+    hash.update(data)
+    
+    for file_data in file_data_list:
+        if file_data.hash.digest() == hash.digest() and len(file_data.files_with_this_data) < MAX_FILES_PER_KNOWN_DATA:
+            print(f'file {filename} is duplicate, optimizing...')
+            file_data.add_file(filename, attribute, dos_date, dos_time)
+            return
+
+    # We don't know any files with this data block yet, so we add a new one
+    new_file_data = fileData(data)
+    new_file_data.add_file(filename, attribute, dos_date, dos_time)
+    file_data_list.append(new_file_data)
+
+
+def mercypak_pack(dir_path, output_file, mercypak_v2=False):
     # Collect directory and file information
     dir_count = 0
     file_count = 0
     dir_info = []
-    file_info = []
+#    file_info = []
     dir_path = os.path.abspath(dir_path)
+    known_file_infos = list[fileData]()
+
     for root, dirs, files in os.walk(dir_path):
         for dir_name in dirs:
             dir_count += 1
             dir_abs_path = os.path.join(root, dir_name)
-            dir_rel_path = os.path.relpath(os.path.join(root, dir_name), dir_path)
+            dir_rel_path = os.path.relpath(dir_abs_path, dir_path)
             dir_dos_attr = getfatattr(dir_abs_path)
             dir_info.append((dir_rel_path.encode(), dir_dos_attr))
         for file_name in files:
@@ -166,12 +240,20 @@ def mercypak_pack(dir_path, output_file):
             file_dos_attr = getfatattr(file_abs_path)
             with open(file_abs_path, 'rb') as f:
                 file_data = f.read()
-            file_info.append((file_rel_path.encode(), file_dos_attr, file_dos_date, file_dos_time, len(file_data), file_data))
+
+            add_to_known_files(known_file_infos, file_data, file_rel_path.encode(), file_dos_attr, file_dos_date, file_dos_time)
+ #           file_info.append((file_rel_path.encode(), file_dos_attr, file_dos_date, file_dos_time, len(file_data), file_data))
+
+    print(f'known unique files: {len(known_file_infos)}, total files {file_count}')
 
     # Write the archive
     with open(output_file, 'wb') as f:
         # Write file header
-        f.write(MERCYPAK_MAGIC)
+        if mercypak_v2:
+            f.write(MERCYPAK_V2_MAGIC)
+        else:
+            f.write(MERCYPAK_V1_MAGIC)
+
         f.write(struct.pack('<II', dir_count, file_count))
 
         # Write directory information
@@ -182,14 +264,54 @@ def mercypak_pack(dir_path, output_file):
             f.write(dir_rel_path)
 
         # Write file information
-        for file in file_info:
-            file_rel_path, file_mode, file_dos_date, file_dos_time, file_size, file_data = file
-            f.write(struct.pack('B', len(file_rel_path) & 0xff))
-            f.write(file_rel_path)
-            f.write(struct.pack('B', file_mode & 0xff))
-            f.write(struct.pack('<HH', file_dos_date, file_dos_time))
-            f.write(struct.pack('<I', file_size))
-            f.write(file_data)
+        for file_data in known_file_infos:
+            file_size = len(file_data.data)
+
+            if file_size > 0xffffffff:
+                raise ValueError(f'File is too big.')
+
+            files_with_this_data_count = len(file_data.files_with_this_data)
+
+            if files_with_this_data_count > 0xff:
+                raise ValueError(f'Too many identical files. Something is wrong with the script')
+
+            if mercypak_v2:
+
+                # MERCYPAK V2: Write redundant files only once. 
+
+                f.write(struct.pack('B', files_with_this_data_count))
+
+                for file_info in file_data.files_with_this_data:
+                    file_rel_path = file_info.filename
+
+                    if len(file_rel_path) > 0xff:
+                        raise ValueError(f'File path "{file_rel_path}" is too long (max. 255 characters)')
+
+                    f.write(struct.pack('B', len(file_rel_path) & 0xff))
+                    f.write(file_rel_path)
+                    f.write(struct.pack('B', file_info.attribute & 0xff))
+                    f.write(struct.pack('<HH', file_info.dos_date, file_info.dos_time))
+
+                f.write(struct.pack('<I', file_size))
+                f.write(file_data.data)
+            
+            else:
+
+                # MERCYPAK V1: Write every file individually, even if it is redundant.
+
+                for file_info in file_data.files_with_this_data:
+
+                    if len(file_rel_path) > 0xff:
+                        raise ValueError(f'File path "{file_rel_path}" is too long (max. 255 characters)')
+
+                    f.write(struct.pack('B', len(file_rel_path) & 0xff))
+                    f.write(file_rel_path)
+                    f.write(struct.pack('B', file_info.attribute & 0xff))
+                    f.write(struct.pack('<HH', file_info.dos_date, file_info.dos_time))
+                    f.write(struct.pack('<I', file_size))
+                    f.write(file_data.data)
+
+
 
 def dos_date(mtime):
     timestamp = datetime.datetime.utcfromtimestamp(mtime) + mpak_utc_offset

@@ -42,6 +42,27 @@ typedef enum {
     INSTALL_DO_INSTALL,
 } inst_InstallStep;
 
+
+#pragma pack(1)
+
+typedef struct {
+    uint8_t fileFlags;
+    uint16_t fileDate;
+    uint16_t fileTime;
+    uint32_t fileSize;
+    int fileno;
+} inst_MercyPakFileDescriptor;
+
+#pragma pack()
+
+// -sizeof(int) because the fileno is not part of the descriptor read from the mercypak file
+#define MERCYPAK_FILE_DESCRIPTOR_SIZE (sizeof(inst_MercyPakFileDescriptor) - sizeof(int))
+// -sizeof(uint32_t) because the filesize is not part of the descriptor read from the mercypak v2 file
+#define MERCYPAK_V2_FILE_DESCRIPTOR_SIZE ((MERCYPAK_FILE_DESCRIPTOR_SIZE) - sizeof(uint32_t))
+
+#define MERCYPAK_V1_MAGIC "ZIEG"
+#define MERCYPAK_V2_MAGIC "MRCY"
+
 #define INST_CFDISK_CMD "cfdisk "
 #define INST_COLS (74)
 
@@ -358,6 +379,7 @@ static bool inst_copyFiles(mappedFile *file, const char *installPath) {
     char fileHeader[5] = {0};
     char *destPath = malloc(strlen(installPath) + 256 + 1);   // Full path of destination dir/file, the +256 is because mercypak strings can only be 255 chars max
     char *destPathAppend = destPath + strlen(installPath) + 1;  // Pointer to first char after the base install path in the destination path + 1 for the extra "/" we're gonna append
+    bool mercypakV2 = false;
 
     sprintf(destPath, "%s/", installPath);
 
@@ -374,9 +396,13 @@ static bool inst_copyFiles(mappedFile *file, const char *installPath) {
 
     /* printf("File header: %s, dirs %d files: %d\n", fileHeader, (int) dirCount, (int) fileCount); */
 
+    /* Check if we're unpacking a V2 file, which does redundancy stuff. */
 
-    if (!util_stringEquals(fileHeader, "ZIEG")) {
-        assert(false && "File header wrong");
+    if (util_stringEquals(fileHeader, MERCYPAK_V1_MAGIC)) {
+        mercypakV2 = false;
+    } else if (util_stringEquals(fileHeader, MERCYPAK_V2_MAGIC)) {
+        mercypakV2 = true;
+    } else {
         free(destPath);
         return false;
     }
@@ -400,39 +426,83 @@ static bool inst_copyFiles(mappedFile *file, const char *installPath) {
      *  Extract and copy files from mercypak files
      */
 
-
     success = true;
 
     ui_progressBoxInit("Copying Files...");
 
-    for (uint32_t f = 0; f < fileCount; f++) {
-        uint8_t fileFlags;
-        uint16_t fileDate;
-        uint16_t fileTime;
-        uint32_t fileSize;
+    if (mercypakV2) {
+        /* Handle mercypak v2 pack file with redundant files optimized out */
 
-        ui_progressBoxUpdate(f, fileCount);
+        uint8_t identicalFileCount = 0;
 
-        /* Mercypak file metadata (see mercypak.txt) */
+        for (uint32_t f = 0; f < fileCount;) {
 
-        success &= inst_getMercyPakString(file, destPathAppend);    // First, filename string
-        util_stringReplaceChar(destPathAppend, '\\', '/');          // DOS paths innit 
-        success &= mappedFile_getUInt8(file, &fileFlags);           // DOS Flags byte 
-        success &= mappedFile_getUInt16(file, &fileDate);           // DOS Date
-        success &= mappedFile_getUInt16(file, &fileTime);           // DOS Timestamp
-        success &= mappedFile_getUInt32(file, &fileSize);           // File size
+            uint32_t fileSize;
 
-        int outfd = open(destPath,  O_WRONLY | O_CREAT | O_TRUNC);
-        assert(outfd >= 0);
+            ui_progressBoxUpdate(file->pos, file->size);
 
-        success &= mappedFile_copyToFile(file, outfd, fileSize);
+            success &= mappedFile_getUInt8(file, &identicalFileCount);
 
-        success &= util_setDosFileTime(outfd, fileDate, fileTime);
-        success &= util_setDosFileAttributes(outfd, fileFlags);
+            inst_MercyPakFileDescriptor *filesToWrite = calloc(identicalFileCount, sizeof(inst_MercyPakFileDescriptor));
 
-        close(outfd);
+
+            for (uint32_t subFile = 0; subFile < identicalFileCount; subFile++) {
+                success &= inst_getMercyPakString(file, destPathAppend);
+                util_stringReplaceChar(destPathAppend, '\\', '/');
+
+                filesToWrite[subFile].fileno = open(destPath,  O_WRONLY | O_CREAT | O_TRUNC);
+
+                success &= mappedFile_read(file, &filesToWrite[subFile], MERCYPAK_V2_FILE_DESCRIPTOR_SIZE);               
+            }
+
+            success &= mappedFile_getUInt32(file, &fileSize);
+
+            for (uint32_t subFile = 0; subFile < identicalFileCount; subFile++) {
+                bool advanceMappedFileAfterCopy = (subFile + 1) == identicalFileCount; // On the last file we advance the mappedfile after copying.
+
+                success &= mappedFile_copyToFile(file, filesToWrite[subFile].fileno, fileSize, advanceMappedFileAfterCopy);
+
+                success &= util_setDosFileTime(filesToWrite[subFile].fileno, filesToWrite[subFile].fileDate, filesToWrite[subFile].fileTime);
+                success &= util_setDosFileAttributes(filesToWrite[subFile].fileno, filesToWrite[subFile].fileFlags);
+
+                close(filesToWrite[subFile].fileno);
+            }
+
+            free(filesToWrite);
+            f += identicalFileCount;
+        }
+
+    } else {
+
+        for (uint32_t f = 0; f < fileCount; f++) {
+
+            inst_MercyPakFileDescriptor fileToWrite;
+
+            ui_progressBoxUpdate(file->pos, file->size);
+
+            /* Mercypak file metadata (see mercypak.txt) */
+
+            success &= inst_getMercyPakString(file, destPathAppend);    // First, filename string
+            util_stringReplaceChar(destPathAppend, '\\', '/');          // DOS paths innit
+
+            success &= mappedFile_read(file, &fileToWrite, MERCYPAK_FILE_DESCRIPTOR_SIZE);
+
+            int outfd = open(destPath,  O_WRONLY | O_CREAT | O_TRUNC);
+
+            success &= mappedFile_copyToFile(file, outfd, fileToWrite.fileSize, true);
+
+            success &= util_setDosFileTime(outfd, fileToWrite.fileDate, fileToWrite.fileTime);
+            success &= util_setDosFileAttributes(outfd, fileToWrite.fileFlags);
+
+            close(outfd);
+
+        }
 
     }
+
+    /*
+        TODO: ERROR HANDLING
+     */
 
     ui_progressBoxDeinit();
 
