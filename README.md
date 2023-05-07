@@ -358,10 +358,12 @@ A: This problem happens when running the script on Windows whilst the script dir
 
 A: You've probably used Linux to do the image creation. Linux has no concept of hidden files, therefore this file property cannot be replicated in the images.
 
-## Q: I'm getting CD-ROM read errors, segmentation faults and other weird behavior when installing from CD on a Pentium Pro / Intel 440FX based machine.
+## Q: I'm getting I/O and read errors, segmentation faults and other weird behavior when installing from CD on a Intel i430 / i440-based system with an Intel 82371SB south bridge (e.g. i440FX)
 
-A: Yeah I have this problem too and I have no idea how to fix it. It seems to be a bug in the Intel IDE driver in linux.
+A: This problem has been verified by Deksor, 0xCats and myself, and is a deeply rooted problem within the Linux Kernel that has existed since at least version 2.4.xx. Operating the drives in PIO mode can help.
 
-You can use the bootable USB image and write it to a hard drive or CF card.
+For now, you can work around this problem by using a PCI SCSI or IDE adapter card that supports CD-ROM boot or has DOS drivers with the **DOS boot floppy option**.
 
-This also **only happens when the CD-ROM is connected to the on-board IDE controller**. You an work around this problem by using a PCI SCSI or IDE adapter card that supports CD-ROM boot or has DOS drivers with the **DOS boot floppy option**.
+## Q: I'm trying to install on a VIA MVP3-based motherboard and I'm getting a "General Protection Fault" on the first boot. (Repoted by Rigo)
+
+A: To work around this issue, select the "slow" hardware detection variant in the installation wizard. The problem is currently under investigation.
