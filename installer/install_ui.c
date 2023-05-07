@@ -136,6 +136,7 @@ int ui_showYesNoCustomLabels(char *yesLabel, char *noLabel, const char *prompt) 
 
 void ui_showMessageBox(const char *message) {
     UI_PREPARE_DIALOG();
+    dialog_vars.ok_label = ui_ButtonLabelOK;
     dialog_msgbox(NULL, message, 0, 0, 1);
 }
 
