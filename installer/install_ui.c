@@ -1,3 +1,4 @@
+#include "qi_assert.h"
 #include "install_ui.h"
 #include "util.h"
 #include "version.h"
@@ -16,6 +17,7 @@ char ui_ButtonLabelBack[] = "Back";
 char ui_ButtonLabelFinished[] = "< FINISHED >";
 char ui_ButtonLabelExitToShell[] = "Exit To Shell";
 char ui_ButtonLabelReboot[] = "Reboot";
+char ui_YesNoEscapeHint[] = "QuickInstall [ESC: Cancel]";
 
 char* ui_makeDialogMenuLabel(char *fmt, ...) {
     char *label = calloc(1, UI_DIALOG_LABEL_LENGTH);
@@ -127,11 +129,20 @@ char *ui_getMenuResultString() {
     }
 }
 
-int ui_showYesNoCustomLabels(char *yesLabel, char *noLabel, const char *prompt) {
+int ui_showYesNoCustomLabels(char *yesLabel, char *noLabel, const char *prompt, bool cancelable) {
     UI_PREPARE_DIALOG();
     dialog_vars.yes_label = yesLabel;
     dialog_vars.no_label = noLabel;
-    return dialog_yesno(NULL, prompt, 0, 0);
+    
+    while (true) {
+
+        // If it's cancelable we return the result as-is. If not, we wait until the result is valid.
+        int result = dialog_yesno(cancelable ? ui_YesNoEscapeHint : NULL, prompt, 0, 0);
+
+        if (cancelable || result != UI_YESNO_CANCELED) {
+            return result;
+        }
+    }
 }
 
 void ui_showMessageBox(const char *message) {
@@ -159,7 +170,7 @@ static int ui_Progress = 0; */
 /* -4 for the spacing and border  2 for the edges of the actual progress bar*/
 #define UI_PROGRESS_BAR_TOTALWIDTH (UI_TEXTBOX_WIDTH - 4)
 #define UI_PROGRESS_BAR_WIDTH (UI_TEXTBOX_WIDTH - 4 - 3 - 1)
-#define UI_PROGRESS_VALUE(progress, maximum) ((progress) * UI_PROGRESS_BAR_WIDTH / maximum)
+#define UI_PROGRESS_VALUE(progress, maximum) ((int) (((double) progress) * (double) UI_PROGRESS_BAR_WIDTH / (double) maximum))
 #define UI_PROGRESS_BAR_SET_TEXT_COLOR() printf("\033[30;47m");
 #define UI_SET_POSITION(x,y) { printf("\033[%d;%dH", (y), (x)); fflush (stdout); }
 
@@ -178,6 +189,7 @@ void ui_progressBoxInit(const char *title) {
 }
 
 void ui_progressBoxUpdate(int progress, int maximum) {
+//    printf("progress %lu maximum %lu\r\n", progress, maximum);
     progress = UI_PROGRESS_VALUE(progress, maximum);
     if (ui_Progress != progress) {
         //printf ("ui_Progress: %d, progress %d, count %d\n",ui_Progress, progress, progress - ui_Progress);

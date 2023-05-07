@@ -21,6 +21,10 @@
 #define UI_GAUGEBOX_WIDTH        74
 #define UI_GAUGEBOX_HEIGHT       7
 
+#define UI_YESNO_CANCELED        255
+#define UI_YESNO_YES             0
+#define UI_YESNO_NO              1
+
 #define UI_MENU_CANCELED         -1
 #define UI_MENU_ERROR            -2
 
@@ -52,8 +56,8 @@ int ui_showTextBox(const char *title, const char *fileName);
 int ui_showMenu(const char *prompt, char **menuItems, bool showBackButton);
 /* Get the result string of the menu.*/
 char *ui_getMenuResultString();
-/* Shows a "Yes / No" dialog box with custom labels for the yes and no buttons. */
-int ui_showYesNoCustomLabels(char *yesLabel, char *noLabel, const char *prompt);
+/* Shows a "Yes / No" dialog box with custom labels for the yes and no buttons. 'cancelable' makes it cancelable using ESC. */
+int ui_showYesNoCustomLabels(char *yesLabel, char *noLabel, const char *prompt, bool cancelable);
 /* Shows a message box. */
 void ui_showMessageBox(const char *message);
 /* Runs a command in a progress box, returns the command's exit code */

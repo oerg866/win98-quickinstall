@@ -74,7 +74,7 @@ void mappedFile_close(mappedFile *file) {
     free(file);
 }
 
-bool mappedFile_copyToFile(mappedFile *file, int outfd, size_t size) {
+bool mappedFile_copyToFile(mappedFile *file, int outfd, size_t size, bool advancePosition) {
     ssize_t written = write(outfd, file->mem+file->pos, size);
 
     if (written != size) {
@@ -84,7 +84,9 @@ bool mappedFile_copyToFile(mappedFile *file, int outfd, size_t size) {
         return false;
     }
 
-    mappedFile_advancePosAndReadAhead(file, written);
+    if (advancePosition)
+        mappedFile_advancePosAndReadAhead(file, written);
+
     return true;
 }
 

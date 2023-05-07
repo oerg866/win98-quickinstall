@@ -11,7 +11,7 @@ typedef struct {
 
 mappedFile *mappedFile_open(const char *filename, size_t readahead);
 void mappedFile_close(mappedFile *file);
-bool mappedFile_copyToFile(mappedFile *file, int outfd, size_t size);
+bool mappedFile_copyToFile(mappedFile *file, int outfd, size_t size, bool advancePosition);
 bool mappedFile_read(mappedFile *file, void *dst, size_t len);
 
 #define mappedFile_eof(file)            (file->pos >= file->size)
