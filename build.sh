@@ -78,7 +78,6 @@ popd
 
 # Copy linux kernel & binaries
 mkdir -p "$CDROOT/bin"
-mkdir -p "$CDROOT/mercypak"
 cp bzImage.cd "$CDROOT/"
 cp tiny-floppy-bootloader/cdrom.img "$CDROOT/"
 cp util-linux/OUTPUT/bin/* "$CDROOT/bin/"
@@ -88,7 +87,6 @@ cp util-linux/sfdisk "$CDROOT/bin/"
 cp util-linux/lsblk "$CDROOT/bin/"
 cp dosfstools/OUTPUT/sbin/* "$CDROOT/bin/"
 cp dialog/dialog "$CDROOT/bin/"
-cp supplement/get* "$CDROOT/bin/"
 cp supplement/syslinux.cfg "$CDROOT"
 
 # Boot floppies, also copy them to the CDROM root for ~user convenience~
