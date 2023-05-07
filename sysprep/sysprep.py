@@ -402,6 +402,8 @@ for osroot in input_osroots:
     # Finalize drivers for every package.
     finalize_drivers_for_osroot(output_base, output_osroot, osroot_cabdir_relative)
 
+    print("Packing system root...")
+
     # Do the OSROOT mercypaking now.
     mercypak_pack(osroot, os.path.join(output_osroot, 'FULL.866'))
 
