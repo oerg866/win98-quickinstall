@@ -40,28 +40,26 @@ do
 	if tryMountPattern sd vfat; then break; fi;	# Flash drive or hard drive in FAT32
 	if tryMountPattern hd vfat; then break; fi;	# Flash drive or hard drive in FAT32
 	if tryMountPattern nv vfat; then break; fi;	# NVME (lol?)
+
 	echo "Cannot find install media (yet). Retrying in 2 seconds."
-	echo "Hit CTRL+C to cancel and drop to a shell."
-	sleep 2
+	echo "--- PRESS <ENTER> TO CANCEL AND LAUNCH A LINUX SHELL ---"
+
+	# Doing this hack because for some reason trap and sigint don't work....
+	if read -t 2; then return 1; fi;
 done
 
 # back to root
 cd /
 
-if test -z "$DEV"; then
-	echo "Install media / CD-ROM Not found!"
-	return 127
-else
-	echo "Install media / CD-ROM found and mounted at $CD"
-	# Copy some files to memory for faster execution
-	cp $CD/bin/lunmercy /bin
-	cp $CD/bin/cfdisk /bin
-	cp $CD/bin/lsblk /bin
-	cp $CD/bin/mkfs.fat /bin
-	cp $CD/install.txt /
+echo "Install media / CD-ROM found and mounted at $CD"
+# Copy some files to memory for faster execution
+cp $CD/bin/lunmercy /bin
+cp $CD/bin/cfdisk /bin
+cp $CD/bin/lsblk /bin
+cp $CD/bin/mkfs.fat /bin
+cp $CD/install.txt /
 
-	export CDROM=$CD
-	export CDDEV=$DEV
-	export PATH=$PATH:$CD/bin
-	return 0
-fi
+export CDROM=$CD
+export CDDEV=$DEV
+export PATH=$PATH:$CD/bin
+return 0

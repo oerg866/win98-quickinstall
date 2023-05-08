@@ -7,6 +7,13 @@ dmesg -n 1
 clear
 . /findcd.sh
 . /setenv.sh
-cat welcome
-lunmercy
+
+if test -z "$CDROM"; then
+	echo "Install media / CD-ROM not mounted!"
+	cd /
+else
+	cat welcome
+	lunmercy
+fi
+
 /bin/sh
