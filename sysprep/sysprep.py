@@ -405,7 +405,7 @@ for osroot in input_osroots:
     print("Packing system root...")
 
     # Do the OSROOT mercypaking now.
-    mercypak_pack(osroot, os.path.join(output_osroot, 'FULL.866'))
+    mercypak_pack(osroot, os.path.join(output_osroot, 'FULL.866'), mercypak_v2=True)
 
     if not file_exists(output_osroot, 'FULL.866'):
         raise RuntimeError('There was an error. The required OSROOT pack file was not created ("FULL.866")')

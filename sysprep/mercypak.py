@@ -192,12 +192,12 @@ class fileData:
         self.data = data
         self.hash = hashlib.sha256()
         self.hash.update(self.data)
-        self.files_with_this_data = list[fileInfo]()
+        self.files_with_this_data = list()
     
     def add_file(self, filename: str, attribute, dos_date, dos_time):
         self.files_with_this_data.append(fileInfo(filename, attribute, dos_date, dos_time))
 
-def add_to_known_files(file_data_list: list[fileData], data:bytearray, filename, attribute, dos_date, dos_time):
+def add_to_known_files(file_data_list: list, data:bytearray, filename, attribute, dos_date, dos_time):
             
     hash = hashlib.sha256()
     hash.update(data)
@@ -221,7 +221,7 @@ def mercypak_pack(dir_path, output_file, mercypak_v2=False):
     dir_info = []
 #    file_info = []
     dir_path = os.path.abspath(dir_path)
-    known_file_infos = list[fileData]()
+    known_file_infos = list()
 
     for root, dirs, files in os.walk(dir_path):
         for dir_name in dirs:
@@ -301,6 +301,7 @@ def mercypak_pack(dir_path, output_file, mercypak_v2=False):
 
                 for file_info in file_data.files_with_this_data:
 
+                    file_rel_path = file_info.filename
                     if len(file_rel_path) > 0xff:
                         raise ValueError(f'File path "{file_rel_path}" is too long (max. 255 characters)')
 
