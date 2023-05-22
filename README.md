@@ -203,7 +203,7 @@ There are several provided methods to boot into Windows 98 QuickInstall:
 
 # Preparing a Windows 98 / ME installation for packaging
 
-- Install Windows 98 in a virtual machine or emulator, just as you want it.
+- Install Windows 98 / ME in a virtual machine or emulator, just as you want it.
   I recommend using 86Box using the following configuration:
   
   - Machine:
@@ -212,7 +212,7 @@ There are several provided methods to boot into Windows 98 QuickInstall:
     - CPU type: Intel Pentium II (Deschutes)
     - Memory: 64 MB
   - Display:
-    - Video: [AGP] 3dfx Voodoo3 3000 (any video card that does not have an integrated driver in Windows 98 is fine)
+    - Video: [ISA] VGA (or any video card that does not have an integrated driver in Windows 98 / ME)
   - Network:
     - None, ***VERY IMPORTANT TO MAKE SURE NETWORK DRIVER SETUP STAYS INTACT!!***
   - Hard disks:
@@ -224,7 +224,7 @@ There are several provided methods to boot into Windows 98 QuickInstall:
 
   **NOTE:** It is recommended that NO extra drivers are installed in this VM.
 
-- Configure the Windows 98 installation as you wish. Examples:
+- Configure the Windows 98 / ME installation as you wish. Examples:
   - Machine name
   - User name
   - System options
@@ -358,9 +358,11 @@ A: This problem happens when running the script on Windows whilst the script dir
 
 A: You've probably used Linux to do the image creation. Linux has no concept of hidden files, therefore this file property cannot be replicated in the images.
 
-## Q: I'm getting I/O and read errors, segmentation faults and other weird behavior when installing from CD on a Intel i430 / i440-based system with an Intel 82371SB south bridge (e.g. i440FX)
+## Q: I'm getting I/O and read errors, segmentation faults and other weird behavior when installing from CD on an Intel i430 / i440-based system with an Intel 82371SB south bridge (e.g. i440FX)
 
-A: This problem has been verified by Deksor, 0xCats and myself, and is a deeply rooted problem within the Linux Kernel that has existed since at least version 2.4.xx. Operating the drives in PIO mode can help.
+A: This problem has been verified by Deksor, Rigo and myself, and is a deeply rooted problem that has existed since at least version 2.4.xx. Operating the drives in PIO mode can help.
+
+A BIOS update may help, the issue is currently under investigation as we found some BIOS versions where this problem does not occur.
 
 For now, you can work around this problem by using a PCI SCSI or IDE adapter card that supports CD-ROM boot or has DOS drivers with the **DOS boot floppy option**.
 
