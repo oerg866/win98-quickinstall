@@ -18,6 +18,7 @@ CHS_GEOMETRY_SECTORS = 63
 
 PARTITIONENTRY_TYPE_FAT32 = 0x0C
 PARTITIONENTRY_SECTOR_SIZE = 512
+PARTITIONENTRY_SECTORS_PER_CLUSTER = 8
 PARTITIONENTRY_FAT32_MIN_SIZE = 512 * 1024 * 1024 # Min 512MiB
 
 class MasterBootRecord:
@@ -182,7 +183,7 @@ class FAT32Partition:
                 # DOS 2.0 stuff
                 
                 self.bytes_per_sector = PARTITIONENTRY_SECTOR_SIZE
-                self.logical_sectors_per_cluster = 8
+                self.logical_sectors_per_cluster = PARTITIONENTRY_SECTORS_PER_CLUSTER
                 self.reserved_logical_sectors = 32
                 self.number_of_fats = 2
                 self.root_dir_entries = 0
@@ -408,12 +409,13 @@ def delete_if_present(file):
     if os.path.exists(file):
         os.remove(file)
 
-def get_directory_size(path):
+# Gets the directory size. Files are padded to block_size byte boundaries.
+def get_directory_size(path, block_size):
     total_size = 0
     for dirpath, dirnames, filenames in os.walk(path):
         for f in filenames:
             fp = os.path.join(dirpath, f)
-            total_size += os.path.getsize(fp)
+            total_size += (( os.path.getsize(fp) + block_size - 1 ) // block_size) * block_size # padding
     return total_size
 
 def copy_tree_to_fs_path(input_path, pyfilesystem_path):
@@ -458,8 +460,13 @@ def copy_tree_to_fs_path(input_path, pyfilesystem_path):
 
 def make_usb(output_base, output_usb):
     bps = PARTITIONENTRY_SECTOR_SIZE
-    totalsize = get_directory_size(output_base) + 10 * 1024 * 1024 # 10MB padding    
-    partitionsize = (totalsize + 1) // bps * bps # Pad to sector boundary
+    padding_block_size = PARTITIONENTRY_SECTORS_PER_CLUSTER * bps
+
+    print (f'Block size {padding_block_size}')
+
+    totalsize = get_directory_size(output_base, padding_block_size) 
+    partitionsize = (( totalsize + padding_block_size - 1 ) // padding_block_size) * padding_block_size # Pad to cluster boundary
+    partitionsize = partitionsize + 32 * 1024 * 1024  # Extra padding just to make sure... (I have no clue how to calculate this properly.)
     disksize = partitionsize + 2 * 1024 * 1024 # 2MB padding for the disk
     partoffset = 63 # 63 sector offset, as usual
     basedir = os.path.join(os.curdir)
@@ -484,3 +491,6 @@ def make_usb(output_base, output_usb):
 
     print ('Copying files to image. WARNING: THIS IS VERY SLOW (I DO NOT KNOW WHY), BE PATIENT')
     copy_tree_to_fs_path(output_base, protocol_file)
+    
+    
+make_usb("_OUTPUT_", "makeusb.img")
