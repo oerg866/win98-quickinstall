@@ -63,7 +63,7 @@ void ui_destroyDialogMenuLabelList(char **list) {
 
 int ui_getMenuLabelListItemCount(char **list) {
     int count = 0;
-    while (list[0] != NULL && list[1] != NULL) {
+    while (!(list[0] == NULL && list[1] == NULL)) {
         count++;
         list += 2;
     }

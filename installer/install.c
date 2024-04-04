@@ -186,6 +186,8 @@ static bool inst_showOSVariantSelect(size_t *variantIndex, size_t *variantCount)
         }
     }
 
+    closedir(dir);
+
     if (*variantCount > 1) {
         menuResult = ui_showMenu("Select the operating system variant you wish to install.", menuLabels, true);
     } else {
@@ -300,6 +302,8 @@ static util_Partition *inst_showPartitionSelector(util_HardDiskArray *hdds) {
 
         snprintf(chosenOption, sizeof(chosenOption), "%s%s", devPrefix, ui_getMenuResultString());
 
+        ui_destroyDialogMenuLabelList(menuLabels);
+        
         if (menuResult == UI_MENU_CANCELED) { // BACK was pressed.
             return NULL;
         }
@@ -307,7 +311,6 @@ static util_Partition *inst_showPartitionSelector(util_HardDiskArray *hdds) {
         result = util_getPartitionFromDevicestring(hdds, chosenOption);
         QI_ASSERT(result);
 
-        ui_destroyDialogMenuLabelList(menuLabels);
 
         // Is this the installation source? If yes, show menu again.
         if (inst_isInstallationSourcePartition(result)) {
