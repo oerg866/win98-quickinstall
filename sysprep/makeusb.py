@@ -491,6 +491,4 @@ def make_usb(output_base, output_usb):
 
     print ('Copying files to image. WARNING: THIS IS VERY SLOW (I DO NOT KNOW WHY), BE PATIENT')
     copy_tree_to_fs_path(output_base, protocol_file)
-    
-    
-make_usb("_OUTPUT_", "makeusb.img")
+ 
