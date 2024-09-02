@@ -42,12 +42,6 @@ echo Downloading i486-linux-musl-cross.tgz
 $DOWNLOAD http://musl.cc/i486-linux-musl-cross.tgz
 tar -xvf i486-linux-musl-cross.tgz
 
-# Download busybox
-echo Downloading busybox
-$DOWNLOAD https://www.busybox.net/downloads/busybox-1.35.0.tar.bz2
-tar -xvf busybox-1.35.0.tar.bz2
-rm busybox*.tar.bz2
-mv busybox* busybox
 
 # Download dialog
 echo Downloading dialog

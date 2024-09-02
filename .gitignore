@@ -1,6 +1,5 @@
 # Ignore all the things that aren't repos.
 i486-linux-musl-cross
-busybox
 dialog
 dosfstools
 ncurses
