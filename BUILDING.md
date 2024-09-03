@@ -41,7 +41,7 @@ The framework must be built on Linux. It was tested using Ubuntu 20.04 running n
 
 You must install the following packages:
 
-`build-essential gcc-7 tic python3 gunzip libuuid wine dd nasm mkisofs zip syslinux`
+`build-essential tic python3 python-is-python3 gunzip libuuid wine dd nasm uuid-dev mkisofs zip syslinux automake libtool gettext bison autopoint pkg-config`
 
 (this might be incomplete, be warned)
 
