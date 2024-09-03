@@ -57,12 +57,7 @@ size_t util_captureCommandOutput(const char *command, char *buf, size_t bufSize)
 }
 
 bool util_stringStartsWith(const char *fullString, const char *toCheck) {
-    // Check for NULLs and the full string being too short
-    if (!fullString || !toCheck || (strlen(fullString) < strlen(toCheck)))
-        return false;
-
-    // Return result
-    return (memcmp(fullString, toCheck, strlen(toCheck)) == 0);
+    return strncmp(toCheck, fullString, strlen(toCheck)) == 0;
 }
 
 bool util_stringEquals(const char* str1, const char* str2) {

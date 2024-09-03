@@ -1,4 +1,4 @@
-WINDOWS 98 / ME QUICKINSTALL -- VERSION 0.9.3
+WINDOWS 98 / ME QUICKINSTALL -- VERSION 0.9.4 BETA
 Your friendly Linux-based Windows 98 / ME Installer :)
 ----------------------------------------------------------------------
 

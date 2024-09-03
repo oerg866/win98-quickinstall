@@ -27,7 +27,7 @@ popd
 # Prepare initrd
 
 pushd filesystem
-	mkdir -pv {dev,proc,etc/init.d,sys,tmp,usr/lib/terminfo/l}
+	mkdir -pv {dev,proc,etc/init.d,sys,tmp,usr/lib/terminfo/l,lib/firmware}
 	sudo mknod dev/console c 5 1
 	sudo mknod dev/null c 1 3
 	cp ../supplement/welcome ./
@@ -36,6 +36,7 @@ pushd filesystem
 	cp ../supplement/findcd.sh ./
 	cp ../supplement/setenv.sh ./
 	cp "$PREFIX/share/terminfo/l/linux" ./usr/lib/terminfo/l/linux
+	cp -r ../supplement/firmware/* ./lib/firmware
 	ln -s sbin/init init
 	chmod +x etc/init.d/rc
 	chmod +x ./findcd.sh
