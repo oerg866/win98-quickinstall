@@ -691,7 +691,10 @@ CONFIG_DEVTMPFS_MOUNT=y
 #
 # Firmware loader
 #
-# CONFIG_FW_LOADER is not set
+CONFIG_FW_LOADER=y
+CONFIG_EXTRA_FIRMWARE=""
+# CONFIG_FW_LOADER_USER_HELPER is not set
+# CONFIG_FW_LOADER_COMPRESS is not set
 # end of Firmware loader
 
 # CONFIG_ALLOW_DEV_COREDUMP is not set
