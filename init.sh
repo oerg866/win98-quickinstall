@@ -28,53 +28,71 @@ echo "ignore it."
 echo "--------------------------------"
 
 # pre clean so the init script works even when init has been done already
-rm -f *.tgz*
-rm -f *.tar*
-rm -rf busybox*
 rm -rf ncurses*
-rm -rf i486-linux-musl*
 rm -rf dialog*
 rm -rf termtypes*
 
 DOWNLOAD="wget -nc -c"
 
-echo Downloading i486-linux-musl-cross.tgz
-$DOWNLOAD http://musl.cc/i486-linux-musl-cross.tgz
-tar -xvf i486-linux-musl-cross.tgz
+# Download & unpack compiler
 
+if [ ! -d "i486-linux-musl-cross" ] && [ ! -f "i486-linux-musl-cross.tgz" ]; then
+	echo Downloading i486-linux-musl-cross.tgz
+	$DOWNLOAD http://musl.cc/i486-linux-musl-cross.tgz
+fi;
+if [ ! -d "i486-linux-musl-cross.tgz" ]; then
+	tar -xvf i486-linux-musl-cross.tgz
+fi;
 
-# Download dialog
-echo Downloading dialog
-$DOWNLOAD https://invisible-island.net/datafiles/release/dialog.tar.gz
-tar -xvf dialog.tar.gz
-mv dialog-* dialog
+# Download & unpack dialog
 
-# Download ncurses
-echo Downloading ncurses
-$DOWNLOAD https://ftp.gnu.org/pub/gnu/ncurses/ncurses-6.3.tar.gz
-tar -xvf ncurses-6.3.tar.gz
-rm ncurses*.tar.gz
-mv ncurses* ncurses
+if [ ! -d "dialog" ] && [ ! -f "dialog.tgz" ]; then
+	echo Downloading dialog
+	$DOWNLOAD https://invisible-island.net/datafiles/release/dialog.tar.gz
+fi;
+if [ ! -d "dialog" ]; then
+	tar -xvf dialog.tar.gz
+	mv dialog-* dialog
+fi;
 
-# Download and build timezone data
+# Download & unpack ncurses
+
+if [ ! -d "ncurses" ] && [ ! -f "ncurses-6.3.tar.gz" ]; then
+	echo Downloading ncurses
+	$DOWNLOAD https://ftp.gnu.org/pub/gnu/ncurses/ncurses-6.3.tar.gz
+fi;
+if [ ! -d "ncurses" ]; then
+	tar -xvf ncurses-6.3.tar.gz
+	mv ncurses-6.3 ncurses
+fi;
+
+# Download and build termtype data
+
 mkdir -p termtypes
 pushd termtypes
-echo Downloading timezone data
-$DOWNLOAD http://catb.org/terminfo/termtypes.ti.gz
+
+if [ ! -f "termtypes.ti.gz" ]; then
+	echo Downloading termtype data
+	$DOWNLOAD http://catb.org/terminfo/termtypes.ti.gz
+fi;
+
 gunzip termtypes.ti.gz
 tic -o . termtypes.ti
 popd
-
-rm -rf *.gz
-rm -rf *.tgz
 
 # Build config for linux and busybox
 
 cp buildscripts/linux_config linux/.config
 cp buildscripts/busybox_config busybox/.config
 
-
 # Build the dependencies. 
+
+pushd syslinux
+	git reset --hard
+	git apply ../buildscripts/syslinux_patches/*
+	make -j8 bios
+popd
+
 
 BUILDSCRIPTS="ncurses dialog dosfstools util-linux busybox syslinux"
 
@@ -82,11 +100,6 @@ for dep in $BUILDSCRIPTS
 do
 	cp buildscripts/$dep.sh $dep/build.sh
 done
-
-# We build SYSLINUX anew because it *must* be built with GCC7, with GCC9 it fails on <i686.
-pushd syslinux
-	make -j8 bios
-popd
 
 # Prepare things to be built properly
 
