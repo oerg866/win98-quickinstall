@@ -1,0 +1,10 @@
+--- a/efi/main.c
++++ b/efi/main.c
+@@ -6,6 +6,7 @@
+ #include <core.h>
+ #include <fs.h>
+ #include <com32.h>
++#include <setjmp.h>
+ #include <syslinux/memscan.h>
+ #include <syslinux/firmware.h>
+ #include <syslinux/linux.h>

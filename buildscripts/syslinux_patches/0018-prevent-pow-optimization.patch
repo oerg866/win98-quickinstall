@@ -1,0 +1,36 @@
+From: Lukas Schwaighofer <lukas@schwaighofer.name>
+Date: Tue, 26 Feb 2019 23:13:58 +0100
+Subject: Prevent optimizing the pow() function
+
+With the current GCC 8.2.0 from Debian, a section of code calling pow() in
+zzjson_parse.c is turned into a sequence calling exp(). Since no exp()
+implementation is available in syslinux those optimizations need to be
+disabled.
+---
+ com32/gpllib/zzjson/zzjson_parse.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/com32/gpllib/zzjson/zzjson_parse.c b/com32/gpllib/zzjson/zzjson_parse.c
+index ecb6f61..e66a9d8 100644
+--- a/com32/gpllib/zzjson/zzjson_parse.c
++++ b/com32/gpllib/zzjson/zzjson_parse.c
+@@ -138,6 +138,10 @@ static ZZJSON *parse_string2(ZZJSON_CONFIG *config) {
+     return zzjson;
+ }
+ 
++static double __attribute__((optimize("O0"))) pow_noopt(double x, double y) {
++	return pow(x, y);
++}
++
+ static ZZJSON *parse_number(ZZJSON_CONFIG *config) {
+     ZZJSON *zzjson;
+     unsigned long long ival = 0, expo = 0;
+@@ -213,7 +217,7 @@ skipexpo:
+     if (dbl) {
+         dval = sign * (long long) ival;
+         dval += sign * frac;
+-        dval *= pow(10.0, (double) signexpo * expo);
++        dval *= pow_noopt(10.0, (double) signexpo * expo);
+     }
+ 
+     zzjson = config->calloc(1, sizeof(ZZJSON));
