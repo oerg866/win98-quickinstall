@@ -19,3 +19,6 @@
 [submodule "util-linux"]
 	path = util-linux
 	url = git@github.com:oerg866/w98qi-util-linux.git
+[submodule "busybox"]
+	path = busybox
+	url = git://git.busybox.net/busybox
