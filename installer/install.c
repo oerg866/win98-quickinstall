@@ -97,7 +97,7 @@ static mappedFile *inst_openSourceFile(size_t osVariantIndex, const char *filena
 
 /* Shows disclaimer text */
 static void inst_showDisclaimer() {
-    ui_showTextBox("DISCLAIMER", "/install.txt");
+    ui_showTextBox("DISCLAIMER", inst_getCDFilePath(0, "install.txt"));
 }
 
 /* Shows welcome screen, returns false if user wants to exit to shell */
