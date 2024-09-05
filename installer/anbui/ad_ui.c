@@ -171,6 +171,19 @@ inline int32_t ad_menuExecuteDirectly(const char *title, bool cancelable, size_t
     _ad_genericFormattedPromptFunctionStart(tmpPrompt, promptFormat);
     return ad_menuExecuteDirectlyInternal(title, cancelable, optionCount, options, tmpPrompt);
 }
+
+inline int32_t ad_yesNoBox(const char *title, bool cancelable, const char *promptFormat, ...) {
+    const char *options[] = {"Yes", "No"};
+    _ad_genericFormattedPromptFunctionStart(tmpPrompt, promptFormat);
+    return ad_menuExecuteDirectlyInternal(title, cancelable, AD_ARRAY_SIZE(options), options, tmpPrompt);
+}
+
+inline int32_t ad_okBox(const char *title, bool cancelable, const char *promptFormat, ...) {
+    const char *options[] = {"OK"};
+    _ad_genericFormattedPromptFunctionStart(tmpPrompt, promptFormat);
+    return ad_menuExecuteDirectlyInternal(title, cancelable, AD_ARRAY_SIZE(options), options, tmpPrompt);
+}
+
 static bool ad_progressBoxPaint(ad_ProgressBox *pb) {
     size_t expectedWidth;
     size_t promptWidth;
