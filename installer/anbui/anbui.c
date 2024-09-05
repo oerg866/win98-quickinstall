@@ -87,7 +87,7 @@ void ad_deinit() {
     printf("\n");
 }
 
-#if 1
+#if defined(_ANBUI_TEST_)
 
 int main (int argc, char *argv[]) {    
     AD_UNUSED_PARAMETER(argc);
