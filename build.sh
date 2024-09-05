@@ -87,7 +87,6 @@ cp util-linux/cfdisk "$CDROOT/bin/"
 cp util-linux/sfdisk "$CDROOT/bin/"
 cp util-linux/lsblk "$CDROOT/bin/"
 cp dosfstools/OUTPUT/sbin/* "$CDROOT/bin/"
-cp dialog/dialog "$CDROOT/bin/"
 cp supplement/syslinux.cfg "$CDROOT"
 
 # Boot floppies, also copy them to the CDROM root for ~user convenience~

@@ -193,6 +193,18 @@ util_Partition *util_getPartitionFromDevicestring(util_HardDiskArray *hdds, cons
     return NULL;
 }
 
+util_Partition *util_getPartitionFromIndex(util_HardDiskArray *hdds, size_t index) {
+    size_t curDisk = 0;
+    for (size_t disk = 0; disk < hdds->count; disk++) {
+        for (size_t part = 0; part < hdds->disks[disk].partitionCount; part++) {
+            if (curDisk == index) return &hdds->disks[disk].partitions[part];
+            curDisk++;
+
+        }
+    }
+    return NULL;
+}
+
 // Reads bytes from a file descriptor in a loop until all of them are read
 static bool util_readFromFD(int fd, uint8_t *buf, size_t length) {    
     size_t bytesRead;

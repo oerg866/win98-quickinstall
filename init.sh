@@ -29,7 +29,6 @@ echo "--------------------------------"
 
 # pre clean so the init script works even when init has been done already
 rm -rf ncurses*
-rm -rf dialog*
 rm -rf termtypes*
 
 DOWNLOAD="wget -nc -c"
@@ -42,17 +41,6 @@ if [ ! -d "i486-linux-musl-cross" ] && [ ! -f "i486-linux-musl-cross.tgz" ]; the
 fi;
 if [ ! -d "i486-linux-musl-cross.tgz" ]; then
 	tar -xvf i486-linux-musl-cross.tgz
-fi;
-
-# Download & unpack dialog
-
-if [ ! -d "dialog" ] && [ ! -f "dialog.tgz" ]; then
-	echo Downloading dialog
-	$DOWNLOAD https://invisible-island.net/datafiles/release/dialog.tar.gz
-fi;
-if [ ! -d "dialog" ]; then
-	tar -xvf dialog.tar.gz
-	mv dialog-* dialog
 fi;
 
 # Download & unpack ncurses
@@ -94,7 +82,7 @@ pushd syslinux
 popd
 
 
-BUILDSCRIPTS="ncurses dialog dosfstools util-linux busybox syslinux"
+BUILDSCRIPTS="ncurses dosfstools util-linux busybox syslinux"
 
 for dep in $BUILDSCRIPTS
 do
@@ -111,12 +99,6 @@ export INCLUDEDIR=$PREFIX/include
 
 pushd ncurses
 	./configure --prefix=$PREFIX --host=i486-linux-musl --enable-widec
-	./build.sh
-popd
-
-pushd dialog
-	# binary goes in dialog/OUTPUT, lib & include goes in compiler dir
-	./configure --host=i486-linux-musl --prefix=$PWD/OUTPUT --libdir=$LIBDIR --includedir=$INCLUDEDIR --with-ncursesw
 	./build.sh
 popd
 

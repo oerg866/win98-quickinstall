@@ -14,6 +14,9 @@
 
 #define UTIL_MAX_CMD_LENGTH (2048)
 
+#define util_arraySize(array) (sizeof((array))/sizeof((array)[0]))
+
+#define util_returnOnNull(ptr, return_value) if (ptr == NULL) { printf("ERROR - '" #ptr "' is NULL! Result = '" #return_value "'\r\n"); return return_value; }
 
 // Get a value for a given key from /proc/meminfo
 uint64_t util_getProcMeminfoValue(const char *key);
@@ -103,6 +106,9 @@ bool util_getFormatCommand(util_Partition *part, util_FileSystem fs, char *buf, 
 size_t util_getHardDiskArrayIndexFromDevicestring(util_HardDiskArray *hdds, const char *str);
 // Gets the partition 
 util_Partition *util_getPartitionFromDevicestring(util_HardDiskArray *hdds, const char *str);
+// Gets the n-th partition in the entire hard disk array.
+util_Partition *util_getPartitionFromIndex(util_HardDiskArray *hdds, size_t index);
+
 
 /* Disk IO functions */
 
