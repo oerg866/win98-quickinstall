@@ -51,6 +51,15 @@ static void ad_signalHandler(int signum) {
     ad_deinit();
 }
 
+int32_t ad_getKey() {
+    int32_t ch = getchar();
+    if ((ch & 0xff) == CH_ESCAPE)                       ch = (ch << 8) | (getchar() & 0xff);
+    if ((ch & 0xff) == CH_SEQSTART)                     ch = (ch << 8) | (getchar() & 0xff);
+    /* Special case for PGUp and Down, they have another 7e keycode at the end... */
+    if ((ch & 0xff) == 0x35 || (ch & 0xff) == 0x36 )    ch = (ch << 8) | (getchar() & 0xff);
+    return ch;
+}
+
 void ad_init(const char *title) {
     struct termios term;
 
