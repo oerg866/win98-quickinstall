@@ -22,7 +22,8 @@
 
 void ad_objectInitialize(ad_Object *obj, size_t contentWidth, size_t contentHeight) {
     assert(obj);
-    
+
+    contentWidth = AD_MAX(contentWidth, strlen(obj->title.text));
     contentWidth = AD_MIN(contentWidth, ad_objectGetMaximumContentWidth());
     contentHeight = AD_MIN(contentHeight, ad_objectGetMaximumContentHeight());
 
