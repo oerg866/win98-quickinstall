@@ -131,6 +131,10 @@ static inline void inst_showInstallationSourcePartitionError() {
 static inline void inst_showUnsupportedFileSystemError() {
     ad_okBox("Attention", false, "The selected partition has an unsupported file system.\nIt cannot be the installation destination.");
 }
+
+/* Tells the user he is trying to install to a computer without hard disks. */
+static inline void inst_noHardDisksFoundError() {
+    ad_okBox("Attention", false, "No hard disks found! Please install a hard disk and try again!");
 }
 
 /* Tells the user about an oopsie trying to open a file for reading. */
@@ -212,6 +216,9 @@ static bool inst_showOSVariantSelect(size_t *variantIndex, size_t *variantCount)
 static bool inst_showPartitionWizard(util_HardDiskArray *hdds) {
     char cfdiskCmd[UTIL_MAX_CMD_LENGTH];
     int menuResult;
+
+    QI_ASSERT(hdds);
+    QI_ASSERT(hdds->count > 0);
 
     while (1) {
         ad_Menu *menu = ad_menuCreate("Partition Wizard", "Select the Hard Disk you wish to partition.", true);
@@ -651,6 +658,11 @@ bool inst_main() {
             case INSTALL_PARTITION_WIZARD: {
                 if (hda.disks == NULL)
                     hda = util_getSystemHardDisks();
+
+                if (hda.count == 0) {
+                    inst_noHardDisksFoundError();
+                    continue;
+                }
 
                 goToNext = inst_showPartitionWizard(&hda);
                 util_hardDiskArrayDeinit(hda);
