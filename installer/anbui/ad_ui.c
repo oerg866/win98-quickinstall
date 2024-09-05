@@ -362,3 +362,9 @@ void ad_textFileBoxDestroy(ad_TextFileBox *tfb) {
         free(tfb);
     }
 }
+
+inline void ad_textFileBoxDirect(const char *title, const char *fileName) {
+    ad_TextFileBox *tfb = ad_textFileBoxCreate(title, fileName);
+    ad_textFileBoxExecute(tfb);
+    ad_textFileBoxDestroy(tfb);
+}
