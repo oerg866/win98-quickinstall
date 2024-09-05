@@ -95,6 +95,7 @@ void            ad_menuAddItemFormatted (ad_Menu *menu, const char *format, ...)
 size_t          ad_menuGetItemCount     (ad_Menu *menu);
 int32_t         ad_menuExecute          (ad_Menu *menu);
 void            ad_menuDestroy          (ad_Menu *menu);
+int32_t         ad_menuExecuteDirectly  (const char *title, bool cancelable, size_t optionCount, const char *options[], const char *promptFormat, ...);
 
 ad_ProgressBox *ad_progressBoxCreate    (const char *title, const char *prompt, uint32_t maxProgress);
 void            ad_progressBoxUpdate    (ad_ProgressBox *pb, uint32_t progress);

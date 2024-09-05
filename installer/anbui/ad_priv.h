@@ -87,6 +87,7 @@
 #define AD_MIN(a,b) (((a)<(b))?(a):(b))
 #define AD_MAX(a,b) (((a)>(b))?(a):(b))
 
+#define AD_ARRAY_SIZE(array) (sizeof((array))/sizeof((array)[0]))
 
 typedef struct {
     uint16_t width;

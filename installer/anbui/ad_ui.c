@@ -137,6 +137,40 @@ void ad_menuDestroy(ad_Menu *menu) {
     }
 }
 
+static int32_t ad_menuExecuteDirectlyInternal(const char *title, bool cancelable, size_t optionCount, const char *options[], const char *prompt) {
+    ad_Menu        *menu = NULL;
+    int             ret  = 0;
+
+    AD_RETURN_ON_NULL(options, AD_ERROR);
+    AD_RETURN_ON_NULL(prompt, AD_ERROR);
+
+    menu = ad_menuCreate(title, prompt, cancelable);
+    AD_RETURN_ON_NULL(menu, AD_ERROR);
+
+    for (size_t i = 0; i < optionCount; i++) {
+        ad_menuAddItemFormatted(menu, "%s", options[i]);
+    }
+
+    ret = ad_menuExecute(menu);
+    ad_menuDestroy(menu);
+
+    return ret;
+}
+
+#define _ad_vsnprintfWrapper(dst, n, fmt, args)         \
+    va_start(args, promptFormat);                       \
+    vsnprintf(dst, n, fmt, args);                       \
+    va_end(args);
+
+#define _ad_genericFormattedPromptFunctionStart(tmpBufferName, fmt) \
+    char tmpBufferName[1024]; va_list args;                         \
+    AD_RETURN_ON_NULL(fmt, AD_ERROR);                               \
+    _ad_vsnprintfWrapper(tmpBufferName, sizeof(tmpBufferName), fmt, args);
+
+inline int32_t ad_menuExecuteDirectly(const char *title, bool cancelable, size_t optionCount, const char *options[], const char *promptFormat, ...) {
+    _ad_genericFormattedPromptFunctionStart(tmpPrompt, promptFormat);
+    return ad_menuExecuteDirectlyInternal(title, cancelable, optionCount, options, tmpPrompt);
+}
 static bool ad_progressBoxPaint(ad_ProgressBox *pb) {
     size_t expectedWidth;
     size_t promptWidth;
