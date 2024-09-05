@@ -26,6 +26,7 @@ static void ad_menuSelectItemAndDraw(ad_Menu *menu, size_t newSelection) {
     ad_displayStringCropped(menu->items[menu->currentSelection].text,   menu->itemX, menu->itemY + menu->currentSelection, menu->itemWidth, ad_s_con.objectBg, ad_s_con.objectFg);
     ad_displayStringCropped(menu->items[newSelection].text,             menu->itemX, menu->itemY + newSelection,           menu->itemWidth, ad_s_con.objectFg, ad_s_con.objectBg);
     menu->currentSelection = newSelection;
+    ad_flush();
 }
 
 static bool ad_menuPaint(ad_Menu *menu) {
@@ -68,6 +69,7 @@ static bool ad_menuPaint(ad_Menu *menu) {
 
     ad_menuSelectItemAndDraw(menu, 0);
 
+    ad_flush();
     return true;
 }
 

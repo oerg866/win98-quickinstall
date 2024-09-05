@@ -137,6 +137,8 @@ void ad_displayTextElementArray(uint16_t x, uint16_t y, size_t maximumWidth, siz
         ad_displayStringCropped(elements[i].text, x, y, maximumWidth, ad_s_con.objectBg, ad_s_con.objectFg);
         y++;
     }
+
+    ad_flush();
 }
 
 void ad_printCenteredText(const char* str, uint16_t x, uint16_t y, uint16_t w, uint8_t colBg, uint8_t colFg) {
