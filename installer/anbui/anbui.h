@@ -20,6 +20,10 @@
 
 #define AD_TEXT_ELEMENT_SIZE 256
 
+#define AD_YESNO_YES    (0)
+#define AD_CANCELED     (-1)
+#define AD_ERROR        (-INT32_MAX)
+
 typedef struct {
     char                text[AD_TEXT_ELEMENT_SIZE];
 } ad_TextElement;

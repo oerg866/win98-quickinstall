@@ -325,7 +325,7 @@ static void ad_textFileBoxMove(ad_TextFileBox *tpb, int32_t positionsToMoveV) {
 int32_t ad_textFileBoxExecute(ad_TextFileBox *tfb) {
     int ch;
 
-    AD_RETURN_ON_NULL(tfb, -1);
+    AD_RETURN_ON_NULL(tfb, AD_ERROR);
 
     ad_textFileBoxRedrawLines(tfb);
 
@@ -343,7 +343,7 @@ int32_t ad_textFileBoxExecute(ad_TextFileBox *tfb) {
         } else if   (ch == AD_KEY_ENTER) {
             return 0;
         } /*else if   (menu->cancelable && (ch == AD_KEY_ESCAPE || ch == AD_KEY_ESCAPE2)) {
-            return -1;
+            return AD_CANCELED;
         } */
 #if 0
         else {
