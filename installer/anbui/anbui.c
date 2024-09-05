@@ -93,7 +93,16 @@ int main (int argc, char *argv[]) {
     AD_UNUSED_PARAMETER(argc);
     AD_UNUSED_PARAMETER(argv);
 
-    ad_init("Windows 9x QuickInstall v0.9.4 - (C) 2024 E. Voirin");
+    ad_init("AnbUI Super Burger Edition - The Test Application(tm)");
+
+    ad_yesNoBox("Burger Selection", true,
+        "Do you want cheese on burger cheese taste on you?\n"
+        "Refer to Anby Demara's Burger Handbook for more\n"
+        "information.");
+
+    ad_okBox("Another Burger Selection", true, "Cheese is taste on burger cheese on you.");
+
+    ad_runCommandBox("apt update 2>&1", "Updating my burger to have burger cheese on burger");
 
     ad_TextFileBox *tfb = ad_textFileBoxCreate("demara.txt", "demara.txt");
     ad_textFileBoxExecute(tfb);
