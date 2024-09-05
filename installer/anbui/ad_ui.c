@@ -59,7 +59,7 @@ static bool ad_menuPaint(ad_Menu *menu) {
     menu->itemY = ad_objectGetContentY(&menu->object);
 
     if (menu->prompt) {   
-        ad_displayTextElementArray(menu->itemX, menu->itemY, maximumContentWidth, menu->prompt->lineCount, menu->prompt->lines);
+        ad_displayTextElementArray(menu->itemX, menu->itemY, ad_objectGetContentWidth(&menu->object), menu->prompt->lineCount, menu->prompt->lines);
         menu->itemY += 1 + menu->prompt->lineCount;
     }
 
