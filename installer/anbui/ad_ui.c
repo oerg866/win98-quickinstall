@@ -99,6 +99,10 @@ void ad_menuAddItemFormatted(ad_Menu *obj, const char *format, ...) {
     va_end(args);
 }
 
+inline size_t ad_menuGetItemCount(ad_Menu *menu) {
+    return menu ? menu->itemCount : 0;
+}
+
 int32_t ad_menuExecute(ad_Menu *menu) {
     int ch;
 

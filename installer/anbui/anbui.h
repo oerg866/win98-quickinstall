@@ -88,6 +88,7 @@ void            ad_deinit               (void);
 
 ad_Menu        *ad_menuCreate           (const char * title, const char *prompt, bool cancelable);
 void            ad_menuAddItemFormatted (ad_Menu *menu, const char *format, ...);
+size_t          ad_menuGetItemCount     (ad_Menu *menu);
 int32_t         ad_menuExecute          (ad_Menu *menu);
 void            ad_menuDestroy          (ad_Menu *menu);
 
