@@ -109,4 +109,6 @@ int32_t         ad_textFileBoxExecute   (ad_TextFileBox *tfb);
 void            ad_textFileBoxDestroy   (ad_TextFileBox *tfb);
 void            ad_textFileBoxDirect    (const char *title, const char *fileName);
 
+int32_t         ad_runCommandBox        (const char *title, const char *command);
+
 #endif

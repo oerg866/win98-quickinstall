@@ -415,3 +415,59 @@ inline void ad_textFileBoxDirect(const char *title, const char *fileName) {
     ad_textFileBoxExecute(tfb);
     ad_textFileBoxDestroy(tfb);
 }
+
+static void ad_commandBoxRedraw(const ad_TextElement *lines, size_t lineCount, uint16_t contentWidth, size_t index, uint16_t x, uint16_t y) {
+    for (size_t i = 0; i < lineCount; i++) {
+        ad_displayStringCropped(lines[index % lineCount].text, x, y + i, contentWidth, ad_s_con.objectBg, ad_s_con.objectFg);
+        index++;
+    }
+}
+
+int32_t ad_runCommandBox(const char *command, const char *title) {
+    ad_Object       obj;
+    ad_TextElement *lines = NULL;
+    size_t          visibleLines = ad_objectGetMaximumContentHeight() * 60 / 100;
+    size_t          lineWidth = ad_objectGetMaximumContentWidth() * 80 / 100;
+    size_t          lineDisplayIndex = 0;
+    size_t          lineWriteIndex = 0;
+    uint16_t        outputX = 0;
+    uint16_t        outputY = 0;
+    FILE*           pipe = NULL;
+    char           *newLineChar = NULL;
+
+    AD_RETURN_ON_NULL(command, AD_ERROR);
+    AD_RETURN_ON_NULL(title, AD_ERROR);
+
+    ad_textElementAssign(&obj.title, title);
+    ad_textElementAssignFormatted(&obj.footer, "Running: '%s'...", command);
+    ad_objectInitialize(&obj, lineWidth, visibleLines);
+
+    lineWidth = ad_objectGetContentWidth(&obj);
+    visibleLines = ad_objectGetContentHeight(&obj);
+    lineWriteIndex = visibleLines - 1; /* Start writing at bottommost line */
+    outputX = ad_objectGetContentX(&obj);
+    outputY = ad_objectGetContentY(&obj);
+
+    ad_objectPaint(&obj);
+
+    lines = calloc(visibleLines, sizeof(ad_TextElement));
+    AD_RETURN_ON_NULL(lines, AD_ERROR);
+
+    /* Run the actual command */
+    pipe = popen(command, "r");
+
+    while (fgets(lines[lineWriteIndex % visibleLines].text, AD_TEXT_ELEMENT_SIZE, pipe) != NULL) {
+        /* Fix newline */
+        newLineChar = strchr(lines[lineWriteIndex % visibleLines].text, '\n');
+        if (newLineChar) *newLineChar = 0x00;
+        lineWriteIndex++;
+        lineDisplayIndex++;
+        ad_commandBoxRedraw(lines, visibleLines, lineWidth, lineDisplayIndex, outputX, outputY);
+    }
+
+    pclose(pipe);
+
+    ad_getKey();
+
+    return 0;
+}
