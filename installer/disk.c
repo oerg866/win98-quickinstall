@@ -31,12 +31,17 @@ util_HardDiskArray util_getSystemHardDisks() {
     size_t totalPartitionCount = 0;
     util_HardDiskArray ret;
 
+    if (hddCount == 0) {
+        ret.count = 0;
+        return ret;
+    }
+
     util_HardDisk *disks = calloc(sizeof(util_HardDisk), hddCount);
 
     // Get disk models
     util_captureCommandOutput(CMD_LSBLK_HDD_NAME_SIZE, cmdOutputBuf, CMD_OUTPUT_BUF_SIZE);
 
-    for (int i = 0; i < hddCount; ++i) {
+    for (size_t i = 0; i < hddCount; ++i) {
         // format of the output is KNAME SIZE MIN-IO OPT-IO\n, so we need to scan until that character, that's our line.
         // cspn then gets us how many characters that whole thing was to advance the string pointer
         sscanf(cmdOutputBufPos, "%16s %llu %u %u[^\n]", disks[i].device, &disks[i].size, &disks[i].sectorSize, &disks[i].optIoSize);
@@ -47,7 +52,7 @@ util_HardDiskArray util_getSystemHardDisks() {
     cmdOutputBufPos = cmdOutputBuf;
     util_captureCommandOutput(CMD_LSBLK_HDD_MODEL, cmdOutputBuf, CMD_OUTPUT_BUF_SIZE);
 
-    for (int i = 0; i < hddCount; ++i) {
+    for (size_t i = 0; i < hddCount; ++i) {
         // Can't think of a simpler way to put the whole line from a string into another... why is sgets not a thing??
         sscanf(cmdOutputBufPos, " %[^\n]", disks[i].model);
         cmdOutputBufPos += strcspn(cmdOutputBufPos,"\n") + 1;
@@ -63,7 +68,7 @@ util_HardDiskArray util_getSystemHardDisks() {
 
     // Now figure out where partitions go
 
-    for (int i = 0, curPart = 0, curDisk = 0; i < fullDiskListLineCount; i++) {
+    for (size_t i = 0, curPart = 0, curDisk = 0; i < fullDiskListLineCount; i++) {
         char partDevice[16] = {0};
         uint64_t partSize = 0;
         uint32_t fsTypeByte;
@@ -207,7 +212,7 @@ util_Partition *util_getPartitionFromIndex(util_HardDiskArray *hdds, size_t inde
 
 // Reads bytes from a file descriptor in a loop until all of them are read
 static bool util_readFromFD(int fd, uint8_t *buf, size_t length) {    
-    size_t bytesRead;
+    ssize_t bytesRead;
     while (length) {
         bytesRead = read(fd, buf, length);
         if (bytesRead < 0) return false;
@@ -219,7 +224,7 @@ static bool util_readFromFD(int fd, uint8_t *buf, size_t length) {
 
 // Writes bytes to a file descriptor in a loop until all of them are read
 static bool util_writeToFD(int fd, const uint8_t *buf, size_t length) {    
-    size_t bytesWritten;
+    ssize_t bytesWritten;
     while (length) {
         bytesWritten = write(fd, buf, length);
         if (bytesWritten < 0) return false;

@@ -2,4 +2,5 @@
 
 CC=$PWD/../i486-linux-musl-cross/bin/i486-linux-musl-gcc
 
-$CC -O2 --static -Wall -pthread main.c util.c disk.c mappedfile.c install_ui.c install.c -lpthread -ldialog -lncursesw -olunmercy
+$CC -O3 -g0 --static -Wall -Wextra -pedantic -Werror -pthread *.c anbui/*.c -lpthread -olunmercy
+ls -l lunmercy

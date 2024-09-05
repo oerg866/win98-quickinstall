@@ -43,6 +43,9 @@ size_t util_captureCommandOutput(const char *command, char *buf, size_t bufSize)
     char *writePtr = buf;
     size_t lineCount = 0;
     size_t lineLength;
+
+    util_returnOnNull(pipe, 0);
+
     while (fgets(line, sizeof(line), pipe) != NULL) {
         if (buf && bufSize) { // If buf is NULL, this command can be used to get the line count of the output.
             lineLength = strnlen(line, bufSize);

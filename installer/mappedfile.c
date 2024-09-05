@@ -77,7 +77,7 @@ void mappedFile_close(mappedFile *file) {
 bool mappedFile_copyToFile(mappedFile *file, int outfd, size_t size, bool advancePosition) {
     ssize_t written = write(outfd, file->mem+file->pos, size);
 
-    if (written != size) {
+    if (written < 0 || (size_t)written != size) {
         printf("IO Error!\n");
         perror(__func__);
         assert(false);
