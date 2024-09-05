@@ -1,1 +1,1 @@
-gcc -Wall -Wextra -pedantic -Werror -g -oanbui ad_text.c anbui.c
+gcc -O3 -s -Wall -Wextra -pedantic -Werror -g -oanbui  ad_ui.c ad_obj.c ad_text.c anbui.c -lm 

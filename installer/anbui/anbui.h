@@ -40,6 +40,12 @@ typedef struct {
 
 typedef struct {
     ad_Object           object;
+    uint16_t            textX;
+    uint16_t            textY;
+    uint16_t            lineWidth;
+    int32_t             linesOnScreen;
+    int32_t             currentIndex;
+    int32_t             highestIndex;
     ad_MultiLineText   *lines;
 } ad_TextFileBox;
 
@@ -47,7 +53,11 @@ typedef struct {
     ad_Object           object;
     uint32_t            progress;
     uint32_t            outOf;
-    ad_TextElement      prompt;
+    uint16_t            boxX;
+    uint16_t            currentX;
+    uint16_t            boxY;
+    uint16_t            boxWidth;
+    ad_MultiLineText   *prompt;
 } ad_ProgressBox;
 
 typedef struct {
@@ -79,9 +89,14 @@ void ad_deinit();
 ad_Menu        *ad_menuCreate           (const char * title, const char *prompt, bool cancelable);
 void            ad_menuAddItemFormatted (ad_Menu *menu, const char *format, ...);
 int32_t         ad_menuExecute          (ad_Menu *menu);
-void            ad_destroyMenu          (ad_Menu *menu);
+void            ad_menuDestroy          (ad_Menu *menu);
 
-ad_ProgressBox *ad_createProgressBox();
-void            ad_destroyProgressBox(ad_ProgressBox *obj);
+ad_ProgressBox *ad_progressBoxCreate    (const char *title, const char *prompt, uint32_t maxProgress);
+void            ad_progressBoxUpdate    (ad_ProgressBox *pb, uint32_t progress);
+void            ad_progressBoxDestroy   (ad_ProgressBox *pb);
+
+ad_TextFileBox *ad_textFileBoxCreate    (const char *title, const char *fileName);
+int32_t         ad_textFileBoxExecute   (ad_TextFileBox *tfb);
+void            ad_textFileBoxDestroy   (ad_TextFileBox *tfb);
 
 #endif
