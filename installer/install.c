@@ -261,6 +261,7 @@ static bool inst_showPartitionWizard(util_HardDiskArray *hdds) {
         snprintf(cfdiskCmd, UTIL_MAX_CMD_LENGTH, "%s%s", INST_CFDISK_CMD, hdds->disks[menuResult].device);      
         system(cfdiskCmd);
 
+        ad_restore();
         ad_okBox("Attention", false,
             "Remember to answer 'yes' to the format prompt\n"
             "if you are installing on a partition you've just created!");
