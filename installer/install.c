@@ -143,6 +143,12 @@ static inline void inst_noHardDisksFoundError() {
 static inline void inst_showFileError() {
     ad_okBox("Attention", false, "ERROR: A problem occured handling a file for this OS variant.\n(%d: %s)", errno, strerror(errno));
 }
+
+static inline util_HardDiskArray inst_getSystemHardDisks() {
+    ad_setFooterText("Obtaining System Hard Disk Information...");
+    util_HardDiskArray ret = util_getSystemHardDisks();
+    ad_clearFooter();
+    return ret;
 }
 
 /* 
@@ -669,7 +675,7 @@ bool inst_main() {
             }
             case INSTALL_PARTITION_WIZARD: {
                 if (hda.disks == NULL)
-                    hda = util_getSystemHardDisks();
+                    hda = inst_getSystemHardDisks();
 
                 if (hda.count == 0) {
                     inst_noHardDisksFoundError();
@@ -678,7 +684,7 @@ bool inst_main() {
 
                 goToNext = inst_showPartitionWizard(&hda);
                 util_hardDiskArrayDeinit(hda);
-                hda = util_getSystemHardDisks();
+                hda = inst_getSystemHardDisks();
                 break;
             }
             case INSTALL_SELECT_DESTINATION_PARTITION: {
