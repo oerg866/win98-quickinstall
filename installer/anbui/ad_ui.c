@@ -429,7 +429,7 @@ static void ad_commandBoxRedraw(const ad_TextElement *lines, size_t lineCount, u
     }
 }
 
-int32_t ad_runCommandBox(const char *command, const char *title) {
+int32_t ad_runCommandBox(const char *title, const char *command) {
     ad_Object       obj;
     ad_TextElement *lines = NULL;
     size_t          visibleLines = ad_objectGetMaximumContentHeight() * 60 / 100;
@@ -471,9 +471,7 @@ int32_t ad_runCommandBox(const char *command, const char *title) {
         ad_commandBoxRedraw(lines, visibleLines, lineWidth, lineDisplayIndex, outputX, outputY);
     }
 
-    pclose(pipe);
+    ad_objectUnpaint(&obj);
 
-    ad_getKey();
-
-    return 0;
+    return WEXITSTATUS(pclose(pipe));
 }
