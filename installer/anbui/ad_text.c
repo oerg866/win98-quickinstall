@@ -161,7 +161,9 @@ void ad_printCenteredText(const char* str, uint16_t x, uint16_t y, uint16_t w, u
 void ad_drawBackground(const char *title) {
     char buf[256];
 
+    printf(CL_BLD);
     ad_printCenteredText(title, 0, 0, ad_s_con.width, ad_s_con.headerBg, ad_s_con.headerFg);
+    printf(CL_RST);
 
     ad_setCursorPosition(0, 1);
 
