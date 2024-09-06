@@ -111,6 +111,9 @@ objcopy -O binary -j .data syslinux/bios/linux/bootsect_bin.o "$OUTPUT/tools/sys
 cp syslinux/bios/com32/elflink/ldlinux/ldlinux.c32 "$OUTPUT/tools"
 cp syslinux/bios/core/ldlinux.sys "$OUTPUT/tools"
 
+mkdir -p "$OUTPUT/_DRIVER_"
+mkdir -p "$OUTPUT/_EXTRA_DRIVER_"
+
 cp -r sysprep/* "$OUTPUT"
 cp -r win98-driver-lib-base/* "$OUTPUT/_DRIVER_"
 cp -r win98-driver-lib-extra/* "$OUTPUT/_EXTRA_DRIVER_"
