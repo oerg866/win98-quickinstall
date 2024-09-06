@@ -167,27 +167,16 @@ void ad_printCenteredText(const char* str, uint16_t x, uint16_t y, uint16_t w, u
     ad_flush();
 }
 
-void ad_drawBackground(const char *title) {
-    char buf[256];
 
+void ad_drawBackground(const char *title) {
     printf(CL_BLD);
     ad_printCenteredText(title, 0, 0, ad_s_con.width, ad_s_con.headerBg, ad_s_con.headerFg);
     printf(CL_RST);
 
-    ad_setCursorPosition(0, 1);
-
-    printf(BG_BLU);
-
-    memset(buf, ' ', ad_s_con.width);
-    buf[ad_s_con.width] = 0x00;
-
     for (size_t y = 1; y < ad_s_con.height; y++) {
-        ad_setCursorPosition(0, y);
-        printf("%s", buf);
-        
+        ad_fill(ad_s_con.width, ' ', 0, y, ad_s_con.backgroundFill, 0);
     }
 
-    printf(CL_RST);
     ad_flush();
 }
 
