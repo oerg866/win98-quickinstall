@@ -108,5 +108,11 @@ pushd util-linux
 	./build.sh
 popd
 
+pushd dosfstools
+        ./autogen.sh
+        ./configure --host=i486-linux-musl --prefix=$PWD/OUTPUT --bindir=$PWD/OUTPUT/bin --sbindir=$PWD/OUTPUT/sbin
+        ./build.sh
+popd
+
 echo "Assuming nothing went wrong, this should be ready to go! :)"
 echo "Run ./build.sh to generate the framework!"
