@@ -62,6 +62,8 @@ typedef struct {
 // -sizeof(uint32_t) because the filesize is not part of the descriptor read from the mercypak v2 file
 #define MERCYPAK_V2_FILE_DESCRIPTOR_SIZE ((MERCYPAK_FILE_DESCRIPTOR_SIZE) - sizeof(uint32_t))
 
+#define MERCYPAK_V2_MAX_IDENTICAL_FILES (16)
+
 #define MERCYPAK_V1_MAGIC "ZIEG"
 #define MERCYPAK_V2_MAGIC "MRCY"
 
@@ -461,7 +463,10 @@ static bool inst_copyFiles(mappedFile *file, const char *installPath) {
     if (mercypakV2) {
         /* Handle mercypak v2 pack file with redundant files optimized out */
 
+        inst_MercyPakFileDescriptor *filesToWrite = calloc(MERCYPAK_V2_MAX_IDENTICAL_FILES, sizeof(inst_MercyPakFileDescriptor));
         uint8_t identicalFileCount = 0;
+
+        QI_ASSERT(filesToWrite != NULL);
 
         for (uint32_t f = 0; f < fileCount;) {
 
@@ -471,9 +476,7 @@ static bool inst_copyFiles(mappedFile *file, const char *installPath) {
 
             success &= mappedFile_getUInt8(file, &identicalFileCount);
 
-            inst_MercyPakFileDescriptor *filesToWrite = calloc(identicalFileCount, sizeof(inst_MercyPakFileDescriptor));
-
-            QI_ASSERT(filesToWrite != NULL);
+            QI_ASSERT(identicalFileCount <= MERCYPAK_V2_MAX_IDENTICAL_FILES);
 
             for (uint32_t subFile = 0; subFile < identicalFileCount; subFile++) {
                 success &= inst_getMercyPakString(file, destPathAppend);
@@ -482,7 +485,7 @@ static bool inst_copyFiles(mappedFile *file, const char *installPath) {
                 filesToWrite[subFile].fileno = open(destPath,  O_WRONLY | O_CREAT | O_TRUNC);
                 QI_ASSERT(filesToWrite[subFile].fileno >= 0);
 
-                success &= mappedFile_read(file, &filesToWrite[subFile], MERCYPAK_V2_FILE_DESCRIPTOR_SIZE);               
+                success &= mappedFile_read(file, &filesToWrite[subFile], MERCYPAK_V2_FILE_DESCRIPTOR_SIZE);
             }
 
             success &= mappedFile_getUInt32(file, &fileSize);
@@ -498,15 +501,15 @@ static bool inst_copyFiles(mappedFile *file, const char *installPath) {
                 close(filesToWrite[subFile].fileno);
             }
 
-            free(filesToWrite);
             f += identicalFileCount;
         }
 
+        free(filesToWrite);
     } else {
 
-        for (uint32_t f = 0; f < fileCount; f++) {
+        inst_MercyPakFileDescriptor fileToWrite;
 
-            inst_MercyPakFileDescriptor fileToWrite;
+        for (uint32_t f = 0; f < fileCount; f++) {
 
             ad_progressBoxUpdate(pbox, file->pos);
 
