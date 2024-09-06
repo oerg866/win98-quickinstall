@@ -136,7 +136,7 @@ static inline void inst_showUnsupportedFileSystemError() {
 
 /* Tells the user he is trying to install to a computer without hard disks. */
 static inline void inst_noHardDisksFoundError() {
-    ad_okBox("Attention", false, "No hard disks found! Please install a hard disk and try again!");
+    ad_okBox("Attention", false, "No hard disks found!\nPlease install a hard disk and try again!");
 }
 
 /* Tells the user about an oopsie trying to open a file for reading. */
@@ -433,7 +433,7 @@ static bool inst_copyFiles(mappedFile *file, const char *installPath) {
         return false;
     }
 
-    ad_ProgressBox *pbox = ad_progressBoxCreate("Windows 98 QuickInstall", "Creating Directories...", dirCount);
+    ad_ProgressBox *pbox = ad_progressBoxCreate("Windows 9x QuickInstall", "Creating Directories...", dirCount);
 
     QI_ASSERT(pbox);
 
@@ -456,7 +456,7 @@ static bool inst_copyFiles(mappedFile *file, const char *installPath) {
 
     success = true;
 
-    pbox = ad_progressBoxCreate("Windows 98 QuickInstall", "Copying Files...", file->size);
+    pbox = ad_progressBoxCreate("Windows 9x QuickInstall", "Copying Files...", file->size);
 
     QI_ASSERT(pbox);
 
