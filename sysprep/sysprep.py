@@ -266,6 +266,7 @@ def make_iso(output_base, output_iso):
     else:
         mkisofs_path = 'mkisofs' # no path on Linux & co
 
+    os.remove(output_iso) if os.path.exists(output_iso) else None
     subprocess.run([mkisofs_path, '-J', '-r', '-V', 'Win98 QuickInstall', '-o', output_iso, '-b', 'cdrom.img', '.'], check=True, stdout=global_stdout, stderr=global_stdout)
     popd()
 
