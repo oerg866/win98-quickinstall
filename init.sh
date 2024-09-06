@@ -104,7 +104,7 @@ popd
 
 pushd util-linux
 	./autogen.sh
-	./configure --host=i486-linux-musl --prefix=$PWD/OUTPUT --disable-use-tty-group --disable-bash-completion --disable-shared --enable-static --without-ncursesw --without-tinfo
+	./configure --host=i486-linux-musl --prefix=$PWD/OUTPUT --disable-use-tty-group --disable-bash-completion --disable-shared --enable-static --without-tinfo
 	./build.sh
 popd
 
