@@ -138,8 +138,9 @@ static inline void inst_noHardDisksFoundError() {
 }
 
 /* Tells the user about an oopsie trying to open a file for reading. */
-static void inst_showFileError() {
-    ad_okBox("Attention", false, "ERROR: A problem occured handling a file for this OS variant. (%d: %s)", errno, strerror(errno));
+static inline void inst_showFileError() {
+    ad_okBox("Attention", false, "ERROR: A problem occured handling a file for this OS variant.\n(%d: %s)", errno, strerror(errno));
+}
 }
 
 /* 
@@ -324,7 +325,10 @@ static util_Partition *inst_showPartitionSelector(util_HardDiskArray *hdds) {
 
 /* Asks user if he wants to format selected partition. Returns true if so. */
 static inline int inst_formatPartitionDialog(util_Partition *part) {
-    return ad_yesNoBox("Confirm", true, "You have chosen the partition '%s'. Would you like to format it before the installation (recommended)?", part->device);
+    return ad_yesNoBox("Confirm", true,
+        "You have chosen the partition '%s'.\n"
+        "Would you like to format it before the installation (recommended)?\n",
+        part->device);
 }
 
 static bool inst_formatPartition(util_Partition *part) {
@@ -336,7 +340,11 @@ static bool inst_formatPartition(util_Partition *part) {
 
 /* Asks user if he wants to overwrite the MBR and set the partition active. Returns true if so. */
 static inline int inst_askUserToOverwriteMBRAndSetActive(util_Partition *part) {
-    return ad_yesNoBox("Confirm", true, "You have chosen the partition '%s'. Would you like to overwrite the Master Boot Record (MBR) and set the partition active (recommended)?", part->device);
+    return ad_yesNoBox("Confirm", true,
+        "You have chosen the partition '%s'.\n"
+        "Would you like to overwrite the Master Boot Record (MBR)\n"
+        "and set the partition active (recommended)?", 
+        part->device);
 }
 
 /* Show message box informing user that formatting failed. */
