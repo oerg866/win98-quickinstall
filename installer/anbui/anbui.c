@@ -122,7 +122,7 @@ int main (int argc, char *argv[]) {
 
     ad_okBox("Another Burger Selection", true, "Cheese is taste on burger cheese on you.");
 
-    ad_runCommandBox("apt update 2>&1", "Updating my burger to have burger cheese on burger");
+    ad_runCommandBox("Updating my burger to have burger cheese on burger", "apt update 2>&1");
 
     ad_TextFileBox *tfb = ad_textFileBoxCreate("demara.txt", "demara.txt");
     ad_textFileBoxExecute(tfb);
