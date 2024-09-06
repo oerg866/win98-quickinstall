@@ -147,14 +147,23 @@ void ad_displayTextElementArray(uint16_t x, uint16_t y, size_t maximumWidth, siz
 }
 
 void ad_printCenteredText(const char* str, uint16_t x, uint16_t y, uint16_t w, uint8_t colBg, uint8_t colFg) {
-    size_t strLen = strlen(str);
-    uint16_t paddingL = ad_getPadding(w, strLen);
-    uint16_t paddingR = w - strLen - paddingL;
-    colBg += 40;
-    colFg += 30;
+    size_t      strLen      = strlen(str);
+    uint16_t    paddingL;
+    uint16_t    paddingR;
 
-    ad_setCursorPosition(x, y);
-    printf("\33[%um\33[%um%*s%s%*s", colBg, colFg, paddingL, "", str, paddingR, "");
+    if (strLen < w) {
+        /* Some optimization here.... sorry for the unreadable mess! */
+        paddingL = ad_getPadding(w, strLen);
+        paddingR = w - strLen - paddingL;
+        printf( "\33[%u;%uH"
+                "\33[%u;%um"
+                "%*s%s%*s",
+                y + 1, x,
+                colBg + 40, colFg + 30,
+                paddingL, "", str, paddingR, "" );
+    } else {
+        ad_displayStringCropped(str, 0, y, ad_s_con.width, colBg, colFg);
+    }
     ad_flush();
 }
 
