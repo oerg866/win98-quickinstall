@@ -11,6 +11,7 @@ sudo rm -rf mnt
 mkdir -p mnt
 mkdir -p ./filesystem
 
+set -e 1
 
 # Build busybox
 
