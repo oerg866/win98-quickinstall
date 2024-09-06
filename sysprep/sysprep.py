@@ -48,7 +48,7 @@ def case_insensitive_to_sensitive(directory, filename):
         if file.lower() == filename.lower():
             return os.path.join(directory, file)
     return None
-    
+
 
 # Delete a file with a given filename in a directory in a case-insensitive manner. 'filename' may include wildcards ('*')
 def delete_file(directory, filename):
@@ -121,7 +121,7 @@ def run_regedit(reg_file):
     msdos_exe = os.path.join(script_base_path, 'tools', 'msdos.exe')
 
     # regedit is called from *within* msdos.exe.
-    
+
     if platform.system() == 'Windows':
         subprocess.run([msdos_exe, regedit_exe, '/L:SYSTEM.DAT', '/R:USER.DAT', reg_file], check=True, stdout=global_stdout)
     else:
@@ -185,11 +185,11 @@ def move_inf_cab_files(directory_path, inf_directory, cab_directory):
     # Create the target directories if they do not exist
     mkdir(inf_directory)
     mkdir(cab_directory)
-    
+
     # Loop through all files in the directory
     for file_name in os.listdir(directory_path):
         file_path = os.path.join(directory_path, file_name)
-        
+
         # Check if the file is an INF or CAB file
         if file_name.lower().endswith('.inf'):
             # Move the file to the INF directory
@@ -200,7 +200,7 @@ def move_inf_cab_files(directory_path, inf_directory, cab_directory):
 
 # Runs the "drivercopy" tool, platform independent as usual with WINE magic... 
 def drivercopy(source_path, output_path):
-    
+
     drivercopy_path = os.path.join(script_base_path, 'tools', 'drivercopy.exe')
 
     shutil.copy2(os.path.join(script_base_path, 'tools', 'makecab.exe'), 'makecab.exe')
@@ -219,7 +219,7 @@ def preprocess_drivers(output_base, input_drivers_base, input_drivers_extra):
     driver_temp = os.path.join(output_base, '.drvtmp')
 
     print('Preprocessing drivers...')
-    
+
     # First do the extra drivers
     print('Preprocessing EXTRA drivers...')
     output_drivers_extra = os.path.join(output_base, 'driver.ex')
@@ -245,7 +245,7 @@ def finalize_drivers_for_osroot(output_base, output_osroot, osroot_cabdir_relati
 
     driver_temp_cabdir = os.path.join(output_driver_temp, osroot_cabdir_relative)
     driver_temp_infdir = os.path.join(output_driver_temp, 'DRIVER')
-    
+
     move_inf_cab_files(output_driver_temp, driver_temp_infdir, driver_temp_cabdir)
 
     output_866_file = os.path.join(output_osroot, 'DRIVER.866')
@@ -357,7 +357,7 @@ for osroot in input_osroots:
 
     if osroot_windir is None:
         raise ValueError("Could not find WIN.COM in directory tree")
-    
+
     if osroot_cabdir is None:
         raise ValueError("Could not find CAB files in directory tree")
 
