@@ -81,10 +81,30 @@ void ad_init(const char *title) {
     ad_drawBackground(ad_s_strHeader);
 }
 
+void ad_restore(void) {
+    struct termios term;
+    memcpy(&term, &ad_s_originalTermios, sizeof(struct termios));
+    term.c_lflag &= ~(ICANON | ECHO);
+    tcsetattr(STDIN_FILENO, TCSANOW, &term);
+    printf(CL_HID);
+    ad_drawBackground(ad_s_strHeader);
+}
+
 void ad_deinit() {
     tcsetattr(STDIN_FILENO, TCSANOW, &ad_s_originalTermios);
     printf(CL_SHW);
     printf("\n");
+}
+
+void ad_setFooterText(const char *footer) {
+    if (footer != NULL) {
+        ad_clearFooter();
+        ad_printCenteredText(footer, 0, ad_s_con.height - 1, ad_s_con.width, ad_s_con.footerBg, ad_s_con.footerFg);
+    }
+}
+
+inline void ad_clearFooter(void) {
+    ad_fill(ad_s_con.width, ' ', 0, ad_s_con.height - 1, ad_s_con.footerBg, ad_s_con.footerFg);
 }
 
 #if defined(_ANBUI_TEST_)

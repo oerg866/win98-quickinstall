@@ -88,7 +88,10 @@ typedef enum {
 #pragma pack()
 
 void            ad_init                 (const char *title);
+void            ad_restore              (void);
 void            ad_deinit               (void);
+void            ad_setFooterText        (const char *footer);
+void            ad_clearFooter          (void);
 
 ad_Menu        *ad_menuCreate           (const char * title, const char *prompt, bool cancelable);
 void            ad_menuAddItemFormatted (ad_Menu *menu, const char *format, ...);
