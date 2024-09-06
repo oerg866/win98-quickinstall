@@ -89,6 +89,8 @@
 
 #define AD_ARRAY_SIZE(array) (sizeof((array))/sizeof((array)[0]))
 
+#define AD_ROUND_HACK_WTF(type, x) ((type)((x) + 0.5))
+
 typedef struct {
     uint16_t width;
     uint16_t height;

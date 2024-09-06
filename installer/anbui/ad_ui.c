@@ -202,7 +202,7 @@ static bool ad_progressBoxPaint(ad_ProgressBox *pb) {
     ad_objectPaint(&pb->object);
 
     pb->boxX = ad_objectGetContentX(&pb->object);
-    pb->currentX = pb->boxX;
+    pb->currentX = 0;
     pb->boxY = ad_objectGetContentY(&pb->object);
     pb->boxWidth = ad_objectGetContentWidth(&pb->object);
 
@@ -215,7 +215,7 @@ static bool ad_progressBoxPaint(ad_ProgressBox *pb) {
     ad_fill(pb->boxWidth, ' ', pb->boxX, pb->boxY, COLOR_GRY, 0);
 
     ad_setColor(ad_s_con.progressFill, 0);
-    ad_setCursorPosition(pb->currentX, pb->boxY);
+    ad_setCursorPosition(pb->boxX, pb->boxY);
 
     return true;
 }
@@ -240,21 +240,27 @@ ad_ProgressBox *ad_progressBoxCreate(const char *title, const char *prompt, uint
 }
 
 void ad_progressBoxUpdate(ad_ProgressBox *pb, uint32_t progress) {
-    uint32_t boxWidth = pb ? pb->boxWidth : 0;
     uint16_t newX;
     uint16_t newPaintLength;
 
     AD_RETURN_ON_NULL(pb,);
 
-    newX = pb->boxX + (uint16_t) round(((double) boxWidth * progress) / ((double) pb->outOf));
+    /*  round / lround for values > 1 in MUSL gets clipped to 1.0 ?????? am I stupid?
+        Anyway this hack is here until I get some sleep.. */
+    newX = AD_ROUND_HACK_WTF(uint16_t, ((double) pb->boxWidth * (double) progress) / ((double) pb->outOf));
+
+    if (newX == pb->currentX) {
+        return;
+    }
+
     newPaintLength = newX - pb->currentX;
+    pb->currentX = newX;
 
     for (size_t i = 0; i < newPaintLength; i++) {
         putc(' ', stdout);
     }
 
     ad_flush();
-    pb->currentX = newX;
 }
 
 void ad_progressBoxDestroy(ad_ProgressBox *pb) {
