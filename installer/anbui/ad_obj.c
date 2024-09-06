@@ -40,11 +40,9 @@ void ad_objectPaint(ad_Object *obj) {
     assert(obj);
 
     /* Print title */
-    printf(CL_BLD);
     ad_printCenteredText(obj->title.text, obj->x, obj->y, obj->width, ad_s_con.titleBg, ad_s_con.titleFg);
-    printf(CL_RST);
-  
-    ad_printCenteredText(obj->footer.text, 0, ad_s_con.height - 1, ad_s_con.width, ad_s_con.footerBg, ad_s_con.footerFg);
+
+    ad_setFooterText(obj->footer.text);
 
     y = obj->y + 1; /* Object body starts below title */
 
@@ -56,25 +54,15 @@ void ad_objectPaint(ad_Object *obj) {
 }
 
 void ad_objectUnpaint(ad_Object *obj) {
-    char buf[256];
-
     assert(obj);
-
-    ad_setColor(ad_s_con.backgroundFill, 0);
-    memset(buf, ' ', obj->width);
-    buf[obj->width] = 0x00;
 
     /* Clear window title + body */
     for (uint16_t y = 0; y < obj->height + 1; y++) { /* +1 because of the title bar */
-        ad_setCursorPosition(obj->x, obj->y + y);
-        printf("%s", buf);
+        ad_fill(obj->width, ' ', obj->x, obj->y + y, ad_s_con.backgroundFill, 0);
     }
 
     /* Clear footer */
-
-    memset(buf, ' ', ad_s_con.width);
-    buf[ad_s_con.width] = 0x00;
-    ad_printCenteredText(buf, 0, ad_s_con.height - 1, ad_s_con.width, ad_s_con.footerBg, ad_s_con.footerFg);
+    ad_clearFooter();
 
     ad_flush();
 }
