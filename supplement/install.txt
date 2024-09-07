@@ -1,24 +1,20 @@
-WINDOWS 98 / ME QUICKINSTALL -- VERSION 0.9.4 BETA
-Your friendly Linux-based Windows 98 / ME Installer :)
-----------------------------------------------------------------------
-
-DISCLAIMER:
- This is a BETA release. It's not finished.
- This has no endorsement from MICROSOFT.
- Windows belongs to Microsoft.
- Please don't sue me I just like old computers :(
-
-Features:
-- This will install Windows 98 / ME in RECORD time.
-- Can include many patches and slipstreamed drivers
-- Can boot from floppy, CD-ROM, USB, hard disks, ...
-- Writes MBR and boot sectors for FAT32/FAT16
-- Can partition your hard drive(s)
-
-Bugs:
-- Error handling is basically nonexistant. Sorry!
-
-Special thanks to TRW, ChrisR3tro, Greed, Rigo, TheRealZago
-and all the other people that helped with testing!
-
-Reach out to me on Discord: oerg#0866
+                    (C) 2012-2024 Eric Voirin (oerg866)
+                   Built using the AnbUI Text UI Library
+                http://github.com/oerg866/win98-quickinstall
+---------------------------------[ NOTES ]----------------------------------
+- THIS IS A BETA RELEASE. THERE WILL BE BUGS. (Please report them!)
+- Windows is a registered trademark of Microsoft Corporation.
+--------------------------------[ FEATURES ]--------------------------------
+- Installs Windows 9x very quickly
+- Works from 486 to modern systems (Minimum 486SX with 24MB RAM)
+- Customisable with many patches and slipstreamed drivers
+- Extensive Driver Library available
+- Bootable from floppy, CD-ROM, USB, hard disks, ...
+- Can partition hard disks
+- Built using open source software
+-----------------------------[ SPECIAL THANKS ]-----------------------------
+Banban Yafa, Rigo, computerguy096, ChrisR3tro, kext, linear, firehcf, Deksor
+------------------+--------------[ CONTACT ]-------------+------------------
+                  | Discord: oerg866 | Twitter: @oerg866 |
+------------------+------------------+-------------------+------------------
+           Be sure to also check out http://www.theretroweb.com!
