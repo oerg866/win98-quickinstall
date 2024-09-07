@@ -14,102 +14,172 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#define CMD_LSBLK_HDD_ONLY "lsblk -I 8 -d -n -p"
-#define CMD_LSBLK_HDD_NAME_SIZE "lsblk -I 8 -d -n -b -p -oKNAME,SIZE,MIN-IO,OPT-IO"
-#define CMD_LSBLK_HDD_MODEL "lsblk -I 8 -d -n -o MODEL"
-#define CMD_LSBLK_HDD_WITH_PARTS_AND_FS "lsblk -I 8 -n -b -p -oKNAME,SIZE,PARTTYPE"
-#define CMD_OUTPUT_BUF_SIZE (64*1024)
+#include "qi_assert.h"
 
-size_t util_getSystemHardDiskCount() {
-    return util_getCommandOutputLineCount(CMD_LSBLK_HDD_ONLY);
-}
+#define CMD_LSBLK_ALL "lsblk -I 8 -n -b -p -P -oTYPE,KNAME,PARTTYPE,SIZE,MIN-IO,OPT-IO,MODEL"
 
-util_HardDiskArray util_getSystemHardDisks() {
-    size_t hddCount = util_getSystemHardDiskCount();
-    char *cmdOutputBuf = calloc(1, CMD_OUTPUT_BUF_SIZE);
-    char *cmdOutputBufPos = cmdOutputBuf;
-    size_t totalPartitionCount = 0;
-    util_HardDiskArray ret;
+// Appends a HardDisk with given parameters to a HardDiskArray and returns a pointer to the newly created disk.
+static util_HardDisk *util_HardDiskArrayAppend(util_HardDiskArray *hda, const char *device, const char *model, uint64_t size, uint32_t sectorSize, uint32_t optIoSize) {
+    QI_ASSERT(hda != NULL);
+    QI_ASSERT(device != NULL);
+    QI_ASSERT(model != NULL);
 
-    if (hddCount == 0) {
-        ret.count = 0;
-        return ret;
-    }
+    hda->count++;
+    hda->disks = realloc(hda->disks, hda->count * sizeof(util_HardDisk));
 
-    util_HardDisk *disks = calloc(sizeof(util_HardDisk), hddCount);
+    QI_ASSERT(hda->disks != NULL);
 
-    // Get disk models
-    util_captureCommandOutput(CMD_LSBLK_HDD_NAME_SIZE, cmdOutputBuf, CMD_OUTPUT_BUF_SIZE);
+    util_HardDisk *ret = &hda->disks[hda->count - 1];
 
-    for (size_t i = 0; i < hddCount; ++i) {
-        // format of the output is KNAME SIZE MIN-IO OPT-IO\n, so we need to scan until that character, that's our line.
-        // cspn then gets us how many characters that whole thing was to advance the string pointer
-        sscanf(cmdOutputBufPos, "%16s %llu %u %u[^\n]", disks[i].device, &disks[i].size, &disks[i].sectorSize, &disks[i].optIoSize);
-        cmdOutputBufPos += strcspn(cmdOutputBufPos,"\n") + 1;
-    }
+    memset(ret, 0, sizeof(util_HardDisk));
 
-    // Get disk models
-    cmdOutputBufPos = cmdOutputBuf;
-    util_captureCommandOutput(CMD_LSBLK_HDD_MODEL, cmdOutputBuf, CMD_OUTPUT_BUF_SIZE);
+    strncpy(ret->device, device, sizeof(ret->device));
+    strncpy(ret->model, model, sizeof(ret->model));
 
-    for (size_t i = 0; i < hddCount; ++i) {
-        // Can't think of a simpler way to put the whole line from a string into another... why is sgets not a thing??
-        sscanf(cmdOutputBufPos, " %[^\n]", disks[i].model);
-        cmdOutputBufPos += strcspn(cmdOutputBufPos,"\n") + 1;
-        //printf("Disk %d is '%s', Model '%s', Size %llu bytes.\n", i, disks[i].device, disks[i].model, disks[i].size);
-    }
+    ret->size = size;
+    ret->sectorSize = sectorSize;
+    ret->optIoSize = optIoSize;
 
-    // Reset buffer once again
-    cmdOutputBufPos = cmdOutputBuf;
-
-    size_t fullDiskListLineCount = util_captureCommandOutput(CMD_LSBLK_HDD_WITH_PARTS_AND_FS, cmdOutputBuf, CMD_OUTPUT_BUF_SIZE);
-    totalPartitionCount = fullDiskListLineCount - hddCount; // The captured list *includes* the hdds themselves! we need to filter them!
-    util_Partition *partitions = calloc(sizeof(util_Partition), totalPartitionCount);
-
-    // Now figure out where partitions go
-
-    for (size_t i = 0, curPart = 0, curDisk = 0; i < fullDiskListLineCount; i++) {
-        char partDevice[16] = {0};
-        uint64_t partSize = 0;
-        uint32_t fsTypeByte;
-
-        sscanf(cmdOutputBufPos, "%16s %llu %x[^\n]", partDevice, &partSize, &fsTypeByte);
-        cmdOutputBufPos += strcspn(cmdOutputBufPos,"\n") + 1;
-        
-        if (!util_stringStartsWith(partDevice, disks[curDisk].device)) {
-            // This is on the *next* disk. Increment disk index.
-            curDisk++;
-            assert(curDisk < hddCount); // oopsie poopsie
-        }
-
-        if (util_stringEquals(partDevice, disks[curDisk].device)) {
-            // This is our disk, not a partition, ignore it. We take this opportunity to set the current disks partitions pointer.
-            disks[curDisk].partitions = &partitions[curPart];
-            continue;
-        } 
-
-        //printf("Found partition %s, size %llu, file system %s\n", partDevice, partSize, fsString);
-        strcpy(partitions[curPart].device, partDevice);
-        partitions[curPart].size = partSize;
-        partitions[curPart].fileSystem = util_partitionTypeByteToUtilFilesystem((uint8_t) fsTypeByte);
-        partitions[curPart].sectorSize = disks[curDisk].sectorSize;
-        partitions[curPart].parent = &disks[curDisk];
-        partitions[curPart].index = atoi(partDevice + strlen(disks[curDisk].device));   // so for example "/dev/sda1" would have atoi called on the "1" part
-        curPart++;
-
-        disks[curDisk].partitionCount++;        
-    }
-
-    ret.disks = disks;
-    ret.count = hddCount;
     return ret;
 }
 
-void util_hardDiskArrayDeinit(util_HardDiskArray hdds) {
-    if (hdds.disks) {
-        // The first partition is the pointer to the start of the memory block that holds *all partitions*, so we only do one free here
-        if (hdds.count) free(hdds.disks[0].partitions);
-        free(hdds.disks);
+static util_Partition *util_HardDiskAddPartition(util_HardDisk *hd, const char *device, uint64_t size, uint32_t sectorSize, util_FileSystem fileSystem, size_t indexOnParent) {
+    QI_ASSERT(hd != NULL);
+
+    hd->partitionCount++;
+    hd->partitions = realloc(hd->partitions, hd->partitionCount * sizeof(util_Partition));
+
+    QI_ASSERT(hd->partitions != NULL);
+
+    util_Partition *ret = &hd->partitions[hd->partitionCount - 1];
+
+    memset(ret, 0, sizeof(util_Partition));
+
+    strncpy(ret->device, device, sizeof(ret->device));
+
+    ret->size = size;
+    ret->sectorSize = sectorSize;
+    ret->fileSystem = fileSystem;
+    ret->parent = hd;
+    ret->indexOnParent = indexOnParent;
+
+    return ret;
+}
+
+// Gets a value for a given key from a '<key>="value" <key2>="value2"' esque input string
+bool util_getValueFromKey(const char *input, const char *key, char *value, size_t valueBufSize) {
+    const char *curPos = input;
+
+    QI_ASSERT(input != NULL);
+    QI_ASSERT(key != NULL);
+    QI_ASSERT(value != NULL);
+
+    size_t keyLen = strlen(key);
+    const char equalsQuote[] = "=\"";
+
+    while (!(util_stringStartsWith(curPos, key) && util_stringStartsWith(curPos + keyLen, equalsQuote))) {
+        if (*curPos == 0x00)
+            return false;
+
+        curPos++;
+    }
+
+    // If we're still here, the string actually matches what we need, skip to the actual value
+    curPos += keyLen + sizeof(equalsQuote) - 1;
+
+    // Find the closing quote for the value
+    const char *valueEnd = strchr(curPos, '\"');
+
+    if (valueEnd == NULL)
+        return false;
+
+    size_t valueLength = valueEnd - curPos;
+    
+    // Cap to buffer size
+    valueLength = MIN(valueLength, valueBufSize - 1);
+    memcpy(value, curPos, valueLength);
+    value[valueLength] = 0x00;
+    
+    return true;
+}
+
+util_HardDiskArray *util_getSystemHardDisks() {
+    util_HardDiskArray *ret = calloc(1, sizeof(util_HardDiskArray));
+
+    QI_ASSERT(ret != NULL);
+
+    // Get disk models
+    util_CommandOutput *lsblkOut = util_commandOutputCapture(CMD_LSBLK_ALL);
+
+    QI_ASSERT(lsblkOut != NULL);
+
+    if (lsblkOut->lineCount == 0) {
+        util_commandOutputDestroy(lsblkOut);
+        return ret;
+    }
+
+    util_HardDisk *currentDisk = NULL;
+
+    for (size_t i = 0; i < lsblkOut->lineCount; ++i) {
+        char tmpType        [4+1] = "";
+        char tmpDevice      [UTIL_HDD_DEVICE_STRING_LENGTH];
+        char tmpModel       [UTIL_HDD_MODEL_STRING_LENGTH];
+        char tmpNumStr      [64+1] = "";
+        bool success = true;
+        
+        success &= util_getValueFromKey(lsblkOut->lines[i], "TYPE", tmpType, sizeof(tmpType));
+        
+        success &= util_getValueFromKey(lsblkOut->lines[i], "KNAME", tmpDevice, sizeof(tmpDevice));
+
+        success &= util_getValueFromKey(lsblkOut->lines[i], "MODEL", tmpModel, sizeof(tmpModel));
+        
+        success &= util_getValueFromKey(lsblkOut->lines[i], "PARTTYPE", tmpNumStr, sizeof(tmpNumStr));
+        util_FileSystem tmpFileSystem = util_partitionTypeByteToUtilFilesystem(strtoul(tmpNumStr, NULL, 16));
+
+        success &= util_getValueFromKey(lsblkOut->lines[i], "SIZE", tmpNumStr, sizeof(tmpNumStr));
+        uint64_t tmpSize = strtoull(tmpNumStr, NULL, 10);
+        
+        success &= util_getValueFromKey(lsblkOut->lines[i], "MIN-IO", tmpNumStr, sizeof(tmpNumStr));
+        uint32_t tmpSectorSize = strtoull(tmpNumStr, NULL, 10);
+        
+        success &= util_getValueFromKey(lsblkOut->lines[i], "OPT-IO", tmpNumStr, sizeof(tmpNumStr));
+        uint32_t tmpOptIoSize = strtoull(tmpNumStr, NULL, 10);
+
+        if (util_stringEquals(tmpType, "disk")) {
+            /* This is a hard disk. */
+            currentDisk = util_HardDiskArrayAppend(ret, tmpDevice, tmpModel, tmpSize, tmpSectorSize, tmpOptIoSize);
+        } else if (util_stringEquals(tmpType, "part")) {
+            /* This is a partition. */
+            QI_ASSERT(currentDisk != NULL);
+            
+            /* The beginning of the device name must match the parent disk's as a child partition of that disk. */
+            QI_ASSERT(util_stringStartsWith(tmpDevice, currentDisk->device) == true);
+            size_t index = (size_t) atoi(tmpDevice + strlen(currentDisk->device));   // so for example "/dev/sda1" would have atoi called on the "1" part
+            util_HardDiskAddPartition(currentDisk,tmpDevice, tmpSize, tmpSectorSize, tmpFileSystem, index);
+        } else {
+            QI_ASSERT(false && "Unexpected hard disk type.");
+        }
+    }
+
+    util_commandOutputDestroy(lsblkOut);
+    return ret;
+}
+
+void util_hardDiskArrayDestroy(util_HardDiskArray *hdds) {
+    if (hdds) {
+        if (hdds->disks) {
+            // Free partitions
+            for (size_t i = 0; i < hdds->count; i++) {
+                for (size_t p = 0; p < hdds->disks[i].partitionCount; p++) {
+                    util_unmountPartition(&hdds->disks[i].partitions[p]);
+                }
+                free(hdds->disks[i].partitions);
+            }
+            // Free disks
+            free(hdds->disks);
+        }
+
+        free(hdds);
     }
 }
 
@@ -178,8 +248,7 @@ bool util_unmountPartition(util_Partition *part) {
         part->mountPath = NULL;
         return (system(mountCmd) == 0);
     } else {
-        printf("%s: Partition not mounted\n", __func__);
-        return false;
+        return true;
     }
 }
 
@@ -394,20 +463,9 @@ bool util_getFormatCommand(util_Partition *part, util_FileSystem fs, char *buf, 
     } else if (fs == fs_fat32) {
         snprintf(buf, bufSize, "mkfs.fat -v -S %d -s 8 -R 32 -f 2 -F 32 %s", part->sectorSize, part->device);
     } else {
-        assert(false && "Wrong file system");
-        abort();
-        return false;
+        QI_ASSERT(false && "Wrong file system");
     }
     // Set partition file system to new file system
     part->fileSystem = fs;    
     return true;
 }
-
-bool util_copyFile(const char *src, const char *dst) {
-    // TODO: Implement this ourselves. Sorry the programmer is quite lazy
-    // if the paths contain spaces, all hell breaks loose ....
-    char copyCmd[1024];
-    snprintf(copyCmd, sizeof(copyCmd), "cp %s %s", src, dst);
-    return (system(copyCmd) == 0);
-}
-

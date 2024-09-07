@@ -13,22 +13,9 @@
 #include <sys/types.h>
 
 #define UTIL_MAX_CMD_LENGTH (2048)
-
-#define util_arraySize(array) (sizeof((array))/sizeof((array)[0]))
-
-#define util_returnOnNull(ptr, return_value) if (ptr == NULL) { printf("ERROR - '" #ptr "' is NULL! Result = '" #return_value "'\r\n"); return return_value; }
-
-// Get a value for a given key from /proc/meminfo
-uint64_t util_getProcMeminfoValue(const char *key);
-
-// Gets safe free amount of memory the system has at current time in bytes. 
-#define util_getProcSafeFreeMemory() (MIN(util_getProcMeminfoValue("MemFree"), util_getProcMeminfoValue("CommitLimit")) * 1024UL)
-
-size_t util_getCommandOutputLineCount(const char *command);
-size_t util_captureCommandOutput(const char *command, char *buf, size_t bufSize);
-
-#define UTIL_HDD_DEVICE_STRING_LENGTH (16)
-#define UTIL_HDD_MODEL_STRING_LENGTH (64)
+#define UTIL_CMD_OUTPUT_LINE_LENGTH (1024)
+#define UTIL_HDD_DEVICE_STRING_LENGTH (16+1)
+#define UTIL_HDD_MODEL_STRING_LENGTH (64+1)
 
 // this enum shows the file system of a partition
 typedef enum {
@@ -46,7 +33,7 @@ typedef struct {
     uint32_t sectorSize;
     util_FileSystem fileSystem;
     struct util_HardDisk *parent;
-    int index;
+    size_t indexOnParent;
     char *mountPath;
 } util_Partition;
 
@@ -79,10 +66,34 @@ typedef struct {
     const util_BootSectorModifier *modifiers;
 } util_BootSectorModifierList;
 
-// Allocates and gets a list of all hard drives with partitions. Don't forget to call util_HardDiskArrayDeinit!
-util_HardDiskArray util_getSystemHardDisks();
+typedef struct {
+    size_t lineCount;
+    int returnCode;
+    char **lines;
+} util_CommandOutput;
+
+#define util_arraySize(array) (sizeof((array))/sizeof((array)[0]))
+
+#define __UTIL__STRINGIFY(X) #X
+#define util_stringify(X) __UTIL__STRINGIFY(X)
+
+#define util_returnOnNull(ptr, return_value) if (ptr == NULL) { printf("ERROR - '" #ptr "' is NULL! Result = '" #return_value "'\r\n"); return return_value; }
+
+// Get a value for a given key from /proc/meminfo
+uint64_t util_getProcMeminfoValue(const char *key);
+
+// Gets safe free amount of memory the system has at current time in bytes. 
+uint64_t util_getProcSafeFreeMemory(void);
+
+// Returns the stdout output of a command. Call commandOutputDestroy after use. Returns NULL in case of errors.
+util_CommandOutput *util_commandOutputCapture(const char *command);
+// Free a CommandOutput structure
+void util_commandOutputDestroy(util_CommandOutput *co);
+
+// Allocates and gets a list of all hard drives with partitions. Don't forget to call util_hardDiskArrayDestroy!
+util_HardDiskArray *util_getSystemHardDisks(void);
 // Deallocates a hard disk array including all internal data structures
-void util_hardDiskArrayDeinit(util_HardDiskArray hdds);
+void util_hardDiskArrayDestroy(util_HardDiskArray *hdds);
 
 // Converts a MBR patition type byte to an util_FileSystem enum value
 util_FileSystem util_partitionTypeByteToUtilFilesystem(uint8_t partitionType);
@@ -128,8 +139,6 @@ bool util_writeWin98BootSectorToPartition(util_Partition *part);
 
 /* File IO functions*/
 
-// Dumb file copy routine... just a wrapper around the "cp" command...
-bool util_copyFile(const char *src, const char *dst);
 // Convert DOS time to Unix Time and then apply it to an open file descriptor
 bool util_setDosFileTime(int fd, uint16_t dosDate, uint16_t dosTime);
 // Sets an open file's attributes

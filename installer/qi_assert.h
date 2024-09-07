@@ -1,3 +1,6 @@
+#ifndef _QI_ASSERT_H_
+#define _QI_ASSERT_H_
+
 #include <stdio.h>
 
 #include "anbui/anbui.h"
@@ -11,3 +14,5 @@ static inline void __qi__assert(const char * assertion, const char * file, unsig
 }
 
 #define QI_ASSERT(x) ((void)((x) || (__qi__assert(#x, __FILE__, __LINE__, __func__),0)))
+
+#endif

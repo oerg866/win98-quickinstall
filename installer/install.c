@@ -144,9 +144,9 @@ static inline void inst_showFileError() {
     ad_okBox("Attention", false, "ERROR: A problem occured handling a file for this OS variant.\n(%d: %s)", errno, strerror(errno));
 }
 
-static inline util_HardDiskArray inst_getSystemHardDisks() {
+static inline util_HardDiskArray *inst_getSystemHardDisks() {
     ad_setFooterText("Obtaining System Hard Disk Information...");
-    util_HardDiskArray ret = util_getSystemHardDisks();
+    util_HardDiskArray *ret = util_getSystemHardDisks();
     ad_clearFooter();
     return ret;
 }
@@ -559,8 +559,8 @@ static bool inst_setupBootSectorAndMBR(util_Partition *part, bool setActiveAndDo
     if (setActiveAndDoMBR) {
         success &= util_writeWin98MBRToDrive(part->parent);
         char activateCmd[UTIL_MAX_CMD_LENGTH];
-        snprintf(activateCmd, UTIL_MAX_CMD_LENGTH, "sfdisk --activate %s %d", part->parent->device, part->index);
         ad_runCommandBox("Activating partition...", activateCmd);
+        snprintf(activateCmd, UTIL_MAX_CMD_LENGTH, "sfdisk --activate %s %d", part->parent->device, part->indexOnParent);
     }
     return success;
 }
@@ -612,7 +612,7 @@ static const char *inst_askUserForRegistryVariant(uint32_t osVariantIndex) {
 bool inst_main() {
     mappedFile *sourceFile = NULL;
     size_t readahead = util_getProcSafeFreeMemory() / 2;
-    util_HardDiskArray hda = { 0, NULL };
+    util_HardDiskArray *hda = NULL;
     const char *registryUnpackFile = NULL;
     util_Partition *destinationPartition = NULL;
     inst_InstallStep currentStep = INSTALL_WELCOME;
@@ -674,21 +674,21 @@ bool inst_main() {
                 break;
             }
             case INSTALL_PARTITION_WIZARD: {
-                if (hda.disks == NULL)
+                if (hda == NULL)
                     hda = inst_getSystemHardDisks();
 
-                if (hda.count == 0) {
+                if (hda->count == 0) {
                     inst_noHardDisksFoundError();
                     continue;
                 }
 
-                goToNext = inst_showPartitionWizard(&hda);
-                util_hardDiskArrayDeinit(hda);
+                goToNext = inst_showPartitionWizard(hda);
+                util_hardDiskArrayDestroy(hda);
                 hda = inst_getSystemHardDisks();
                 break;
             }
             case INSTALL_SELECT_DESTINATION_PARTITION: {
-                destinationPartition = inst_showPartitionSelector(&hda);
+                destinationPartition = inst_showPartitionSelector(hda);
                 goToNext = (destinationPartition != NULL);
                 break;
             }
@@ -810,7 +810,7 @@ bool inst_main() {
 
     sync();
 
-    util_hardDiskArrayDeinit(hda);
+    util_hardDiskArrayDestroy(hda);
 
     system("clear");
 

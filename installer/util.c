@@ -18,6 +18,8 @@
 #include <linux/msdos_fs.h>
 #include <sys/ioctl.h>
 
+#include "qi_assert.h"
+
 /* Utility Functions */
 
 uint64_t util_getProcMeminfoValue(const char *key) {
@@ -32,31 +34,52 @@ uint64_t util_getProcMeminfoValue(const char *key) {
     return (uint64_t) ret;
 }
 
-size_t util_getCommandOutputLineCount(const char *command) {
-    return util_captureCommandOutput(command, NULL, 0);
+inline uint64_t util_getProcSafeFreeMemory() {
+    uint64_t memFree = util_getProcMeminfoValue("MemFree");
+    uint64_t commitLimit = util_getProcMeminfoValue("CommitLimit") * 1024ULL;
+    return MIN(memFree, commitLimit);
 }
 
-size_t util_captureCommandOutput(const char *command, char *buf, size_t bufSize) {
-    // This is hard to make, for now we just ignore bufSize... idk mannenen
+util_CommandOutput *util_commandOutputCapture(const char *command) {
     FILE* pipe = popen(command, "r");
-    char line[1024];
-    char *writePtr = buf;
-    size_t lineCount = 0;
-    size_t lineLength;
+    util_CommandOutput *ret = calloc(1, sizeof(util_CommandOutput));
+    
+    QI_ASSERT(ret != NULL);
+    QI_ASSERT(pipe != NULL);
 
-    util_returnOnNull(pipe, 0);
+    while (true) {
+        char *tmpLine = malloc(UTIL_CMD_OUTPUT_LINE_LENGTH);
 
-    while (fgets(line, sizeof(line), pipe) != NULL) {
-        if (buf && bufSize) { // If buf is NULL, this command can be used to get the line count of the output.
-            lineLength = strnlen(line, bufSize);
-            strncpy(writePtr, line, bufSize);
-            writePtr += lineLength;        
-            bufSize -= lineLength;    
+        QI_ASSERT(tmpLine != NULL);
+
+        // If fgets returns NULL, the program is finished and we need to discard this line
+        if (NULL == fgets(tmpLine, UTIL_CMD_OUTPUT_LINE_LENGTH, pipe)) {
+            free(tmpLine);
+            ret->returnCode = WEXITSTATUS(pclose(pipe));
+            return ret;
         }
-        lineCount++;
+
+        /* Append this line to the end of our line array*/
+
+        ret->lineCount++;
+        ret->lines = realloc(ret->lines, ret->lineCount * sizeof(ret->lines[0]));
+
+        QI_ASSERT(ret->lines != NULL);
+
+        ret->lines[ret->lineCount - 1] = tmpLine;
     }
-    pclose(pipe);
-    return lineCount;
+}
+
+void util_commandOutputDestroy(util_CommandOutput *co) {
+    if (co) {
+        if (co->lines) {
+            for (size_t i = 0; i < co->lineCount; ++i) {
+                free(co->lines[i]);
+            }
+            free(co->lines);
+        }
+        free(co);
+    }
 }
 
 bool util_stringStartsWith(const char *fullString, const char *toCheck) {
