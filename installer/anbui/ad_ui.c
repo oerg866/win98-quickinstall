@@ -283,8 +283,6 @@ static bool ad_textFileBoxPaint(ad_TextFileBox *tfb) {
     /* Get the length of the longest Text line */
     lineWidth = ad_textElementArrayGetLongestLength(tfb->lines->lineCount, tfb->lines->lines);
 
-    /* Get*/
-
     ad_objectInitialize(&tfb->object, lineWidth, tfb->lines->lineCount);
 
     tfb->textX = ad_objectGetContentX(&tfb->object);
