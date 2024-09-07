@@ -2,7 +2,7 @@
 #define LUNMERCY_VERSION_H
 
 #define LUNMERCY_VERSION "0.9.4_BETA"
-#define LUNMERCY_COPYRIGHT "(C) 2023 Eric Voirin"
+#define LUNMERCY_COPYRIGHT "(C) 2024 Eric Voirin"
 #define LUNMERCY_BACKTITLE "Windows 98 / ME QuickInstall -- Version " LUNMERCY_VERSION " " LUNMERCY_COPYRIGHT
 
 #endif 
