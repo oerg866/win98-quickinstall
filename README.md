@@ -369,3 +369,8 @@ For now, you can work around this problem by using a PCI SCSI or IDE adapter car
 ## Q: I'm trying to install on a VIA MVP3-based motherboard and I'm getting a "General Protection Fault" on the first boot. (Repoted by Rigo)
 
 A: To work around this issue, select the "slow" hardware detection variant in the installation wizard. The problem is currently under investigation.
+
+## Q: I'm trying to install on my 486 and I'm getting Disk I/O errors!
+
+A: Your BIOS might have an incomplete/buggy LBA implementation. Partition the drive to use a FAT32 non-LBA partition and try again.
+
