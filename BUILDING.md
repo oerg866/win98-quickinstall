@@ -37,7 +37,7 @@ Here is a summary of the build process:
 
 ## Requirements
 
-The framework must be built on Linux. It was tested using Ubuntu 20.04 running natively as well as under **Windows Subsystem For Linux**.
+The framework must be built on Linux. It was tested using Ubuntu 20.04 and 22.04 running natively as well as under **Windows Subsystem For Linux**.
 
 You must install the following packages:
 
@@ -52,11 +52,10 @@ You must install the following packages:
 
 # Special thanks
 
-The gang: kext, ChrisR3tro, Elianda
+Many people, but especially:
 
-The many supportive folks at TheRetroWeb
-
-Testing: PhatCJ, agent_x007, limsup, evasive
+* TheRetroWeb staff: Rigo (0xCats), Computerguy096, Deksor, evasive, agent_x007
+* linearcannon, Enigma, limsup, einstein95, Retro Wizard Manfred
 
 # License
 

@@ -5,20 +5,6 @@ set -e
 #set -x
 #trap read debug
 
-# required packages
-# build-essential gcc-7 tic python3 gunzip libuuid wine dd nasm mkisofs zip syslinux
-
-# Find GCC version
-gcc_version=$(gcc -dumpversion)
-
-if [ "$gcc_version" -gt 7 ]; then
-# TODO File a bug maybe? I'm too incompetent to debug it..
-	echo "A GCC version higher than 7 was found on the host system."
-	echo "This may produce broken linux kernel code for i486 and i586."
-	echo "It will probably only work on i686 and higher class machines."
-	read -n 1 -s -r -p "Press any key to continue."
-fi
-
 git submodule update --init --recursive --depth 1 || true
 
 echo "--------------------------------"
