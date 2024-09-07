@@ -16,6 +16,8 @@
 
 #include "qi_assert.h"
 
+#define CMD_SURPRESS_OUTPUT " 2>/dev/null 1>/dev/null"
+
 #define CMD_LSBLK_ALL "lsblk -I 8 -n -b -p -P -oTYPE,KNAME,PARTTYPE,SIZE,MIN-IO,OPT-IO,MODEL"
 
 // Appends a HardDisk with given parameters to a HardDiskArray and returns a pointer to the newly created disk.
@@ -154,6 +156,7 @@ util_HardDiskArray *util_getSystemHardDisks() {
             
             /* The beginning of the device name must match the parent disk's as a child partition of that disk. */
             QI_ASSERT(util_stringStartsWith(tmpDevice, currentDisk->device) == true);
+
             size_t index = (size_t) atoi(tmpDevice + strlen(currentDisk->device));   // so for example "/dev/sda1" would have atoi called on the "1" part
             util_HardDiskAddPartition(currentDisk,tmpDevice, tmpSize, tmpSectorSize, tmpFileSystem, index);
         } else {
@@ -229,7 +232,7 @@ bool util_mountPartition(util_Partition *part) {
     
 
     char mountCmd[1024];
-    snprintf(mountCmd, sizeof(mountCmd), "mount -t vfat %s %s", part->device, mountPath);
+    snprintf(mountCmd, sizeof(mountCmd), "mount -t vfat %s %s" CMD_SURPRESS_OUTPUT, part->device, mountPath);
     if (system(mountCmd) == 0) {
         part->mountPath = mountPath;
         return true;
@@ -243,7 +246,7 @@ bool util_mountPartition(util_Partition *part) {
 bool util_unmountPartition(util_Partition *part) {
     if (part->mountPath != NULL) {
         char mountCmd[1024];
-        snprintf(mountCmd, sizeof(mountCmd), "umount %s", part->mountPath);
+        snprintf(mountCmd, sizeof(mountCmd), "umount %s" CMD_SURPRESS_OUTPUT, part->mountPath);
         free(part->mountPath);
         part->mountPath = NULL;
         return (system(mountCmd) == 0);
