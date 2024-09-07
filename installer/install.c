@@ -559,8 +559,8 @@ static bool inst_setupBootSectorAndMBR(util_Partition *part, bool setActiveAndDo
     if (setActiveAndDoMBR) {
         success &= util_writeWin98MBRToDrive(part->parent);
         char activateCmd[UTIL_MAX_CMD_LENGTH];
-        ad_runCommandBox("Activating partition...", activateCmd);
         snprintf(activateCmd, UTIL_MAX_CMD_LENGTH, "sfdisk --activate %s %d", part->parent->device, part->indexOnParent);
+        success &= (0 == ad_runCommandBox("Activating partition...", activateCmd));
     }
     return success;
 }
