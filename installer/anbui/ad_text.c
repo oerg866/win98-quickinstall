@@ -158,7 +158,7 @@ void ad_printCenteredText(const char* str, uint16_t x, uint16_t y, uint16_t w, u
         printf( "\33[%u;%uH"
                 "\33[%u;%um"
                 "%*s%s%*s",
-                y + 1, x,
+                y + 1, x + 1,
                 colBg + 40, colFg + 30,
                 paddingL, "", str, paddingR, "" );
     } else {
@@ -199,7 +199,7 @@ inline void ad_flush(void) {
 }
 
 inline void ad_setCursorPosition(uint16_t x, uint16_t y) { 
-    printf("\033[%u;%uH", (y + 1), (x));
+    printf("\033[%u;%uH", (y + 1), (x + 1));
 }
 
 inline size_t ad_getPadding(size_t totalLength, size_t lengthToPad) {
