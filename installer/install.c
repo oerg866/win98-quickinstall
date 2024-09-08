@@ -610,7 +610,7 @@ static const char *inst_askUserForRegistryVariant(uint32_t osVariantIndex) {
 /* Main installer process. Assumes the CDROM environment variable is set to a path with valid install.txt, FULL.866 and DRIVER.866 files. */
 bool inst_main() {
     MappedFile *sourceFile = NULL;
-    size_t readahead = util_getProcSafeFreeMemory() * 8 / 10;
+    size_t readahead = util_getProcSafeFreeMemory() * 6 / 10;
     util_HardDiskArray *hda = NULL;
     const char *registryUnpackFile = NULL;
     util_Partition *destinationPartition = NULL;
