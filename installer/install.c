@@ -52,7 +52,7 @@ typedef struct {
     uint16_t fileDate;
     uint16_t fileTime;
     uint32_t fileSize;
-    int fileno;
+    int32_t fileno;
 } inst_MercyPakFileDescriptor;
 
 #pragma pack()
@@ -95,7 +95,7 @@ static const char *inst_getCDFilePath(size_t osVariantIndex, const char *filepat
 }
 
 /* Opens a file from the source media. osVariantIndex is the index for the source variant, 0 means from the root. */
-static inline mappedFile *inst_openSourceFile(size_t osVariantIndex, const char *filename, size_t readahead) {
+static inline MappedFile *inst_openSourceFile(size_t osVariantIndex, const char *filename, size_t readahead) {
     return mappedFile_open(inst_getCDFilePath(osVariantIndex, filename), readahead);
 }
 
@@ -398,7 +398,7 @@ static inline int inst_showDriverPrompt() {
 }
 
 /* Gets a MercyPak string (8 bit length + n chars) into dst. Must be a buffer of >= 256 bytes size. */
-static inline bool inst_getMercyPakString(mappedFile *file, char *dst) {
+static inline bool inst_getMercyPakString(MappedFile *file, char *dst) {
     bool success;
     uint8_t count;
     success = mappedFile_getUInt8(file, &count);
@@ -407,7 +407,7 @@ static inline bool inst_getMercyPakString(mappedFile *file, char *dst) {
     return success;
 }
 
-static bool inst_copyFiles(mappedFile *file, const char *installPath) {
+static bool inst_copyFiles(MappedFile *file, const char *installPath) {
     char fileHeader[5] = {0};
     char *destPath = malloc(strlen(installPath) + 256 + 1);   // Full path of destination dir/file, the +256 is because mercypak strings can only be 255 chars max
     char *destPathAppend = destPath + strlen(installPath) + 1;  // Pointer to first char after the base install path in the destination path + 1 for the extra "/" we're gonna append
@@ -463,7 +463,7 @@ static bool inst_copyFiles(mappedFile *file, const char *installPath) {
 
     success = true;
 
-    pbox = ad_progressBoxCreate("Windows 9x QuickInstall", "Copying Files...", file->size);
+    pbox = ad_progressBoxCreate("Windows 9x QuickInstall", "Copying Files...", mappedFile_getFileSize(file));
 
     QI_ASSERT(pbox);
 
@@ -471,6 +471,7 @@ static bool inst_copyFiles(mappedFile *file, const char *installPath) {
         /* Handle mercypak v2 pack file with redundant files optimized out */
 
         inst_MercyPakFileDescriptor *filesToWrite = calloc(MERCYPAK_V2_MAX_IDENTICAL_FILES, sizeof(inst_MercyPakFileDescriptor));
+        int *fileDescriptorsToWrite = calloc(MERCYPAK_V2_MAX_IDENTICAL_FILES, sizeof(int));
         uint8_t identicalFileCount = 0;
 
         QI_ASSERT(filesToWrite != NULL);
@@ -479,7 +480,7 @@ static bool inst_copyFiles(mappedFile *file, const char *installPath) {
 
             uint32_t fileSize;
 
-            ad_progressBoxUpdate(pbox, file->pos);
+            ad_progressBoxUpdate(pbox, mappedFile_getPosition(file));
 
             success &= mappedFile_getUInt8(file, &identicalFileCount);
 
@@ -489,36 +490,34 @@ static bool inst_copyFiles(mappedFile *file, const char *installPath) {
                 success &= inst_getMercyPakString(file, destPathAppend);
                 util_stringReplaceChar(destPathAppend, '\\', '/');
 
-                filesToWrite[subFile].fileno = open(destPath,  O_WRONLY | O_CREAT | O_TRUNC);
-                QI_ASSERT(filesToWrite[subFile].fileno >= 0);
+                fileDescriptorsToWrite[subFile] = open(destPath,  O_WRONLY | O_CREAT | O_TRUNC);
+                QI_ASSERT(fileDescriptorsToWrite[subFile] >= 0);
 
                 success &= mappedFile_read(file, &filesToWrite[subFile], MERCYPAK_V2_FILE_DESCRIPTOR_SIZE);
             }
 
             success &= mappedFile_getUInt32(file, &fileSize);
 
+            success &= mappedFile_copyToFiles(file, identicalFileCount, fileDescriptorsToWrite, fileSize);
+
             for (uint32_t subFile = 0; subFile < identicalFileCount; subFile++) {
-                bool advanceMappedFileAfterCopy = (subFile + 1) == identicalFileCount; // On the last file we advance the mappedfile after copying.
-
-                success &= mappedFile_copyToFile(file, filesToWrite[subFile].fileno, fileSize, advanceMappedFileAfterCopy);
-
-                success &= util_setDosFileTime(filesToWrite[subFile].fileno, filesToWrite[subFile].fileDate, filesToWrite[subFile].fileTime);
-                success &= util_setDosFileAttributes(filesToWrite[subFile].fileno, filesToWrite[subFile].fileFlags);
-
-                close(filesToWrite[subFile].fileno);
+                success &= util_setDosFileTime(fileDescriptorsToWrite[subFile], filesToWrite[subFile].fileDate, filesToWrite[subFile].fileTime);
+                success &= util_setDosFileAttributes(fileDescriptorsToWrite[subFile], filesToWrite[subFile].fileFlags);
+                close(fileDescriptorsToWrite[subFile]);
             }
 
             f += identicalFileCount;
         }
 
         free(filesToWrite);
+        free(fileDescriptorsToWrite);
     } else {
 
         inst_MercyPakFileDescriptor fileToWrite;
 
         for (uint32_t f = 0; f < fileCount; f++) {
 
-            ad_progressBoxUpdate(pbox, file->pos);
+            ad_progressBoxUpdate(pbox, mappedFile_getPosition(file));
 
             /* Mercypak file metadata (see mercypak.txt) */
 
@@ -530,7 +529,7 @@ static bool inst_copyFiles(mappedFile *file, const char *installPath) {
             int outfd = open(destPath,  O_WRONLY | O_CREAT | O_TRUNC);
             QI_ASSERT(outfd >= 0);
 
-            success &= mappedFile_copyToFile(file, outfd, fileToWrite.fileSize, true);
+            success &= mappedFile_copyToFiles(file, 1, &outfd, fileToWrite.fileSize);
 
             success &= util_setDosFileTime(outfd, fileToWrite.fileDate, fileToWrite.fileTime);
             success &= util_setDosFileAttributes(outfd, fileToWrite.fileFlags);
@@ -559,7 +558,7 @@ static bool inst_setupBootSectorAndMBR(util_Partition *part, bool setActiveAndDo
     if (setActiveAndDoMBR) {
         success &= util_writeWin98MBRToDrive(part->parent);
         char activateCmd[UTIL_MAX_CMD_LENGTH];
-        snprintf(activateCmd, UTIL_MAX_CMD_LENGTH, "sfdisk --activate %s %d", part->parent->device, part->indexOnParent);
+        snprintf(activateCmd, UTIL_MAX_CMD_LENGTH, "sfdisk --activate %s %zu", part->parent->device, part->indexOnParent);
         success &= (0 == ad_runCommandBox("Activating partition...", activateCmd));
     }
     return success;

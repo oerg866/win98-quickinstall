@@ -1,23 +1,49 @@
+/*
+ * LUNMERCY
+ * Mapped File Reader
+ *
+ * Mapped Files are.
+ * 
+ * The name comes from the initial implementation which uses MMAP.
+ * Implementations available are:
+ *      mappedfile_mt.c (multi threaded using raw read/write) -- EXPERIMENTAL
+ *      mappedfile.c (single-threaded using mmap)
+ *
+ * Still trying to figure out what is the fastest way to do IO on a slow 486... :S
+ *
+ * (C) 2024 Eric Voirin (oerg866@googlemail.com)
+ */
+
+#ifndef _MAPPEDFILE_H_
+#define _MAPPEDFILE_H_
+
 #include <stdint.h>
 #include <stdbool.h>
-#include <sys/mman.h>
+#include <stddef.h>
 
-typedef struct {
-    int fd;
-    size_t size;
-    size_t pos;
-    uint8_t *mem;
-} mappedFile;
+typedef struct MappedFile MappedFile;
 
-mappedFile *mappedFile_open(const char *filename, size_t readahead);
-void mappedFile_close(mappedFile *file);
-bool mappedFile_copyToFile(mappedFile *file, int outfd, size_t size, bool advancePosition);
-bool mappedFile_read(mappedFile *file, void *dst, size_t len);
+// Open the mapped File. Readahead is a parameter indicating how much RAM the system can spare to read ahead.
+MappedFile *mappedFile_open(const char *filename, size_t readahead);
+// Closes the file and releases all resources associated with it
+void        mappedFile_close(MappedFile *file);
 
-#define mappedFile_eof(file)            (file->pos >= file->size)
-#define mappedFile_available(file)      (file->size - file->pos)
-#define mappedFile_getUInt8(file, dst)  (mappedFile_read(file, dst, sizeof(uint8_t)))
-#define mappedFile_getUInt16(file, dst) (mappedFile_read(file, dst, sizeof(uint16_t)))
-#define mappedFile_getUInt32(file, dst) (mappedFile_read(file, dst, sizeof(uint32_t)))
+// File read operations - these all advance the internal read position.
 
+// Copy data from the file at the current read position to a set of open file descriptors, pointed to by fileCount and outfds.
+bool        mappedFile_copyToFiles(MappedFile *file, size_t fileCount, int *outfds, size_t len);
+// Reads data of arbitrary length and copies it to dst.
+bool        mappedFile_read(MappedFile *file, void *dst, size_t len);
+// Reads an uint8_t and copies it to dst.
+bool        mappedFile_getUInt8(MappedFile *file, uint8_t *dst);
+// Reads an uint16_t and copies it to dst.
+bool        mappedFile_getUInt16(MappedFile *file, uint16_t *dst);
+// Reads an uint32_t and copies it to dst.
+bool        mappedFile_getUInt32(MappedFile *file, uint32_t *dst);
 
+// Obtains the size of the opened file
+size_t      mappedFile_getFileSize(MappedFile *file);
+// Obtains the current read position of the opened file
+size_t      mappedFile_getPosition(MappedFile *file);
+
+#endif

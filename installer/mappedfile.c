@@ -1,3 +1,15 @@
+/*
+ * LUNMERCY
+ * Mapped File Reader - Single threaded version
+ *
+ * Function summary: 
+ * I honestly can't really remember what I did here, this is all very weird black magic with the mmap.
+ * I thought it'd do asynchronous readaheads, but this is actually not true. So this is a very complex
+ * way to do very basic single threaded file I/O. LOL.
+ * 
+ * (C) 2023 Eric Voirin (oerg866@googlemail.com)
+ */
+
 #include "mappedfile.h"
 
 #include <stdlib.h>
@@ -13,7 +25,16 @@
 #define MEM_PAGE_SIZE (4096)
 #define BITMASK_PAGE (~(MEM_PAGE_SIZE - 1))
 
-static inline void mappedFile_advancePosAndReadAhead(mappedFile *file, size_t len) {
+#define __INLINE__ inline __attribute__((always_inline))
+
+typedef struct MappedFile {
+    int fd;
+    size_t size;
+    size_t pos;
+    uint8_t *mem;
+} MappedFile;
+
+static inline void mappedFile_advancePosAndReadAhead(MappedFile *file, size_t len) {
     size_t oldPage = file->pos & BITMASK_PAGE;
     size_t newPage = (file->pos + len) & BITMASK_PAGE;
     size_t adviseLen = newPage - oldPage;
@@ -28,8 +49,8 @@ static inline void mappedFile_advancePosAndReadAhead(mappedFile *file, size_t le
     }
 }
 
-mappedFile *mappedFile_open(const char *filename, size_t readahead) {
-    mappedFile *file = calloc(1, sizeof(mappedFile));
+MappedFile *mappedFile_open(const char *filename, size_t readahead) {
+    MappedFile *file = calloc(1, sizeof(MappedFile));
 
     file->fd = open(filename, O_RDONLY);
 
@@ -68,29 +89,35 @@ mappedFile *mappedFile_open(const char *filename, size_t readahead) {
     return file;
 }
 
-void mappedFile_close(mappedFile *file) {
+void mappedFile_close(MappedFile *file) {
     munmap(file->mem, file->size);
     close(file->fd);
     free(file);
 }
 
-bool mappedFile_copyToFile(mappedFile *file, int outfd, size_t size, bool advancePosition) {
-    ssize_t written = write(outfd, file->mem+file->pos, size);
+bool mappedFile_copyToFiles(MappedFile *file, size_t FileCount, int *outfds, size_t len) {
+    for (size_t i = 0; i < FileCount; i++) {
+        ssize_t written = write(outfds[i], file->mem+file->pos, len);
 
-    if (written < 0 || (size_t)written != size) {
-        printf("IO Error!\n");
-        perror(__func__);
-        assert(false);
-        return false;
+        if (written < 0 || (size_t)written != len) {
+            printf("IO Error!\n");
+            perror(__func__);
+            assert(false);
+            return false;
+        }
+
     }
 
-    if (advancePosition)
-        mappedFile_advancePosAndReadAhead(file, written);
+    mappedFile_advancePosAndReadAhead(file, len);
 
     return true;
 }
 
-bool mappedFile_read(mappedFile *file, void *dst, size_t len) {
+static __INLINE__ size_t mappedFile_available(MappedFile *file) {
+    return (file->size - file->pos);
+}
+
+bool mappedFile_read(MappedFile *file, void *dst, size_t len) {
     if (mappedFile_available(file) >= len) {
         memcpy(dst, file->mem+file->pos, len);
         mappedFile_advancePosAndReadAhead(file, len);
@@ -98,4 +125,23 @@ bool mappedFile_read(mappedFile *file, void *dst, size_t len) {
     } else {
         return false;
     }
+}
+
+__INLINE__ bool mappedFile_eof(MappedFile *file) {
+    return file->pos >= file->size;
+}
+__INLINE__ bool mappedFile_getUInt8(MappedFile *file, uint8_t *dst)  {
+    return mappedFile_read(file, dst, sizeof(uint8_t)); 
+}
+__INLINE__ bool mappedFile_getUInt16(MappedFile *file, uint16_t *dst) {
+    return mappedFile_read(file, dst, sizeof(uint16_t)); 
+}
+__INLINE__ bool mappedFile_getUInt32(MappedFile *file, uint32_t *dst) {
+    return mappedFile_read(file, dst, sizeof(uint32_t)); 
+}
+__INLINE__ size_t mappedFile_getFileSize(MappedFile *file) {
+    return file->size;
+}
+__INLINE__ size_t mappedFile_getPosition(MappedFile *file) {
+    return file->pos;
 }
