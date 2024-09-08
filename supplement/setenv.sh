@@ -4,5 +4,5 @@ export TERMINFO=/usr/lib/terminfo
 export LANG=C.UTF-8
 
 
-echo 1 >/proc/sys/vm/overcommit_memory
-echo 90 >/proc/sys/vm/overcommit_ratio
+echo 2 >/proc/sys/vm/overcommit_memory
+echo 95 >/proc/sys/vm/overcommit_ratio

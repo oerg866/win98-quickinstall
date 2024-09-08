@@ -1,7 +1,7 @@
 *****************************************************************************
                  Windows 98 QuickInstall ISO Creator Package
 
-                       (C) 2012-2023 Eric Voirin (oerg866)
+                       (C) 2012-2024 Eric Voirin (oerg866)
 *****************************************************************************
 
 # Disclaimer
@@ -12,7 +12,16 @@ This project has ***NO ENDORSEMENT FROM ANY INVOLVED PARTIES, SUCH AS MICROSOFT.
 
 Please don't sue. I just like old computers :(
 
+
 # Windows 98 SE QuickInstall
+
+| | | |
+|--------------------------|--------------------------|--------------------------|
+| ![](assets/install1.png) | ![](assets/install2.png) | ![](assets/install3.png) |
+| ![](assets/install4.png) | ![](assets/install5.png) | ![](assets/install6.png) |
+| ![](assets/windows1.png) | ![](assets/windows2.png) |                          |
+
+## Description
 
 This is a framework that is intended for creating and preparing Windows 98 installation ISO images in a way that is optimized for extremely quick installation, similar to *nLite*, but with a completely different method and context.
 
