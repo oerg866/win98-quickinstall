@@ -109,7 +109,7 @@ void util_hexDump(const uint8_t *buf, size_t offset, size_t length) {
 
         if (!cols) break;
 
-        printf("%04x: ", rowOffset);
+        printf("%04lx: ", (unsigned long) rowOffset);
 
         for (uint32_t col = 0; col < cols; col++)
             printf("%02x ", buf[rowOffset + col]);
