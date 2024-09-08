@@ -13,5 +13,8 @@
 
 int main(int argc, char *argv[]) {
     bool ret = inst_main();
+
+    (void) argc;
+    (void) argv;
     return ret ? 0 : -1;
 }
