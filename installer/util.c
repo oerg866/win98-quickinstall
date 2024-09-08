@@ -35,7 +35,9 @@ uint64_t util_getProcMeminfoValue(const char *key) {
 }
 
 inline uint64_t util_getProcSafeFreeMemory() {
-    return util_getProcMeminfoValue("CommitLimit") * 1024ULL;
+    uint64_t commitLimit = util_getProcMeminfoValue("CommitLimit") * 1024ULL;
+    uint64_t memAvailable = util_getProcMeminfoValue("MemAvailable") * 1024ULL;
+    return MIN(commitLimit, memAvailable);
 }
 
 util_CommandOutput *util_commandOutputCapture(const char *command) {
