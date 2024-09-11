@@ -85,7 +85,7 @@ ad_TextElement* ad_textElementArrayFromString(const char *str, size_t *lineCount
 
         /* Deal with annoying \r\n stuff */
         if (curLen > 0 && curPos[curLen-1] == '\r') {
-            ret->text[curLen-1] = 0x00;
+            ret[(*lineCountOut)-1].text[curLen-1] = 0x00;
         }
 
         /* Next string starts after \n */
