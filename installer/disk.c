@@ -20,6 +20,18 @@
 
 #define CMD_LSBLK_ALL "lsblk -I 8 -n -b -p -P -oTYPE,KNAME,PARTTYPE,SIZE,MIN-IO,OPT-IO,MODEL"
 
+// Update parents after a reallocation of a hard disk array
+static inline void util_HardDisksUpdatePartitionParents(util_HardDisk *hdds, size_t diskCount) {
+    if (hdds != NULL) {
+        for (size_t h = 0; h < diskCount; h++) {
+            util_HardDisk *hdd = &hdds[h];
+            for (size_t p = 0; p < hdd->partitionCount; p++) {
+                hdd->partitions[p].parent = hdd;
+            }
+        }
+    }
+}
+
 // Appends a HardDisk with given parameters to a HardDiskArray and returns a pointer to the newly created disk.
 static util_HardDisk *util_HardDiskArrayAppend(util_HardDiskArray *hda, const char *device, const char *model, uint64_t size, uint32_t sectorSize, uint32_t optIoSize) {
     QI_ASSERT(hda != NULL);
@@ -30,6 +42,8 @@ static util_HardDisk *util_HardDiskArrayAppend(util_HardDiskArray *hda, const ch
     hda->disks = realloc(hda->disks, hda->count * sizeof(util_HardDisk));
 
     QI_ASSERT(hda->disks != NULL);
+
+    util_HardDisksUpdatePartitionParents(hda->disks, hda->count - 1);
 
     util_HardDisk *ret = &hda->disks[hda->count - 1];
 
