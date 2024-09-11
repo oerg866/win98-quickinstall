@@ -60,7 +60,7 @@ inline size_t ad_textElementArrayGetLongestLength(size_t items, ad_TextElement *
 }
 
 ad_TextElement* ad_textElementArrayFromString(const char *str, size_t *lineCountOut) {
-    const char *upperBound = str + strlen(str);
+    const char *upperBound;
     ad_TextElement *ret = NULL;
     const char *curPos = str;
 
@@ -68,6 +68,7 @@ ad_TextElement* ad_textElementArrayFromString(const char *str, size_t *lineCount
     ret = calloc(1, sizeof(ad_TextElement));
     AD_RETURN_ON_NULL(ret, NULL);
 
+    upperBound = str + strlen(str);
     *lineCountOut = 0;
 
     while (curPos < upperBound) {
