@@ -28,7 +28,7 @@ popd
 # Prepare initrd
 
 pushd filesystem
-	mkdir -pv {dev,proc,etc/init.d,sys,tmp,usr/lib/terminfo/l,lib/firmware}
+	mkdir -pv {dev,proc,etc/init.d,sys,tmp,usr/lib/terminfo/l,lib/firmware,usr/local/share}
 	sudo mknod dev/console c 5 1
 	sudo mknod dev/null c 1 3
 	cp ../supplement/welcome ./
@@ -39,6 +39,7 @@ pushd filesystem
 	cp "$PREFIX/share/terminfo/l/linux" ./usr/lib/terminfo/l/linux
 	cp -r ../supplement/firmware/* ./lib/firmware
 	ln -s sbin/init init
+	ln -s /install/bin/pci.ids ./usr/local/share/pci.ids
 	chmod +x etc/init.d/rc
 	chmod +x ./findcd.sh
 	sudo chown -R root:root .
@@ -75,6 +76,10 @@ pushd installer
 popd
 
 pushd dosflop
+	./build.sh
+popd
+
+pushd pciutils
 	./build.sh
 popd
 

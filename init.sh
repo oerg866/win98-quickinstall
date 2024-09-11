@@ -68,7 +68,7 @@ pushd syslinux
 popd
 
 
-BUILDSCRIPTS="ncurses dosfstools util-linux busybox syslinux"
+BUILDSCRIPTS="ncurses dosfstools util-linux busybox syslinux pciutils"
 
 for dep in $BUILDSCRIPTS
 do

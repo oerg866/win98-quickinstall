@@ -22,3 +22,6 @@
 [submodule "busybox"]
 	path = busybox
 	url = git://git.busybox.net/busybox
+[submodule "pciutils"]
+	path = pciutils
+	url = https://github.com/pciutils/pciutils
