@@ -187,12 +187,13 @@ inline int32_t ad_okBox(const char *title, bool cancelable, const char *promptFo
 static bool ad_progressBoxPaint(ad_ProgressBox *pb) {
     size_t expectedWidth;
     size_t promptWidth;
-    size_t promptHeight = (pb->prompt != NULL) ? pb->prompt->lineCount : 0;
+    size_t promptHeight;
     
     AD_RETURN_ON_NULL(pb, false);
 
     /* Get the length of the longest Prompt line */
-    promptWidth = ad_textElementArrayGetLongestLength(pb->prompt->lineCount, pb->prompt->lines);
+    promptHeight = (pb->prompt != NULL) ? pb->prompt->lineCount : 0;
+    promptWidth = (pb->prompt != NULL) ? ad_textElementArrayGetLongestLength(pb->prompt->lineCount, pb->prompt->lines) : 0;
 
     /* Standard width = 50 + margin
        Maximum width = text length + margin, capped to maximum object width */
