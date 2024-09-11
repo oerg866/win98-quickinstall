@@ -35,6 +35,7 @@
 typedef enum {
     INSTALL_WELCOME = 0,
     INSTALL_OSROOT_VARIANT_SELECT,
+    INSTALL_MAIN_MENU,
     INSTALL_PARTITION_WIZARD,
     INSTALL_SELECT_DESTINATION_PARTITION,
     INSTALL_FORMAT_PARTITION_PROMPT,
@@ -105,8 +106,8 @@ static inline void inst_showDisclaimer() {
 }
 
 /* Shows welcome screen, returns false if user wants to exit to shell */
-static inline bool inst_showWelcomeScreen() {
-    return (0 == ad_okBox("Welcome", false, "Welcome to Windows 9x QuickInstall!"));
+static inline void inst_showWelcomeScreen() {
+    ad_okBox("Welcome", false, "Welcome to Windows 9x QuickInstall!");
 }
 
 /* Checks if given hard disk contains the installation source */
@@ -149,6 +150,32 @@ static inline util_HardDiskArray *inst_getSystemHardDisks() {
     util_HardDiskArray *ret = util_getSystemHardDisks();
     ad_clearFooter();
     return ret;
+}
+
+typedef enum {
+    SETUP_ACTION_INSTALL = 0,
+    SETUP_ACTION_PARTITION_WIZARD,
+    SETUP_ACTION_EXIT_TO_SHELL,
+} inst_SetupAction;
+
+static inst_SetupAction inst_showMainMenu() {
+    ad_Menu *menu = ad_menuCreate("Windows 9x QuickInstall: Main Menu", "Where do you want to go today(tm)?", true);
+    QI_ASSERT(menu);
+
+    ad_menuAddItemFormatted(menu, "[INSTALL] Install selected Operating System variant");
+    ad_menuAddItemFormatted(menu, " [CFDISK] Partition hard disks");
+    ad_menuAddItemFormatted(menu, "  [SHELL] Exit to minmal diagnostic Linux shell");
+
+    int menuResult = ad_menuExecute(menu);
+
+    QI_ASSERT(menuResult != AD_ERROR);
+
+    if (menuResult == AD_CANCELED) /* Canceled = exit to shell for us */
+        menuResult = (int) SETUP_ACTION_EXIT_TO_SHELL;
+
+    ad_menuDestroy(menu);
+
+    return (inst_SetupAction) menuResult;
 }
 
 /* 
@@ -222,12 +249,16 @@ static bool inst_showOSVariantSelect(size_t *variantIndex, size_t *variantCount)
 }
 
 /* Show partition wizard, returns true if user finished or false if he selected BACK. */
-static bool inst_showPartitionWizard(util_HardDiskArray *hdds) {
+static void inst_showPartitionWizard(util_HardDiskArray *hdds) {
     char cfdiskCmd[UTIL_MAX_CMD_LENGTH];
     int menuResult;
 
     QI_ASSERT(hdds);
-    QI_ASSERT(hdds->count > 0);
+
+    if (hdds->count == 0) {
+        inst_noHardDisksFoundError();
+        return;
+    }
 
     while (1) {
         ad_Menu *menu = ad_menuCreate("Partition Wizard", "Select the Hard Disk you wish to partition.", true);
@@ -252,10 +283,10 @@ static bool inst_showPartitionWizard(util_HardDiskArray *hdds) {
         QI_ASSERT(menuResult != AD_ERROR);
 
         if (menuResult == AD_CANCELED) // BACK was pressed.
-            return false;
+            return;
         
         if (menuResult == (int) hdds->count)
-            return true;
+            return;
         
         // Check if we're trying to partition the install source disk. If so, warn user and continue looping.
         if (inst_isInstallationSourceDisk(&hdds->disks[menuResult])) {
@@ -278,6 +309,13 @@ static bool inst_showPartitionWizard(util_HardDiskArray *hdds) {
 static util_Partition *inst_showPartitionSelector(util_HardDiskArray *hdds) {
     int menuResult;
     util_Partition *result = NULL;
+
+    QI_ASSERT(hdds);
+
+    if (hdds->count == 0) {
+        inst_noHardDisksFoundError();
+        return NULL;
+    }
 
     while (1) {
         ad_Menu *menu = ad_menuCreate("Installation Destination", "Select the partition you wish to install to.", true);
@@ -639,10 +677,16 @@ bool inst_main() {
     inst_showDisclaimer();
 
     while (!quit) {
+
+        /* Basic concept:
+         *  If goToNext is true, we advance one step, if it is false, we go back one step.
+            (Can be circumvented by using "continue")
+         *  */
+
         switch (currentStep) {
             case INSTALL_WELCOME:
-                goToNext = inst_showWelcomeScreen();
-                quit |= !goToNext; // First step so we will quit if user pressed exit to shell ...
+                inst_showWelcomeScreen();
+                goToNext = true;
                 break;
 
             case INSTALL_OSROOT_VARIANT_SELECT: {
@@ -672,33 +716,81 @@ bool inst_main() {
 
                 break;
             }
-            case INSTALL_PARTITION_WIZARD: {
-                if (hda == NULL)
-                    hda = inst_getSystemHardDisks();
 
-                if (hda->count == 0) {
-                    inst_noHardDisksFoundError();
+            /* Main Menu:
+             * Select Setup Action to execute */
+            case INSTALL_MAIN_MENU: {
+                switch (inst_showMainMenu()) {
+                    case SETUP_ACTION_INSTALL:
+                        currentStep = INSTALL_SELECT_DESTINATION_PARTITION;
+                        continue;
+
+                    case SETUP_ACTION_PARTITION_WIZARD:
+                        currentStep = INSTALL_PARTITION_WIZARD;
+                        continue;
+
+                    case SETUP_ACTION_EXIT_TO_SHELL:
+                        doReboot = false;
+                        quit = true;
+                        break;
+
+                    default:
+                        break;
+                }
+
+                continue;
+            }
+
+            /* Setup Action:
+             * Partition wizard.
+             * Select hard disk to partition. */
+            case INSTALL_PARTITION_WIZARD: {
+                // Go back to selector after this regardless what happens
+                currentStep = INSTALL_MAIN_MENU;
+                goToNext = false;
+
+                util_hardDiskArrayDestroy(hda);
+                hda = inst_getSystemHardDisks();
+
+                QI_ASSERT(hda != NULL);
+
+                inst_showPartitionWizard(hda);
+                continue;
+            }
+
+            /* Setup Action:
+             * Start installation.
+             * Select the destination partition */
+            case INSTALL_SELECT_DESTINATION_PARTITION: {
+                util_hardDiskArrayDestroy(hda);
+                hda = inst_getSystemHardDisks();
+
+                QI_ASSERT(hda != NULL);
+
+                destinationPartition = inst_showPartitionSelector(hda);
+
+                if (destinationPartition == NULL) {
+                    // There was an error, the user canceled or we have no hard disks.
+                    // Either way, we have to go back.
+                    currentStep = INSTALL_MAIN_MENU;
                     continue;
                 }
 
-                goToNext = inst_showPartitionWizard(hda);
-                util_hardDiskArrayDestroy(hda);
-                hda = inst_getSystemHardDisks();
+                goToNext = true;
                 break;
             }
-            case INSTALL_SELECT_DESTINATION_PARTITION: {
-                destinationPartition = inst_showPartitionSelector(hda);
-                goToNext = (destinationPartition != NULL);
-                break;
-            }
+
+            /* Menu prompt:
+             * Does user want to format the hard disk? */
             case INSTALL_FORMAT_PARTITION_PROMPT: {
-                // ask if partition should be formatted & do so if yes
                 int answer = inst_formatPartitionDialog(destinationPartition);
                 formatPartition = (answer == AD_YESNO_YES);
                 goToNext = (answer != AD_CANCELED);
                 break;
             }
 
+            /* Menu prompt:
+             * Does user want to update MBR and set the partition active? */
             case INSTALL_MBR_ACTIVE_BOOT_PROMPT: {
                 int answer = inst_askUserToOverwriteMBRAndSetActive(destinationPartition);
                 setActiveAndDoMBR = (answer == AD_YESNO_YES);
@@ -706,14 +798,19 @@ bool inst_main() {
                 break;
             }
 
+
+            /* Menu prompt:
+             * Fast / Slow non-PNP HW detection? */
             case INSTALL_REGISTRY_VARIANT_PROMPT: {
                 registryUnpackFile = inst_askUserForRegistryVariant(osVariantIndex);
                 goToNext = (registryUnpackFile != NULL);
                 break;
             }
-  
+
+            /* Menu prompt:
+             * Does the user want to install the base driver package? */
             case INSTALL_INTEGRATED_DRIVERS_PROMPT: {
-                // If driver package doesn't exist, we need not ínstall it
+                // It's optional, if the file doesn't exist, we don't have to ask
                 if (util_fileExists(inst_getCDFilePath(osVariantIndex, INST_DRIVER_FILE))) {
                     int response = inst_showDriverPrompt();
                     installDrivers = (response == AD_YESNO_YES);
@@ -725,6 +822,8 @@ bool inst_main() {
                 break;
             }
 
+
+            /* Do the actual install */
             case INSTALL_DO_INSTALL: {
                 // Format partition
                 if (formatPartition)
@@ -732,7 +831,7 @@ bool inst_main() {
 
                 if (!installSuccess) {
                     inst_showFailedFormat(destinationPartition);
-                    currentStep = INSTALL_SELECT_DESTINATION_PARTITION;
+                    currentStep = INSTALL_MAIN_MENU;
                     continue;
                 }
 
@@ -741,7 +840,7 @@ bool inst_main() {
 
                 if (!installSuccess) {
                     inst_showFailedMount(destinationPartition);
-                    currentStep = INSTALL_SELECT_DESTINATION_PARTITION;
+                    currentStep = INSTALL_MAIN_MENU;
                     continue;
                 }
 
@@ -751,7 +850,7 @@ bool inst_main() {
 
                 if (!installSuccess) {
                     inst_showFailedCopy(INST_DRIVER_FILE);
-                    currentStep = INSTALL_SELECT_DESTINATION_PARTITION;
+                    currentStep = INSTALL_MAIN_MENU;
                     continue;
                 }
 
@@ -765,7 +864,7 @@ bool inst_main() {
 
                 if (!installSuccess) {
                     inst_showFailedCopy(INST_DRIVER_FILE);
-                    currentStep = INSTALL_SELECT_DESTINATION_PARTITION;
+                    currentStep = INSTALL_MAIN_MENU;
                     continue;
                 }
 
@@ -779,7 +878,7 @@ bool inst_main() {
 
                 if (!installSuccess) {
                     inst_showFailedCopy(registryUnpackFile);
-                    currentStep = INSTALL_SELECT_DESTINATION_PARTITION;
+                    currentStep = INSTALL_MAIN_MENU;
                     continue;
                 }
 
