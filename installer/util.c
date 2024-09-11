@@ -68,6 +68,8 @@ util_CommandOutput *util_commandOutputCapture(const char *command) {
 
         ret->lines[ret->lineCount - 1] = tmpLine;
     }
+
+    return ret;
 }
 
 void util_commandOutputDestroy(util_CommandOutput *co) {
