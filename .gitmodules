@@ -25,3 +25,6 @@
 [submodule "pciutils"]
 	path = pciutils
 	url = https://github.com/pciutils/pciutils
+[submodule "anbui"]
+	path = installer/anbui
+	url = git@github.com:oerg866/anbui.git
