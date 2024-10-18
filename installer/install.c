@@ -102,7 +102,7 @@ static inline MappedFile *inst_openSourceFile(size_t osVariantIndex, const char 
 
 /* Shows disclaimer text */
 static inline void inst_showDisclaimer() {
-    ad_textFileBoxDirect("DISCLAIMER", inst_getCDFilePath(0, "install.txt"));
+    ad_textFileBox("DISCLAIMER", inst_getCDFilePath(0, "install.txt"));
 }
 
 /* Shows welcome screen, returns false if user wants to exit to shell */
