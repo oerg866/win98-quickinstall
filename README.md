@@ -1,5 +1,5 @@
 *****************************************************************************
-                 Windows 98 QuickInstall ISO Creator Package
+                 Windows 9x QuickInstall ISO Creator Package
 
                        (C) 2012-2024 Eric Voirin (oerg866)
 *****************************************************************************
@@ -13,7 +13,7 @@ This project has ***NO ENDORSEMENT FROM ANY INVOLVED PARTIES, SUCH AS MICROSOFT.
 Please don't sue. I just like old computers :(
 
 
-# Windows 98 SE QuickInstall
+# Windows 9x QuickInstall
 
 | | | |
 |--------------------------|--------------------------|--------------------------|
@@ -85,7 +85,9 @@ There are several provided methods to boot into Windows 98 QuickInstall:
 
    **Recommended only** if you have QuickInstall on a non-ATA/ATAPI media and your BIOS does not support CD-ROM boot.
 
-   **The kernel on this image does not support kernel logs (`dmesg`)**
+   **The kernel on this image is limited in functionality, driver support and does not enable kernel logs (no `printk`, no `dmesg`)**
+
+   Due to the strong compression, it takes a very long time to boot on slow systems. It is only meant as a last resort.
 
 1. Removable media such as USB Flash Drives
 
@@ -352,7 +354,7 @@ A: Do you think this project would exist otherwise? 🤪
 
 ## Q: Windows 98 / ME complains about missing CAT files when installing a driver from the extra drivers
 
-A: 98Lite deletes the catalog root directory to save installation space. Unpack them from the Win98 CAB files to prevent this.
+A: 98Lite deletes the catalog root directory to save installation space. Catalog files can safely be skipped, but if the error annoys you, you can unpack them from the Win98 CAB files to prevent it.
 
 ## Q: I'm getting a python error about non-zero return code in `msdos.exe` right after `Using SHELL32.xxx to reboot!`
 
