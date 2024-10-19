@@ -59,11 +59,21 @@ popd
 cp buildscripts/linux_config linux/.config
 cp buildscripts/busybox_config busybox/.config
 
-# Build the dependencies. 
+# Patch the dependencies
+
+pushd linux
+	git reset --hard
+	git apply ../buildscripts/linux_patches/*
+popd
 
 pushd syslinux
 	git reset --hard
 	git apply ../buildscripts/syslinux_patches/*
+popd
+
+# Build the dependencies. 
+
+pushd syslinux
 	make -j8 bios
 popd
 
