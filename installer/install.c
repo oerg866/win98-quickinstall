@@ -445,7 +445,7 @@ static inline bool inst_getMercyPakString(MappedFile *file, char *dst) {
     return success;
 }
 
-static bool inst_copyFiles(MappedFile *file, const char *installPath) {
+static bool inst_copyFiles(MappedFile *file, const char *installPath, const char *filePromptString) {
     char fileHeader[5] = {0};
     char *destPath = malloc(strlen(installPath) + 256 + 1);   // Full path of destination dir/file, the +256 is because mercypak strings can only be 255 chars max
     char *destPathAppend = destPath + strlen(installPath) + 1;  // Pointer to first char after the base install path in the destination path + 1 for the extra "/" we're gonna append
@@ -478,7 +478,7 @@ static bool inst_copyFiles(MappedFile *file, const char *installPath) {
         return false;
     }
 
-    ad_ProgressBox *pbox = ad_progressBoxCreate("Windows 9x QuickInstall", "Creating Directories...", dirCount);
+    ad_ProgressBox *pbox = ad_progressBoxCreate("Windows 9x QuickInstall", dirCount, "Creating Directories (%s)...", filePromptString);
 
     QI_ASSERT(pbox);
 
@@ -501,7 +501,7 @@ static bool inst_copyFiles(MappedFile *file, const char *installPath) {
 
     success = true;
 
-    pbox = ad_progressBoxCreate("Windows 9x QuickInstall", "Copying Files...", mappedFile_getFileSize(file));
+    pbox = ad_progressBoxCreate("Windows 9x QuickInstall", mappedFile_getFileSize(file), "Copying Files (%s)...", filePromptString);
 
     QI_ASSERT(pbox);
 
@@ -845,7 +845,7 @@ bool inst_main() {
                 }
 
                 // sourceFile is already opened at this point for readahead prebuffering
-                installSuccess = inst_copyFiles(sourceFile, destinationPartition->mountPath);
+                installSuccess = inst_copyFiles(sourceFile, destinationPartition->mountPath, "Operating System");
                 mappedFile_close(sourceFile);
 
                 if (!installSuccess) {
@@ -858,7 +858,7 @@ bool inst_main() {
                 if (installSuccess && installDrivers) {
                     sourceFile = inst_openSourceFile(osVariantIndex, INST_DRIVER_FILE, readahead);
                     QI_ASSERT(sourceFile && "Failed to open driver file");
-                    installSuccess = inst_copyFiles(sourceFile, destinationPartition->mountPath);
+                    installSuccess = inst_copyFiles(sourceFile, destinationPartition->mountPath, "Driver Library");
                     mappedFile_close(sourceFile);
                 }
 
@@ -872,7 +872,7 @@ bool inst_main() {
                 if (installSuccess) {
                     sourceFile = inst_openSourceFile(osVariantIndex, registryUnpackFile, readahead);
                     QI_ASSERT(sourceFile && "Failed to open registry file");
-                    installSuccess = inst_copyFiles(sourceFile, destinationPartition->mountPath);
+                    installSuccess = inst_copyFiles(sourceFile, destinationPartition->mountPath, "Registry");
                     mappedFile_close(sourceFile);
                 }
 
