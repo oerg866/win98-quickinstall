@@ -44,6 +44,7 @@ typedef struct MappedFile {
     pthread_mutex_t lock;
     
     bool closing;
+    bool readaheadComplete;
     
     size_t blockCount;
     size_t maxBlocks;
@@ -84,11 +85,15 @@ static __INLINE__ mappedFile_MemBlock *mappedFile_getCurrentBlock(MappedFile *fi
 }
 
 static __INLINE__ mappedFile_MemBlock *mappedFile_waitForValidBlockAndGet(MappedFile *file) {
-    mappedFile_MemBlock *ret;
-    while (NULL == (ret = mappedFile_getCurrentBlock(file))) {
+    if (file->blockCount > 0) {
+        return mappedFile_getCurrentBlock(file);
+    }
+
+    printf("wait...\n");
+    while (file->blockCount < (file->maxBlocks / 2) && file->readaheadComplete == false) {
         sched_yield();
     }
-    return ret;
+    return mappedFile_getCurrentBlock(file);
 }
 
 static __INLINE__ void mappedFile_readAhead1Block(MappedFile *mf) {
@@ -125,6 +130,7 @@ static void *mappedFile_threadFunc(void *param) {
         mappedFile_readAhead1Block(mf);
     }
 
+    mf->readaheadComplete = true;
     pthread_exit(param);
 }
 
