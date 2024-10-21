@@ -605,9 +605,21 @@ static bool inst_setupBootSectorAndMBR(util_Partition *part, bool setActiveAndDo
 /* Show success screen. Ask user if he wants to reboot */
 static inline bool inst_showSuccessAndAskForReboot() {
     // Returns TRUE (meaning reboot = true) if YES (0) happens. sorry for the confusion.
-    return (0 == ad_yesNoBox("Reboot?", false,
-        "Finished the Windows 98 Installation.\n"
-        "Would you like to Reboot or exit to a shell?"));
+    ad_Menu *menu = ad_menuCreate("Windows 9x QuickInstall: Success", 
+        "The installation was successful.\n"
+        "Would you like to reboot or exit to a shell?", 
+        false);
+
+    QI_ASSERT(menu);
+
+    ad_menuAddItemFormatted(menu, "Reboot");
+    ad_menuAddItemFormatted(menu, "Exit to shell");
+
+    int menuResult = ad_menuExecute(menu);
+
+    ad_menuDestroy(menu);
+
+    return menuResult == 0;
 }
 
 /* Show failure screen :( */
