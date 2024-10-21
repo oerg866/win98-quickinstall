@@ -1,4 +1,4 @@
-DRIVERCOPY (C) 2011 - 2023 Eric Voirin (oerg866@googlemail.com)
+DRIVERCOPY (C) 2011 - 2024 Eric Voirin (oerg866@googlemail.com)
 
 DRIVERCOPY is a program written specifically for WIN98QI to recursively scan a directory full of drivers, 
 parses its INF files and checks them for validity. It then ppacks their referenced driver files in a CAB archive and copies it
@@ -13,3 +13,7 @@ The program comes without warranty and can be shared freely in binary form, prov
 I doubt it will be useful.
 
 The source code is available on request (see mail address above).
+
+History:
+
+2024-10-21: Fix problems with non-unique INF file names causing CAB files to be overwritten and thus missing driver files.
