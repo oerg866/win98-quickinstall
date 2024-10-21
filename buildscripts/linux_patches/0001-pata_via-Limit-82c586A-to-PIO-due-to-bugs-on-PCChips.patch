@@ -1,15 +1,5 @@
-From 07ded32b2b7d9ade3168e4010735fba20fdb82b6 Mon Sep 17 00:00:00 2001
-From: Eric Voirin <oerg866@googlemail.com>
-Date: Sat, 19 Oct 2024 23:04:05 +0200
-Subject: [PATCH 2/2] pata_via: Limit 82c586A to PIO due to bugs on PCChips VPX
- boards
-
----
- drivers/ata/pata_via.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
 diff --git a/drivers/ata/pata_via.c b/drivers/ata/pata_via.c
-index 696b99720dcb..40e8bd99b892 100644
+index 38044e679795..248b31d92df9 100644
 --- a/drivers/ata/pata_via.c
 +++ b/drivers/ata/pata_via.c
 @@ -116,7 +116,7 @@ static const struct via_isa_bridge {
@@ -21,6 +11,3 @@ index 696b99720dcb..40e8bd99b892 100644
  	{ "vt82c586",	PCI_DEVICE_ID_VIA_82C586_0, 0x00, 0x0f,      0x00, VIA_SET_FIFO },
  	{ "vt82c576",	PCI_DEVICE_ID_VIA_82C576,   0x00, 0x2f,      0x00, VIA_SET_FIFO | VIA_NO_UNMASK },
  	{ "vt82c576",	PCI_DEVICE_ID_VIA_82C576,   0x00, 0x2f,      0x00, VIA_SET_FIFO | VIA_NO_UNMASK | VIA_BAD_ID },
--- 
-2.34.1
-
