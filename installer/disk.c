@@ -18,7 +18,7 @@
 
 #define CMD_SURPRESS_OUTPUT " 2>/dev/null 1>/dev/null"
 
-#define CMD_LSBLK_ALL "lsblk -I 8 -n -b -p -P -oTYPE,KNAME,PARTTYPE,SIZE,MIN-IO,OPT-IO,MODEL"
+#define CMD_LSBLK_ALL "lsblk -I 8,3 -n -b -p -P -oTYPE,KNAME,PARTTYPE,SIZE,MIN-IO,OPT-IO,MODEL"
 
 // Update parents after a reallocation of a hard disk array
 static inline void util_HardDisksUpdatePartitionParents(util_HardDisk *hdds, size_t diskCount) {
