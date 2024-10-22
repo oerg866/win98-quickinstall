@@ -41,7 +41,7 @@ See [BUILDING.md](./BUILDING.md).
 
 # I don't want to read and/or do all of this.
 
-Okay. Go on **archive.org** and search for `win98qi`!
+Okay. Go to the releases tab :-)
 
 # Supported Target Operating Systems
 
@@ -347,10 +347,6 @@ It should fit on the screen.
 It can be ASCII or UTF8 encoded.
 
 # FAQ
-
-## Q: This is cool. But are you single?
-
-A: Do you think this project would exist otherwise? 🤪
 
 ## Q: Windows 98 / ME complains about missing CAT files when installing a driver from the extra drivers
 
