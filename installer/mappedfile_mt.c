@@ -89,8 +89,9 @@ static __INLINE__ mappedFile_MemBlock *mappedFile_waitForValidBlockAndGet(Mapped
         return mappedFile_getCurrentBlock(file);
     }
 
-    printf("wait...\n");
-    while (file->blockCount < (file->maxBlocks / 2) && file->readaheadComplete == false) {
+    size_t blockThreshold = MIN(file->maxBlocks / 2, 8);
+
+    while (file->blockCount < blockThreshold && file->readaheadComplete == false) {
         sched_yield();
     }
     return mappedFile_getCurrentBlock(file);
