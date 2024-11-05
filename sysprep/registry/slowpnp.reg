@@ -38,3 +38,8 @@ REGEDIT4
 "HardwareID"="SWENUM"
 
 [HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\RunOnce]
+
+; Silence Default Monitor Prompt
+[HKEY_LOCAL_MACHINE\System\CurrentControlSet\Services\Class\Monitor]
+"SilentInstall"="1"
+
