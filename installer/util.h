@@ -168,7 +168,7 @@ uint16_t util_getUInt16fromBuffer(const uint8_t *buf, size_t offset);
 uint32_t util_getUInt32fromBuffer(const uint8_t *buf, size_t offset);
 
 // Reads the first line of a file into a buffer.
-bool util_readFirstLineFromFileIntoBuffer(const char *filename, char *dest);
+bool util_readFirstLineFromFileIntoBuffer(const char *filename, char *dest, size_t bufSize);
 
 // Converts a DOS date/time to a unix epoch time stamp
 time_t util_dosTimeToUnixTime(uint16_t dosDate, uint16_t dosTime);

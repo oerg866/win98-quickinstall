@@ -184,49 +184,34 @@ static inst_SetupAction inst_showMainMenu() {
     Otherwise it can return "false" if the user selected BACK.
 */
 static bool inst_showOSVariantSelect(size_t *variantIndex, size_t *variantCount) {
-    char osRootsDir[256];
-    int menuResult;
-    struct dirent *entry;
-    struct stat st;
     ad_Menu *menu = ad_menuCreate("Installation Variant", "Select the operating system variant you wish to install.", true);
+    int menuResult;
 
     QI_ASSERT(menu);
 
-    // Get available OS variants.
     *variantCount = 0;
 
-    snprintf(osRootsDir, sizeof(osRootsDir), "%s/osroots", cdrompath);
+    // Find and get available OS variants.
 
-    DIR *dir = opendir(osRootsDir);
-    QI_ASSERT(dir);
+    while (true) {
+        char tmpInfPath[256];
+        char tmpVariantLabel[128];
 
-    while ((entry = readdir(dir)) != NULL) {
-        size_t currentVariantIndex;
-        char path[512];
-        char currentVariantLabel[256];
+        snprintf(tmpInfPath, sizeof(tmpInfPath), "%s/osroots/%zu/win98qi.inf", cdrompath, *variantCount);
 
-        snprintf(path, sizeof(path), "%s/%s", osRootsDir, entry->d_name);
-
-        if (stat(path, &st) == -1) {
-            perror("stat");
-            continue;
+        if (!util_fileExists(tmpInfPath)) {
+            break;
         }
 
-        if (S_ISDIR(st.st_mode) && entry->d_name[0] != '.') {
-            // Get the label from the "WIN98QI.INF" file.
-            currentVariantIndex = atoi(entry->d_name);
-            const char *win98qiInfPath = inst_getCDFilePath(currentVariantIndex, "win98qi.inf");
-
-            QI_ASSERT(currentVariantIndex > 0 && util_fileExists(win98qiInfPath));
-            util_readFirstLineFromFileIntoBuffer(win98qiInfPath, currentVariantLabel);      
-
-            ad_menuAddItemFormatted(menu, "%zu: %s", currentVariantIndex, currentVariantLabel);
-
-            *variantCount += 1;
+        if (!util_readFirstLineFromFileIntoBuffer(tmpInfPath, tmpVariantLabel, sizeof(tmpVariantLabel))) {
+            ad_okBox("Error", false, "Error while reading file\n'%s'", tmpInfPath);
+            break;
         }
+
+        *variantCount += 1;
+
+        ad_menuAddItemFormatted(menu, "%zu: %s", *variantCount, "%s", tmpVariantLabel);
     }
-
-    closedir(dir);
 
     if (*variantCount > 1) {
         menuResult = ad_menuExecute(menu);

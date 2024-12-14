@@ -161,11 +161,23 @@ bool util_setDosFileTime(int fd, uint16_t dosDate, uint16_t dosTime) {
     return util_setFileTime(fd, util_dosTimeToUnixTime(dosDate, dosTime));
 }
 
-bool util_readFirstLineFromFileIntoBuffer(const char *filename, char *dest) {
+bool util_readFirstLineFromFileIntoBuffer(const char *filename, char *dest, size_t bufSize) {
+    char *upperBound = dest + bufSize;
     FILE *fp = fopen(filename, "r");
-    fscanf(fp, "%255[^\n]", dest);
-    fclose(fp);
-    return fp != NULL;
+
+    while (fp != NULL && dest < upperBound) {
+        int readChar = fgetc(fp);
+
+        if (ferror(fp))
+            return false;
+
+        if (readChar == EOF || readChar == '\n')
+            return true;
+
+        *dest++ = readChar;
+    }
+
+    return false;
 }
 
 bool util_setDosFileAttributes(int fd, uint32_t attributes) {
