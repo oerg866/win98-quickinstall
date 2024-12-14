@@ -47,7 +47,7 @@ def case_insensitive_to_sensitive(directory, filename):
     for file in os.listdir(directory):
         if file.lower() == filename.lower():
             return os.path.join(directory, file)
-    return None
+    return os.path.join(directory, filename)
 
 
 # Delete a file with a given filename in a directory in a case-insensitive manner. 'filename' may include wildcards ('*')
@@ -377,24 +377,36 @@ for osroot in input_osroots:
     registry_add_reg(osroot, osroot_windir_relative, fastpnp_reg, fastpnp_866)
 #    process_osroot(osroot, osroot_idx)
 
+    # Backup generic modem driver file
+    osroot_infdir = case_insensitive_to_sensitive(osroot_windir, 'inf')
+    modem_inf_file = case_insensitive_to_sensitive(osroot_infdir, 'mdmgen.inf')
+    modem_bak_file = os.path.join(osroot_infdir, 'mdmgen.bak')
+
+    if os.path.exists(modem_inf_file):
+        shutil.copy2(modem_inf_file, modem_bak_file)
+
     # Cleanup unnecessary files
-    delete_file(osroot_windir,                              'win386.swp')
-    delete_file(os.path.join(osroot_windir, 'sysbckup'),    '*')
-    delete_file(os.path.join(osroot_windir, 'inf'),         'mdm*.inf')
-    delete_file(os.path.join(osroot_windir, 'inf'),         'wdma_*.inf')
-    delete_file(os.path.join(osroot_windir, 'inf', 'other'),'*')
-    delete_file(os.path.join(osroot_windir, 'recent'),      '*')
-    delete_file(osroot,                                     'win386.swp')
-    delete_file(osroot,                                     'bootlog.*')
-    delete_file(osroot,                                     'frunlog.txt')
-    delete_file(osroot,                                     'detlog.txt')
-    delete_file(osroot,                                     'setuplog.txt')
-    delete_file(osroot,                                     'scandisk.log')
-    delete_file(osroot,                                     'netlog.txt')
-    delete_file(osroot,                                     'suhdlog.dat')
-    delete_file(osroot,                                     'msdos.---')
-    delete_file(osroot,                                     'config.bak')
-    delete_file(osroot,                                     'autoexec.bak')
+    delete_file(osroot_windir,                                              'win386.swp')
+    delete_file(case_insensitive_to_sensitive(osroot_windir, 'sysbckup'),   '*')
+    delete_file(osroot_infdir,                                              'mdm*.inf')
+    delete_file(osroot_infdir,                                              'wdma_*.inf')
+    delete_file(case_insensitive_to_sensitive(osroot_infdir, 'other'),      '*')
+    delete_file(case_insensitive_to_sensitive(osroot_windir, 'recent'),     '*')
+    delete_file(osroot,                                                     'win386.swp')
+    delete_file(osroot,                                                     'bootlog.*')
+    delete_file(osroot,                                                     'frunlog.txt')
+    delete_file(osroot,                                                     'detlog.txt')
+    delete_file(osroot,                                                     'setuplog.txt')
+    delete_file(osroot,                                                     'scandisk.log')
+    delete_file(osroot,                                                     'netlog.txt')
+    delete_file(osroot,                                                     'suhdlog.dat')
+    delete_file(osroot,                                                     'msdos.---')
+    delete_file(osroot,                                                     'config.bak')
+    delete_file(osroot,                                                     'autoexec.bak')
+
+    # Restore generic modem driver file
+    if os.path.exists(modem_bak_file):
+        shutil.copy2(modem_bak_file, modem_inf_file)
 
     # Copy oeminfo
     shutil.copy2(os.path.join(input_oeminfo, 'oeminfo.ini'), case_insensitive_to_sensitive(osroot_windir, 'system'))
