@@ -630,26 +630,21 @@ static inline void inst_showFailMessage() {
 }
 
 /* Asks user which version of the hardware detection scheme he wants */
-static const char *inst_askUserForRegistryVariant(uint32_t osVariantIndex) {
-    static const char fastpnp[] = "FASTPNP.866";
-    static const char slowpnp[] = "SLOWPNP.866";
-    const char *optionFiles[] = { fastpnp, slowpnp };
+static const char *inst_askUserForRegistryVariant(void) {
+    const char *optionFiles[] = { 
+        "FASTPNP.866", 
+        "SLOWPNP.866"
+    };
     const char *optionLabels[] = { 
         "Fast hardware detection, skipping most non-PNP devices.",
         "Full hardware detection, including ALL non-PNP devices."
     };
 
-    // only do this if SLOWPNP exists, as windows 95 doesn't have a non-pnp init so we have to apply fastpnp anyway...
-    QI_ASSERT(util_fileExists(inst_getCDFilePath(osVariantIndex, fastpnp)));
-    if (!util_fileExists(inst_getCDFilePath(osVariantIndex, slowpnp)))
-        return fastpnp;
-    
     int menuResult = ad_menuExecuteDirectly("Select hardware detection method", true, 
         util_arraySize(optionLabels), optionLabels, 
         "Please select the hardware detection method to use.");
 
-    // Cancelled?
-    if (menuResult < 0) {
+    if (menuResult == AD_CANCELED) {
         return NULL;
     }
 
@@ -814,7 +809,7 @@ bool inst_main() {
             /* Menu prompt:
              * Fast / Slow non-PNP HW detection? */
             case INSTALL_REGISTRY_VARIANT_PROMPT: {
-                registryUnpackFile = inst_askUserForRegistryVariant(osVariantIndex);
+                registryUnpackFile = inst_askUserForRegistryVariant();
                 goToNext = (registryUnpackFile != NULL);
                 break;
             }
