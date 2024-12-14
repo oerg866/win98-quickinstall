@@ -174,7 +174,8 @@ util_HardDiskArray *util_getSystemHardDisks() {
             size_t index = (size_t) atoi(tmpDevice + strlen(currentDisk->device));   // so for example "/dev/sda1" would have atoi called on the "1" part
             util_HardDiskAddPartition(currentDisk,tmpDevice, tmpSize, tmpSectorSize, tmpFileSystem, index);
         } else {
-            QI_ASSERT(false && "Unexpected hard disk type.");
+            /* Tape streamer or other weird thing, not of interest for us... */
+            continue;
         }
     }
 
