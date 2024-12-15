@@ -83,7 +83,7 @@ static util_Partition *util_HardDiskAddPartition(util_HardDisk *hd, const char *
 }
 
 // Gets a value for a given key from a '<key>="value" <key2>="value2"' esque input string
-bool util_getValueFromKey(const char *input, const char *key, char *value, size_t valueBufSize) {
+static bool util_getValueFromKey(const char *input, const char *key, char *value, size_t valueBufSize) {
     const char *curPos = input;
 
     QI_ASSERT(input != NULL);

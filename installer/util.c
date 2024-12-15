@@ -153,7 +153,6 @@ time_t util_dosTimeToUnixTime(uint16_t dosDate, uint16_t dosTime) {
 static bool util_setFileTime(int fd, time_t time) {
     struct timeval newTimes[2] = {{time, 0}, {time, 0}};
     int result = futimes(fd, newTimes);
-//    printf("futimes(fd, %lld) = %d\n", time, result);
     return result == 0;
 }
 
@@ -162,22 +161,18 @@ bool util_setDosFileTime(int fd, uint16_t dosDate, uint16_t dosTime) {
 }
 
 bool util_readFirstLineFromFileIntoBuffer(const char *filename, char *dest, size_t bufSize) {
-    char *upperBound = dest + bufSize;
     FILE *fp = fopen(filename, "r");
 
-    while (fp != NULL && dest < upperBound) {
-        int readChar = fgetc(fp);
-
-        if (ferror(fp))
-            return false;
-
-        if (readChar == EOF || readChar == '\n')
-            return true;
-
-        *dest++ = readChar;
+    if (fp == NULL) {
+        return false;
     }
 
-    return false;
+    fgets(dest, (int) bufSize, fp);
+    fclose(fp);
+
+    util_stringReplaceChar(dest, '\n', 0x00);
+   
+    return true;
 }
 
 bool util_setDosFileAttributes(int fd, uint32_t attributes) {

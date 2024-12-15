@@ -197,7 +197,7 @@ static bool inst_showOSVariantSelect(size_t *variantIndex, size_t *variantCount)
         char tmpInfPath[256];
         char tmpVariantLabel[128];
 
-        snprintf(tmpInfPath, sizeof(tmpInfPath), "%s/osroots/%zu/win98qi.inf", cdrompath, *variantCount);
+        snprintf(tmpInfPath, sizeof(tmpInfPath), "%s/osroots/%zu/win98qi.inf", cdrompath, (*variantCount) + 1); // Variant index starts at 1
 
         if (!util_fileExists(tmpInfPath)) {
             break;
@@ -208,9 +208,10 @@ static bool inst_showOSVariantSelect(size_t *variantIndex, size_t *variantCount)
             break;
         }
 
+        ad_menuAddItemFormatted(menu, "%zu: %s", (*variantCount) + 1, tmpVariantLabel);
+
         *variantCount += 1;
 
-        ad_menuAddItemFormatted(menu, "%zu: %s", *variantCount, "%s", tmpVariantLabel);
     }
 
     if (*variantCount > 1) {
