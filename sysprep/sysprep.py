@@ -384,7 +384,7 @@ for osroot in input_osroots:
     modem_bak_file = os.path.join(osroot_infdir, 'mdmgen.bak')
 
     if os.path.exists(modem_inf_file):
-        shutil.copy2(modem_inf_file, modem_bak_file)
+        shutil.move(modem_inf_file, modem_bak_file)
 
     # Cleanup unnecessary files
     delete_file(osroot_windir,                                              'win386.swp')
@@ -407,7 +407,8 @@ for osroot in input_osroots:
 
     # Restore generic modem driver file
     if os.path.exists(modem_bak_file):
-        shutil.copy2(modem_bak_file, modem_inf_file)
+        shutil.move(modem_bak_file, modem_inf_file)
+
 
     # Copy oeminfo
     shutil.copy2(os.path.join(input_oeminfo, 'oeminfo.ini'), case_insensitive_to_sensitive(osroot_windir, 'system'))
