@@ -49,24 +49,6 @@ def case_insensitive_to_sensitive(directory, filename):
             return os.path.join(directory, file)
     return os.path.join(directory, filename)
 
-
-# Delete a file with a given filename in a directory in a case-insensitive manner. 'filename' may include wildcards ('*')
-def delete_file(directory, filename):
-    if not os.path.exists(directory):
-        return
-
-    result = False
-
-    for file in os.listdir(directory):
-        if re.match(fnmatch.translate(filename), file, re.IGNORECASE):
-            try:
-                print(file)
-                os.remove(os.path.join(directory, file))
-                result = True
-            except OSError:
-                return False
-    return result
-
 # Create directory, ignore if it already exists
 def mkdir(path):
     try:
@@ -79,9 +61,40 @@ def mkdir(path):
 def handle_remove_readonly(func, path, exc_info):
     if not os.access(path, os.W_OK):
         os.chmod(path, stat.S_IWUSR)
+        os.chmod(path, stat.S_IWRITE)
         func(path)
     else:
         raise OSError("Unable to delete file: %s" % path)
+
+# Delete a file with a given filename in a directory in a case-insensitive manner. 'filename' may include wildcards ('*')
+def delete_file(directory, filename):
+    if not os.path.exists(directory):
+        return True
+
+    result = False
+
+    for file in os.listdir(directory):
+        if re.match(fnmatch.translate(filename), file, re.IGNORECASE):
+            try:
+                full_path = os.path.join(directory, file)
+                print(full_path)
+
+                # On windows, os.remove will FAIL to remove SYSTEM files, so we need to check for this attribute
+
+                if platform.system() == 'Windows':
+                    import ctypes
+                    if ctypes.windll.kernel32.GetFileAttributesW(full_path) & 0x00000004: # FILE_ATTRIBUTE_SYSTEM; 4 (0x00000004). A file or directory that the operating system uses a part of, or uses exclusively.
+                        print(f'System file, removing attribute...')
+                        ctypes.windll.kernel32.SetFileAttributesW(full_path, 0x00000080) # FILE_ATTRIBUTE_NORMAL; 128 (0x00000080). A file that does not have other attributes set
+
+                os.remove(full_path)
+
+                if os.path.exists(full_path):
+                    raise FileExistsError
+
+                return True
+            except OSError:
+                return False
 
 # Delete recursive... more or less just a wrapper around shutil.rmtree
 def delete_recursive(directory_path):
@@ -376,7 +389,6 @@ for osroot in input_osroots:
     slowpnp_866 = os.path.join(output_osroot, 'SLOWPNP.866')
     registry_add_reg(osroot, osroot_windir_relative, slowpnp_reg, slowpnp_866)
     registry_add_reg(osroot, osroot_windir_relative, fastpnp_reg, fastpnp_866)
-#    process_osroot(osroot, osroot_idx)
 
     # Backup generic modem driver file
     osroot_infdir = case_insensitive_to_sensitive(osroot_windir, 'inf')
