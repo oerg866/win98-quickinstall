@@ -391,8 +391,10 @@ for osroot in input_osroots:
     delete_file(case_insensitive_to_sensitive(osroot_windir, 'sysbckup'),   '*')
     delete_file(osroot_infdir,                                              'mdm*.inf')
     delete_file(osroot_infdir,                                              'wdma_*.inf')
+    delete_file(osroot_infdir,                                              'drv*.bin')
     delete_file(case_insensitive_to_sensitive(osroot_infdir, 'other'),      '*')
     delete_file(case_insensitive_to_sensitive(osroot_windir, 'recent'),     '*')
+    delete_file(case_insensitive_to_sensitive(osroot_windir, 'temp'),       '*')
     delete_file(osroot,                                                     'win386.swp')
     delete_file(osroot,                                                     'bootlog.*')
     delete_file(osroot,                                                     'frunlog.txt')
@@ -404,6 +406,8 @@ for osroot in input_osroots:
     delete_file(osroot,                                                     'msdos.---')
     delete_file(osroot,                                                     'config.bak')
     delete_file(osroot,                                                     'autoexec.bak')
+    delete_file(osroot,                                                     'io.bak')
+    delete_file(osroot,                                                     'command.dos')
 
     # Restore generic modem driver file
     if os.path.exists(modem_bak_file):
