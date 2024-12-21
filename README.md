@@ -348,6 +348,18 @@ It can be ASCII or UTF8 encoded.
 
 # FAQ
 
+## Q: Windows 98 / ME complains about system file integrity when I create an image after a Daylight Savings Time swap-over
+
+A: This is a weird glitch that happens on Windows hosts where files created after DST are suddenly are offset by one hour.
+
+In the future, the sysprep script will work with Hard Disk image files, which will make this a non-issue.
+
+**Workaround 1:** Re-extract the files from the hard disk image you used as the base to create your image
+
+**Workaround 2:** Create images on Linux
+
+**Workaround 3:** Wait until summer :-)
+
 ## Q: Windows 98 / ME complains about missing CAT files when installing a driver from the extra drivers
 
 A: 98Lite deletes the catalog root directory to save installation space. Catalog files can safely be skipped, but if the error annoys you, you can unpack them from the Win98 CAB files to prevent it.
