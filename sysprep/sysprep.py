@@ -168,7 +168,7 @@ def registry_add_reg(osroot_base, osroot_windir_relative, reg_file, output_866_f
 
     # Copy to temporary file and append reboot file to it
     shutil.copy2(reg_file, 'tmp.reg')
-    append_line_to_file('tmp.reg', f'[HKEY_LOCAL_MACHINE\\Software\\Microsoft\\\Windows\\\CurrentVersion\\\RunOnce]')
+    append_line_to_file('tmp.reg', f'[HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Windows\\CurrentVersion\\RunOnce]')
     append_line_to_file('tmp.reg', f'"Reboot"="RUNDLL32.EXE {shell32_dll},SHExitWindowsEx 2"\n')
 
     run_regedit('tmp.reg')
