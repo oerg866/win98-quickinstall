@@ -127,7 +127,7 @@ def run_regedit(reg_file):
     else:
         reg_file = get_wine_path(reg_file)
         regedit_exe = get_wine_path(regedit_exe)
-        subprocess.run(['wine', msdos_exe, regedit_exe, '/L:SYSTEM.DAT', '/R:USER.DAT', 'tmp.reg'], check=True, stdout=global_stdout)
+        subprocess.run(['wine', msdos_exe, regedit_exe, '/L:SYSTEM.DAT', '/R:USER.DAT', reg_file], check=True, stdout=global_stdout)
 
 # Add registry file to a given windows installation and pack the registry with mercypak
 def registry_add_reg(osroot_base, osroot_windir_relative, reg_file, output_866_file):
