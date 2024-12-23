@@ -83,18 +83,17 @@ def delete_file(directory, filename):
 
                 if platform.system() == 'Windows':
                     import ctypes
-                    if ctypes.windll.kernel32.GetFileAttributesW(full_path) & 0x00000004: # FILE_ATTRIBUTE_SYSTEM; 4 (0x00000004). A file or directory that the operating system uses a part of, or uses exclusively.
-                        print(f'System file, removing attribute...')
-                        ctypes.windll.kernel32.SetFileAttributesW(full_path, 0x00000080) # FILE_ATTRIBUTE_NORMAL; 128 (0x00000080). A file that does not have other attributes set
+                    ctypes.windll.kernel32.SetFileAttributesW(full_path, 0x00000080) # FILE_ATTRIBUTE_NORMAL; 128 (0x00000080). A file that does not have other attributes set
 
                 os.remove(full_path)
 
                 if os.path.exists(full_path):
                     raise FileExistsError
 
-                return True
             except OSError:
                 return False
+
+    return True
 
 # Delete recursive... more or less just a wrapper around shutil.rmtree
 def delete_recursive(directory_path):
