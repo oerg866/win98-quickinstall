@@ -393,3 +393,10 @@ A: To work around this issue, select the "slow" hardware detection variant in th
 
 A: Your BIOS might have an incomplete/buggy LBA implementation. Partition the drive to use a FAT32 non-LBA partition and try again.
 
+## Q: I'm getting a `While initializing device VCACHE: Windows protection error` when running on my modern PC (Ryzen, Intel 13th gen, etc.)
+
+Install the CREGFIX patch (the reference ISOs contain it in the extras folder):
+
+https://github.com/mintsuki/cregfix
+
+For technical reasons this patch cannot be pre-installed with the ISO and must be applied manually.
