@@ -399,13 +399,17 @@ for osroot in input_osroots:
 
     # Cleanup unnecessary files
     delete_file(osroot_windir,                                              'win386.swp')
-    delete_file(case_insensitive_to_sensitive(osroot_windir, 'sysbckup'),   '*')
+    delete_file(osroot_windir,                                              'ndislog.txt')
+    delete_file(osroot_windir,                                              '*.log')
     delete_file(osroot_infdir,                                              'mdm*.inf')
     delete_file(osroot_infdir,                                              'wdma_*.inf')
     delete_file(osroot_infdir,                                              'drv*.bin')
-    delete_file(case_insensitive_to_sensitive(osroot_infdir, 'other'),      '*')
     delete_file(case_insensitive_to_sensitive(osroot_windir, 'recent'),     '*')
     delete_file(case_insensitive_to_sensitive(osroot_windir, 'temp'),       '*')
+    delete_file(case_insensitive_to_sensitive(osroot_windir, 'applog'),     '*')
+    delete_file(case_insensitive_to_sensitive(osroot_windir, 'sysbckup'),   '*')
+    delete_file(case_insensitive_to_sensitive(osroot_infdir, 'other'),      '*')
+    delete_file(case_insensitive_to_sensitive(osroot,        'recycled'),   '*')
     delete_file(osroot,                                                     'win386.swp')
     delete_file(osroot,                                                     'bootlog.*')
     delete_file(osroot,                                                     'frunlog.txt')
@@ -419,11 +423,11 @@ for osroot in input_osroots:
     delete_file(osroot,                                                     'autoexec.bak')
     delete_file(osroot,                                                     'io.bak')
     delete_file(osroot,                                                     'command.dos')
+    delete_file(osroot,                                                     'videorom.bin')
 
     # Restore generic modem driver file
     if os.path.exists(modem_bak_file):
         shutil.move(modem_bak_file, modem_inf_file)
-
 
     # Copy oeminfo
     shutil.copy2(os.path.join(input_oeminfo, 'oeminfo.ini'), case_insensitive_to_sensitive(osroot_windir, 'system'))
