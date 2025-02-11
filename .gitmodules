@@ -28,3 +28,6 @@
 [submodule "anbui"]
 	path = installer/anbui
 	url = git@github.com:oerg866/anbui.git
+[submodule "chntpw"]
+	path = chntpw
+	url = git@github.com:oerg866/chntpw-866.git

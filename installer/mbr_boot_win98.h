@@ -1,4 +1,3 @@
-#define DISK_MBR_CODE_LENGTH (446)
 
 /*
  * Win98 MBR and Boot Sector codes.
@@ -6,7 +5,7 @@
  * Please don't sue me, I just want to make old computers work
  */
 
-static const unsigned char __MBR_WIN98__[] = {
+static const unsigned char __WIN98__MBR__[] = {
   0x33, 0xc0, 0x8e, 0xd0, 0xbc, 0x00, 0x7c, 0xfb, 0x50, 0x07, 0x50, 0x1f,
   0xfc, 0xbe, 0x1b, 0x7c, 0xbf, 0x1b, 0x06, 0x50, 0x57, 0xb9, 0xe5, 0x01,
   0xf3, 0xa4, 0xcb, 0xbe, 0xbe, 0x07, 0xb1, 0x04, 0x38, 0x2c, 0x7c, 0x09,
@@ -224,6 +223,23 @@ static const uint8_t __WIN98__FAT32_BOOT_SECTOR__[] = {
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x55, 0xaa
 };
 
+#if 0
+
+// This struct models a part of a boot sector that is to be overwritten with parts of data blocks
+typedef struct {
+    size_t sectorIndex;
+    size_t offset;
+    size_t length;
+    const uint8_t *replacementData;
+} util_BootSectorModifier;
+
+typedef struct {
+    size_t count;   // there must be a more elegant way to do this.. bleh
+    const util_BootSectorModifier *modifiers;
+} util_BootSectorModifierList;
+
+#endif
+
 /* The starting offsets for the actual code come from https://wiki.osdev.org/FAT */
 
 static const util_BootSectorModifier __WIN98_FAT16_BOOT_SECTOR_MODIFIERS__[] = {
@@ -243,10 +259,16 @@ static const util_BootSectorModifier __WIN98_FAT32_BOOT_SECTOR_MODIFIERS__[] = {
 
 static const util_BootSectorModifierList __WIN98_FAT16_BOOT_SECTOR_MODIFIER_LIST__ = {
   sizeof(__WIN98_FAT16_BOOT_SECTOR_MODIFIERS__) / sizeof(util_BootSectorModifier),
-  __WIN98_FAT16_BOOT_SECTOR_MODIFIERS__
+  __WIN98_FAT16_BOOT_SECTOR_MODIFIERS__,
+  0,
+  NULL,
+  __WIN98__MBR__
 };
 
 static const util_BootSectorModifierList __WIN98_FAT32_BOOT_SECTOR_MODIFIER_LIST__ = {
   sizeof(__WIN98_FAT32_BOOT_SECTOR_MODIFIERS__) / sizeof(util_BootSectorModifier),
-  __WIN98_FAT32_BOOT_SECTOR_MODIFIERS__
+  __WIN98_FAT32_BOOT_SECTOR_MODIFIERS__,
+  0,
+  NULL,
+  __WIN98__MBR__
 };

@@ -2,6 +2,7 @@
 #define _QI_ASSERT_H_
 
 #include <stdio.h>
+#include <unistd.h>
 
 #include "anbui/anbui.h"
 

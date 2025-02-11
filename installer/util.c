@@ -17,6 +17,7 @@
 #include <unistd.h>
 #include <linux/msdos_fs.h>
 #include <sys/ioctl.h>
+#include <fcntl.h>
 
 #include "qi_assert.h"
 
@@ -180,6 +181,11 @@ bool util_setDosFileAttributes(int fd, uint32_t attributes) {
     return ret == 0;
 }
 
+bool util_getDosFileAttributes(int fd, uint32_t *attributes) {
+    int ret = ioctl(fd, FAT_IOCTL_GET_ATTRIBUTES, attributes);
+    return ret == 0;
+}
+
 mode_t util_dosFileAttributeToUnixMode(uint8_t dosFlags) {
     mode_t ret = 0;
     if (dosFlags & ATTR_DIR)    // The file is a directory
@@ -204,4 +210,32 @@ mode_t util_dosFileAttributeToUnixMode(uint8_t dosFlags) {
 
 bool util_fileExists(const char *filename) {
     return (access(filename, F_OK) == 0);
+}
+
+bool util_copyFile(const char *src, const char *dst) {
+    char buf[4096];
+    ssize_t numBytes = 0;
+    int in; 
+    int out;
+    struct stat st;
+
+    if (!util_fileExists(src) || (stat(src, &st) < 0)) {
+        return false;
+    }
+
+    in = open(src, O_RDONLY);
+    out = open(dst, O_WRONLY | O_CREAT | O_TRUNC, st.st_mode);
+
+    if (in >= 0 && out >= 0) {
+        while ((numBytes = read(in, buf, sizeof(buf))) > 0) {
+            write(out, buf, numBytes);
+        }
+    }
+
+    util_setFileTime(out, st.st_mtime);
+
+    close(in); 
+    close(out);
+
+    return (in > 0) && (out > 0) && (numBytes >= 0);
 }

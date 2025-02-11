@@ -71,6 +71,10 @@ pushd tiny-floppy-bootloader
 	./build.sh ../bzImage.cd cdrom.img 2949120		# CD-ROM / 2.88M boot
 popd
 
+pushd chntpw
+	./build.sh
+popd
+
 pushd installer
 	./build.sh
 popd
@@ -97,6 +101,7 @@ cp pciutils/setpci "$CDROOT/bin/"
 cp pciutils/pci.ids "$CDROOT/bin/"
 cp dosfstools/OUTPUT/sbin/* "$CDROOT/bin/"
 cp supplement/syslinux.cfg "$CDROOT"
+cp chntpw/reged.static "$CDROOT/bin/"
 
 # Boot floppies, also copy them to the CDROM root for ~user convenience~
 cp tiny-floppy-bootloader/floppy.img "$OUTPUT/"

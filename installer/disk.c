@@ -381,15 +381,15 @@ uint8_t *util_readSectorFromPartitionAllocate(util_Partition *part, size_t secto
     return util_readSectorAllocate(part->device, sector, part->sectorSize);
 }
 
-#include "mbr_boot_win98.h"
-
-bool util_writeWin98MBRToDrive(util_HardDisk *hdd) {
+bool util_writeMBRToDrive(util_HardDisk *hdd, const uint8_t *newMBRCode) {
     // Read existing MBR first
     uint8_t *existingMBR = util_readSectorFromDiskAllocate(hdd, 0);
     if (!existingMBR) return false;
 
+    QI_ASSERT(newMBRCode != NULL);
+
     // Overwrite the start with the win98 MBR code
-    memcpy(existingMBR, __MBR_WIN98__, DISK_MBR_CODE_LENGTH);
+    memcpy(existingMBR, newMBRCode, DISK_MBR_CODE_LENGTH);
 
     // write it back to the disk
     bool result = util_writeSectorToDisk(hdd, 0, existingMBR);
@@ -397,12 +397,12 @@ bool util_writeWin98MBRToDrive(util_HardDisk *hdd) {
     return result;
 }
 
-static bool util_modifyBootSector(util_Partition *part, util_BootSectorModifierList modifierList) {
+bool util_modifyBootSector(util_Partition *part, const util_BootSectorModifierList *modifierList) {
     uint8_t *sector = NULL;
     size_t oldSectorIndex = 0;
     bool success = true;
-    for (size_t i = 0; i < modifierList.count; i++) {
-        util_BootSectorModifier mod = modifierList.modifiers[i];
+    for (size_t i = 0; i < modifierList->modifierCount; i++) {
+        util_BootSectorModifier mod = modifierList->modifiers[i];
         // New sector index found in the list = we need to write previous sector and free its databuffer
         if (sector && (mod.sectorIndex != oldSectorIndex)) {
             success = util_writeSectorToPartition(part, oldSectorIndex, sector);
@@ -441,11 +441,8 @@ static bool util_modifyBootSector(util_Partition *part, util_BootSectorModifierL
     return success;
 }
 
-bool util_writeWin98BootSectorToPartition(util_Partition *part) {
-    // Fat16 only has one boot sector and smaller BPB, so we need to use a different, simpler modification list for it
-    util_BootSectorModifierList bsModifierList = part->fileSystem == fs_fat16 ? __WIN98_FAT16_BOOT_SECTOR_MODIFIER_LIST__ 
-                                                                              : __WIN98_FAT32_BOOT_SECTOR_MODIFIER_LIST__;
-    bool result = util_modifyBootSector(part, bsModifierList);
+bool util_modifyAndWriteBootSectorToPartition(util_Partition *part, const util_BootSectorModifierList *mods) {
+    bool result = util_modifyBootSector(part, mods);
 
     if (result && part->fileSystem == fs_fat32) {
         // Copy sectors to backup now (FAT32 only, FAT16 has no backup it seems, at least not on Win9x)
@@ -460,6 +457,12 @@ bool util_writeWin98BootSectorToPartition(util_Partition *part) {
             // Write sector to backup location
             result &= util_writeSectorToPartition(part, i + backupSectorIndex, sector);
             free(sector);
+        }
+
+        // Handle bootstrap code (2K+)
+        for (size_t i = 0; i < mods->bootStrapCodeSectorCount; i++) {
+            // 2x backupSectorIndex here because we want to write at the *end* of the backup sectors
+            result &= util_writeSectorToPartition(part, backupSectorIndex + backupSectorIndex + i, mods->bootStrapCode + part->sectorSize * i);
         }
     }
 

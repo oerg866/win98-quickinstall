@@ -346,6 +346,10 @@ It should fit on the screen.
 
 It can be ASCII or UTF8 encoded.
 
+# Windows XP Support
+
+There is rudimentary support for Windows XP in this framework. It comes **without support, requires detailed technical knowledge to use and I will not help you or answer github issues about it, it exists purely for experimentation purposes.**
+
 # FAQ
 
 ## Q: Windows 98 / ME complains about system file integrity when I create an image after a Daylight Savings Time swap-over

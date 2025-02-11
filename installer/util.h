@@ -62,8 +62,11 @@ typedef struct {
 } util_BootSectorModifier;
 
 typedef struct {
-    size_t count;   // there must be a more elegant way to do this.. bleh
+    size_t modifierCount;   // there must be a more elegant way to do this.. bleh
     const util_BootSectorModifier *modifiers;
+    size_t bootStrapCodeSectorCount;
+    const uint8_t *bootStrapCode; // For Windows 2000+, stored at the first sector after
+    const uint8_t *mbrCode; // MBR code, this MUST NOT BE NULL
 } util_BootSectorModifierList;
 
 typedef struct {
@@ -78,6 +81,8 @@ typedef struct {
 #define util_stringify(X) __UTIL__STRINGIFY(X)
 
 #define util_returnOnNull(ptr, return_value) if (ptr == NULL) { printf("ERROR - '" #ptr "' is NULL! Result = '" #return_value "'\r\n"); return return_value; }
+
+#define DISK_MBR_CODE_LENGTH (446)
 
 // Get a value for a given key from /proc/meminfo
 uint64_t util_getProcMeminfoValue(const char *key);
@@ -132,10 +137,12 @@ uint8_t *util_readSectorFromDiskAllocate(util_HardDisk *hdd, size_t sector);
 // Reads a sector from a partition on a disk into a newly allocated buffer
 uint8_t *util_readSectorFromPartitionAllocate(util_Partition *part, size_t sector);
 
-// Writes a Windows 98 MBR to a physical disk (FDISK /MBR equivalent)
-bool util_writeWin98MBRToDrive(util_HardDisk *hdd);
-// Writes a Windows 98 Boot Sector to a partition on a disk (SYS.COM equivalent, sans copying system files)
-bool util_writeWin98BootSectorToPartition(util_Partition *part);
+// Writes a new MBR to a physical disk (FDISK /MBR equivalent)
+bool util_writeMBRToDrive(util_HardDisk *hdd, const uint8_t *newMBRCode);
+// Writes a modified (new) Boot Sector to a partition on a disk
+bool util_modifyBootSector(util_Partition *part, const util_BootSectorModifierList *modifierList);
+// Writes a modified (new) Boot Sector + overwrite backup boot sector + write boot strap code
+bool util_modifyAndWriteBootSectorToPartition(util_Partition *part, const util_BootSectorModifierList *modifierList);
 
 /* File IO functions*/
 
@@ -175,5 +182,6 @@ time_t util_dosTimeToUnixTime(uint16_t dosDate, uint16_t dosTime);
 // Converts a DOS Flag byte to a mode_t for use with chmod or somesuch
 mode_t util_dosFileAttributeToUnixMode(uint8_t dosFlags);
 
-
+// Copies a file with FAT32 file system attributes
+bool util_copyFile(const char *src, const char *dst);
 #endif
