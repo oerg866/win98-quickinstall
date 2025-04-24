@@ -45,16 +45,18 @@ You must install the following packages:
 
 (this might be incomplete, be warned)
 
+**Please make sure you have git and SSH set up correctly beforehand, as working SSH setup (with `ssh-keygen`) is required to clone the submodules.**
+
 - Clone this repository
 - run init.sh 
 - run build.sh
-- The `__BIN__` foler will contain the built sysprep environment.
+- The `__BIN__` folder will contain the built sysprep environment.
 
 # Special thanks
 
 Many people, but especially:
 
-* TheRetroWeb staff: Rigo (0xCats), Computerguy096, Deksor, evasive, agent_x007
+* TheRetroWeb staff: Rigo (0xCats), Computerguy096, Deksor, evasive, agent_x007, Fouquin
 * linearcannon, Enigma, limsup, einstein95, Retro Wizard Manfred
 
 # License
