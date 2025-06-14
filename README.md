@@ -399,4 +399,4 @@ Install the CREGFIX patch (the reference ISOs contain it in the extras folder):
 
 https://github.com/mintsuki/cregfix
 
-For technical reasons this patch cannot be pre-installed with the ISO and must be applied manually.
+The patch can be automated by adding it to the `--extra` parameter of the `sysprep.py` script or dropping it into `_EXTRA_CD_FILES_` before sysprep and installation.

@@ -41,6 +41,7 @@ typedef enum {
     INSTALL_FORMAT_PARTITION_PROMPT,
     INSTALL_MBR_ACTIVE_BOOT_PROMPT,
     INSTALL_REGISTRY_VARIANT_PROMPT,
+    INSTALL_CREGFIX_PROMPT,
     INSTALL_INTEGRATED_DRIVERS_PROMPT,
     INSTALL_DO_INSTALL,
 } inst_InstallStep;
@@ -75,6 +76,8 @@ typedef struct {
 #define INST_DRIVER_FILE  "DRIVER.866"
 #define INST_SLOWPNP_FILE "SLOWPNP.866"
 #define INST_FASTPNP_FILE "FASTPNP.866"
+
+#define INST_CREGFIX_FILE "/../../extras/CREGFIX.COM"
 
 #define INST_CDROM_IO_SIZE (512*1024)
 #define INST_DISK_IO_SIZE (512*1024)
@@ -142,7 +145,7 @@ static inline void inst_noHardDisksFoundError() {
 
 /* Tells the user about an oopsie trying to open a file for reading. */
 static inline void inst_showFileError() {
-    ad_okBox("Attention", false, "ERROR: A problem occured handling a file for this OS variant.\n(%d: %s)", errno, strerror(errno));
+    ad_okBox("Attention", false, "ERROR: A problem occurred handling a file for this OS variant.\n(%d: %s)", errno, strerror(errno));
 }
 
 static inline util_HardDiskArray *inst_getSystemHardDisks() {
@@ -405,7 +408,7 @@ static inline void inst_showFailedMount(util_Partition *part) {
 /* Show message box informing user that copying failed*/
 static inline void inst_showFailedCopy(const char *sourceFile) {
     ad_okBox("Error", false,
-        "An error occured while unpacking '%s'\n"
+        "An error occurred while unpacking '%s'\n"
         "for this operating system variant.\n"
         "The last recorded error was: '%s'.\n"
         "There may be a disk problem.\n"
@@ -638,6 +641,84 @@ static const char *inst_askUserForRegistryVariant(void) {
     return optionFiles[menuResult];
 }
 
+static inline int *inst_showCregfixInstallPrompt(int addCregfix) {
+    int answer = ad_yesNoBox("Cregfix", true,
+        "Do you want to install CREGFIX and add it to AUTOEXEC.BAT?\n"
+        "This will fix booting the new Win9x installation on\n"
+        "systems with some Ryzen and all Intel 13th gen and later processors.\n"
+        "It is recommended to do so for these processors.\n"
+        "For other processors, it is not needed and can be skipped.\n");
+}
+
+static bool inst_addCregfixToAutoexec(const char *installPath) {
+    char autoexecPath[1024];
+    snprintf(autoexecPath, sizeof(autoexecPath), "%s/AUTOEXEC.BAT", installPath);
+
+    // Check if AUTOEXEC.BAT exists
+    if (!util_fileExists(autoexecPath)) {
+        ad_okBox("Error", false, "AUTOEXEC.BAT not found in the installation path.\n"
+            "Cannot add CREGFIX to AUTOEXEC.BAT.");
+        return false;
+    }
+
+    // Read existing contents
+    FILE *autoexecFile = fopen(autoexecPath, "r");
+    char *buffer = NULL;
+    size_t length = 0;
+    bool hasCregfix = false;
+
+    if (autoexecFile) {
+        fseek(autoexecFile, 0, SEEK_END);
+        length = ftell(autoexecFile);
+        fseek(autoexecFile, 0, SEEK_SET);
+
+        buffer = malloc(length + 1);
+        if (!buffer) {
+            fclose(autoexecFile);
+            ad_okBox("Error", false, "Memory allocation failed while modifying AUTOEXEC.BAT.");
+            return false;
+        }
+
+        fread(buffer, 1, length, autoexecFile);
+        buffer[length] = '\0';
+
+        if (strstr(buffer, "CREGFIX.COM")) {
+            hasCregfix = true;
+        }
+
+        fclose(autoexecFile);
+    }
+
+    // Rewrite with CREGFIX at the top
+    autoexecFile = fopen(autoexecPath, "w");
+    if (!autoexecFile) {
+        ad_okBox("Error", false, "Failed to open AUTOEXEC.BAT for writing.");
+        free(buffer);
+        return false;
+    }
+
+    // Write header and CREGFIX line
+    fprintf(autoexecFile, "@echo off\n");
+    if (!hasCregfix) {
+        fprintf(autoexecFile, "C:\\CREGFIX\\CREGFIX.COM\n");
+    }
+
+    // Restore original content, skipping duplicates
+    if (buffer) {
+        char *line = strtok(buffer, "\r\n");
+        while (line) {
+            if (strstr(line, "@echo off") == NULL && strstr(line, "CREGFIX.COM") == NULL) {
+                fprintf(autoexecFile, "%s\n", line);
+            }
+            line = strtok(NULL, "\r\n");
+        }
+        free(buffer);
+    }
+
+    fclose(autoexecFile);
+    return true;
+}
+
 /* Main installer process. Assumes the CDROM environment variable is set to a path with valid install.txt, FULL.866 and DRIVER.866 files. */
 bool inst_main() {
     MappedFile *sourceFile = NULL;
@@ -648,6 +729,7 @@ bool inst_main() {
     inst_InstallStep currentStep = INSTALL_WELCOME;
     size_t osVariantIndex = 0;
 
+    bool addCregfix = false;
     bool installDrivers = false;
     bool formatPartition = false;
     bool setActiveAndDoMBR = false;
@@ -801,6 +883,15 @@ bool inst_main() {
             }
 
             /* Menu prompt:
+             * Install CREGFIX and add to AUTOEXEC.BAT? */
+            case INSTALL_CREGFIX_PROMPT: {
+                int answer = inst_showCregfixInstallPrompt();
+                addCregfix = (answer == AD_YESNO_YES);
+                goToNext = (answer != AD_CANCELED);
+                break;
+            }
+
+            /* Menu prompt:
              * Does the user want to install the base driver package? */
             case INSTALL_INTEGRATED_DRIVERS_PROMPT: {
                 // It's optional, if the file doesn't exist, we don't have to ask
@@ -861,7 +952,7 @@ bool inst_main() {
                     continue;
                 }
 
-                // If driver data copy was successful, install registry for selceted hardware detection variant
+                // If driver data copy was successful, install registry for selected hardware detection variant
                 if (installSuccess) {
                     sourceFile = inst_openSourceFile(osVariantIndex, registryUnpackFile, readahead);
                     QI_ASSERT(sourceFile && "Failed to open registry file");
@@ -871,6 +962,23 @@ bool inst_main() {
 
                 if (!installSuccess) {
                     inst_showFailedCopy(registryUnpackFile);
+                    currentStep = INSTALL_MAIN_MENU;
+                    continue;
+                }
+
+                // If registry copy was successful, install CREGFIX to fix booting on some Ryzen and all Intel 13th gen and later systems if requested
+                if (installSuccess && addCregfix) {
+                    sourceFile = inst_openSourceFile(osVariantIndex, INST_CREGFIX_FILE, readahead);
+                    QI_ASSERT(sourceFile && "Failed to open CREGFIX file");
+                    // Check if CREGFIX file was copied, if not, kick the user back to the main menu
+                    installSuccess = inst_copyFiles(sourceFile, destinationPartition->mountPath, "CREGFIX");
+                    mappedFile_close(sourceFile);
+                    // Check if CREGFIX was added to AUTOEXEC.BAT, if not, kick the user back to the main menu
+                    installSuccess = inst_addCregfixToAutoexec(destinationPartition->mountPath);
+                }
+
+                if (!installSuccess) {
+                    inst_showFailedCopy(INST_CREGFIX_FILE);
                     currentStep = INSTALL_MAIN_MENU;
                     continue;
                 }
