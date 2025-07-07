@@ -140,7 +140,7 @@ There are several provided methods to boot into Windows 98 QuickInstall:
 
   `sudo apt install wine`
 
-  *Many parts of the ISO building process are Windows specific and not able to be cleanly implemented natively on Linux, such as modifying system registry, parsing driver INF files, etc.*
+  *Many parts of the ISO building process are Windows-specific and not able to be cleanly implemented natively on Linux, such as modifying system registry, parsing driver INF files, etc.*
 
 - 86Box (recommended) or another virtual machine capable of installing Windows 9x
 
@@ -160,11 +160,12 @@ There are several provided methods to boot into Windows 98 QuickInstall:
   
   * `--usb <USB>`
 
-    Instructs the script to create an USB key image with the given file name
+    Instructs the script to create a USB key image with the given file name
   
   * `--osroot <OSROOT>`
 
-    Specifies a Windows 98 / ME system root directory ("*OS Root*") to be used.
+    Specifies a Windows 98 / ME system root directory ("*OS Root*") to be used. 
+    It must contain a Windows installation directory and a directory with the Windows setup files. 
 
     **This can be specified multiple times, in which case the installation wizard will show a selection menu.**
 
@@ -204,7 +205,7 @@ There are several provided methods to boot into Windows 98 QuickInstall:
 
   * `--verbose VERBOSE`
 
-  This parameter controls console output verbosity of the script.
+  This parameter controls the console output verbosity of the script.
 
   Where `VERBOSE` is either `True` or `False`.
 
@@ -218,8 +219,8 @@ There are several provided methods to boot into Windows 98 QuickInstall:
   I recommend using 86Box using the following configuration:
   
   - Machine:
-    - Machine Type: Slot 1
-    - Achine: [i440BX] ABIT BF6
+    - Machine type: Slot 1
+    - Machine: [i440BX] ABIT BF6
     - CPU type: Intel Pentium II (Deschutes)
     - Memory: 64 MB
   - Display:
@@ -246,18 +247,19 @@ There are several provided methods to boot into Windows 98 QuickInstall:
 
 - Shut down the virtual machine and **DO NOT TURN IT BACK ON**
 
-- Use 7zip or an imaging software and extract the entire root of the 
+- Use 7zip or imaging software and extract the entire root of the 
   partition you installed Windows 98 to.
   
-  Extract all files into a directory. We will call this the *OS Root*. The default for this is `_OS_ROOT_` in the framework directory.
+  Extract all files into a directory. We will call this the *OS Root*. 
 
-  On Windows, you can open the image file using the 7zip File Manager or the 7zip context menu. Or WinImage, et cetera.
+  On Windows, you can open the image file using the 7zip File Manager or the 7zip context menu. Or WinImage, etc.
   
   On Linux, you can do this with by using '7z' from the p7zip-full package.
 
   `7z x -o_OS_ROOT_/ /path/to/image/file`
   
-  **WARNING:** Only *one* Windows directory is allowed, and only *one* Windows setup files CAB directory. If you install using 98Lite, make sure that the 98Lite setup directory is the sole carrier of these CABs.
+  **WARNING:** Only *one* Windows directory is allowed, and only *one* Windows setup files CAB directory. 
+  If you install using 98Lite, make sure that the 98Lite setup directory is the sole carrier of these CABs.
 
   *INFO: The script detects the Windows directory by finding `WIN.COM`*
   *INFO: The CAB file directory is detected by finding `PRECOPY2.CAB`*
@@ -266,19 +268,20 @@ There are several provided methods to boot into Windows 98 QuickInstall:
 
 # Preparing & Packaging
 
-- Copy drivers that you want slipstreamed into a directory of your choice. By default this is `_DRIVER_` in the framework directory directory.
+- Copy drivers that you want slipstreamed into a directory of your choice. 
+  By default, this is `_DRIVER_` in the framework directory.
 
-  *NOTE: `_DRIVER_` is already filled with a curated selection of drivers. Ycan remove these, if you wish.*
+  *NOTE: `_DRIVER_` is already filled with a curated selection of drivers. You can remove these, if you wish.*
 
   **If you choose a non-default directory for this, you must specify it using the `--drivers` parameter.**
 
-- Copy extra drivers that will not be slipstreamed but added to a directory of your choice. By default this is `_EXTRA_DRIVER_` in the framework directory.
+- Copy extra drivers that will not be slipstreamed but added to a directory of your choice. By default, this is `_EXTRA_DRIVER_` in the framework directory.
 
   *NOTE: These drivers will be processed in the same way as the slipstreamed ones but will not be copied to the hard drive during installation.*
 
-  *INFO: This folder will be named `DRIVER.EX` on the ISO. You can point the Windows 98 hardware wizard to this folder and the drivers will be found and installed correctly.*
+  *INFO: This folder will be named `DRIVER.EX` on the ISO. You can point the Windows 98 hardware wizard to this folder, and the drivers will be found and installed correctly.*
 
-  *NOTE: `_EXTRA_DRIVER_` is already filled with a curated selection of drivers. Ycan remove these, if you wish.*
+  *NOTE: `_EXTRA_DRIVER_` is already filled with a curated selection of drivers. You can remove these, if you wish.*
 
   **If you choose a non-default directory for this, you must specify it using the `--extradrivers` parameter.**
 
@@ -385,11 +388,11 @@ A BIOS update may help, the issue is currently under investigation as we found s
 
 For now, you can work around this problem by using a PCI SCSI or IDE adapter card that supports CD-ROM boot or has DOS drivers with the **DOS boot floppy option**.
 
-## Q: I'm trying to install on a VIA MVP3-based motherboard and I'm getting a "General Protection Fault" on the first boot. (Repoted by Rigo)
+## Q: I'm trying to install on a VIA MVP3-based motherboard, and I'm getting a "General Protection Fault" on the first boot. (Repoted by Rigo)
 
 A: To work around this issue, select the "slow" hardware detection variant in the installation wizard. The problem is currently under investigation.
 
-## Q: I'm trying to install on my 486 and I'm getting Disk I/O errors!
+## Q: I'm trying to install on my 486, and I'm getting Disk I/O errors!
 
 A: Your BIOS might have an incomplete/buggy LBA implementation. Partition the drive to use a FAT32 non-LBA partition and try again.
 
