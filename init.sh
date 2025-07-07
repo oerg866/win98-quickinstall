@@ -106,7 +106,7 @@ popd
 
 pushd util-linux
 	./autogen.sh
-	./configure --host=i486-linux-musl --prefix=$PWD/OUTPUT --disable-use-tty-group --disable-bash-completion --disable-shared --enable-static --without-tinfo NCURSESW6_CONFIG=$PREFIX/bin/ncursesw6-config
+	./configure --host=i486-linux-musl --prefix=$PWD/OUTPUT --disable-use-tty-group --disable-bash-completion --disable-shared --enable-static --without-tinfo NCURSESW6_CONFIG=$PREFIX/bin/ncursesw6-config --disable-pylibmount
 	./build.sh
 popd
 
