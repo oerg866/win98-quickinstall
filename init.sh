@@ -5,6 +5,7 @@ set -e
 #set -x
 #trap read debug
 
+echo "Updating git submodules"
 git submodule update --init --recursive --depth 1 || true
 
 echo "--------------------------------"
@@ -16,6 +17,8 @@ echo "--------------------------------"
 # pre clean so the init script works even when init has been done already
 rm -rf ncurses*
 rm -rf termtypes*
+rm -rf ncurses
+rm -rf termtypes
 
 DOWNLOAD="wget -nc -c"
 
@@ -25,33 +28,33 @@ if [ ! -d "i486-linux-musl-cross" ] && [ ! -f "i486-linux-musl-cross.tgz" ]; the
 	echo Downloading i486-linux-musl-cross.tgz
 	$DOWNLOAD http://musl.cc/i486-linux-musl-cross.tgz
 fi;
-if [ ! -d "i486-linux-musl-cross.tgz" ]; then
-	tar -xvf i486-linux-musl-cross.tgz
-fi;
+if [ ! -d "i486-linux-musl-cross" ]; then
+	tar -xf i486-linux-musl-cross.tgz
+fi
 
 # Download & unpack ncurses
 
-if [ ! -d "ncurses" ] && [ ! -f "ncurses-6.3.tar.gz" ]; then
+if [ ! -f "ncurses-6.3.tar.gz" ]; then
 	echo Downloading ncurses
 	$DOWNLOAD https://ftp.gnu.org/pub/gnu/ncurses/ncurses-6.3.tar.gz
 fi;
 if [ ! -d "ncurses" ]; then
-	tar -xvf ncurses-6.3.tar.gz
+	tar -xf ncurses-6.3.tar.gz
 	mv ncurses-6.3 ncurses
 fi;
 
 # Download and build termtype data
 
-mkdir -p termtypes
-pushd termtypes
-
-if [ ! -f "termtypes.ti.gz" ]; then
+if [ ! -f "termtypes.ti.gz" ] && [ ! -f "termtypes.ti" ]; then
 	echo Downloading termtype data
 	$DOWNLOAD http://catb.org/terminfo/termtypes.ti.gz
 fi;
-
-gunzip termtypes.ti.gz
-tic -o . termtypes.ti
+if [ ! -f "termtypes.ti" ]; then
+  gunzip termtypes.ti.gz
+fi;
+mkdir -p termtypes
+pushd termtypes
+  tic -o . ../termtypes.ti
 popd
 
 # Build config for linux and busybox
