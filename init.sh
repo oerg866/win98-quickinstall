@@ -15,8 +15,6 @@ echo "ignore it."
 echo "--------------------------------"
 
 # pre clean so the init script works even when init has been done already
-rm -rf ncurses*
-rm -rf termtypes*
 rm -rf ncurses
 rm -rf termtypes
 
@@ -72,6 +70,11 @@ popd
 pushd syslinux
 	git reset --hard
 	git apply ../buildscripts/syslinux_patches/*
+popd
+
+pushd pciutils
+   git reset --hard
+   git apply ../buildscripts/pciutils_patches/*
 popd
 
 # Build the dependencies. 

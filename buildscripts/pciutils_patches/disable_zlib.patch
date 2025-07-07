@@ -1,0 +1,14 @@
+diff --git a/Makefile b/Makefile
+index 51449ba..a38001f 100644
+--- a/Makefile
++++ b/Makefile
+@@ -13,7 +13,7 @@ RELEASE=
+ CROSS_COMPILE=
+ 
+ # Support for compressed pci.ids (yes/no, default: detect)
+-ZLIB=
++ZLIB=no
+ 
+ # Support for resolving ID's by DNS (yes/no, default: detect)
+ DNS=
+
