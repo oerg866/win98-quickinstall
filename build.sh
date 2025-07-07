@@ -141,7 +141,9 @@ cp README.md "$OUTPUT"
 
 pushd "$OUTPUT"
 	zip -r "$BASE/Windows98QuickInstall_$(date +%Y%m%d_%H%M).zip" ./
+	pip3 install -r requirements.txt
 popd
 
 echo "Done. Output is in $OUTPUT."
-echo "Run sysprep.py to build an image."
+chmod +x $OUTPUT/sysprep.py
+echo "Run sysprep.py in $OUTPUT to build an image."
