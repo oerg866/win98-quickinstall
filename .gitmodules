@@ -6,19 +6,19 @@
 	url = https://github.com/geneC/syslinux
 [submodule "win98-driver-lib-base"]
 	path = win98-driver-lib-base
-	url = git@github.com:oerg866/win98-driver-lib-base.git
+	url = https://github.com/oerg866/win98-driver-lib-base.git
 [submodule "win98-driver-lib-extra"]
 	path = win98-driver-lib-extra
-	url = git@github.com:oerg866/win98-driver-lib-extra.git
+	url = https://github.com/oerg866/win98-driver-lib-extra.git
 [submodule "dosfstools"]
 	path = dosfstools
 	url = https://github.com/dosfstools/dosfstools
 [submodule "tiny-floppy-bootloader"]
 	path = tiny-floppy-bootloader
-	url = git@github.com:oerg866/w98qi-tiny-floppy-bootloader.git
+	url = https://github.com/oerg866/w98qi-tiny-floppy-bootloader.git
 [submodule "util-linux"]
 	path = util-linux
-	url = git@github.com:oerg866/w98qi-util-linux.git
+	url = https://github.com/oerg866/w98qi-util-linux.git
 [submodule "busybox"]
 	path = busybox
 	url = git://git.busybox.net/busybox
@@ -27,4 +27,4 @@
 	url = https://github.com/pciutils/pciutils
 [submodule "anbui"]
 	path = installer/anbui
-	url = git@github.com:oerg866/anbui.git
+	url = https://github.com/oerg866/anbui.git
