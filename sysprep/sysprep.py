@@ -43,13 +43,13 @@ def file_exists(directory, filename):
     return False
 
 def case_insensitive_to_sensitive(directory, filename):
-# Gets the case sensitive name of a file in a certain directory (the directory must be in correct case already though)
+# Gets the case-sensitive name of a file in a certain directory (the directory must be in correct case already though)
     for file in os.listdir(directory):
         if file.lower() == filename.lower():
             return os.path.join(directory, file)
     return os.path.join(directory, filename)
 
-# Create directory, ignore if it already exists
+# Create a directory hierarchy, ignore if it already exists
 def mkdir(path):
     try:
         os.makedirs(path, exist_ok=True)
@@ -141,7 +141,7 @@ def run_regedit(reg_file):
         regedit_exe = get_wine_path(regedit_exe)
         subprocess.run(['wine', msdos_exe, regedit_exe, '/L:SYSTEM.DAT', '/R:USER.DAT', reg_file], check=True, stdout=global_stdout)
 
-# Add registry file to a given windows installation and pack the registry with mercypak
+# Add a registry file to a given windows installation and pack the registry with mercypak
 def registry_add_reg(osroot_base, osroot_windir_relative, reg_file, output_866_file):
     osroot_windir_absolute = os.path.join(osroot_base, osroot_windir_relative)
     osroot_sysdir_absolute = case_insensitive_to_sensitive(osroot_windir_absolute, 'SYSTEM')
@@ -152,7 +152,7 @@ def registry_add_reg(osroot_base, osroot_windir_relative, reg_file, output_866_f
 
     delete_recursive(registry_temp_path)
 
-    # Prepare directory with SYSTEM.DAT and USER.DAT files
+    # Prepare a directory with SYSTEM.DAT and USER.DAT files
     mkdir(registry_temp_windir_absolute)
 
     system_dat = case_insensitive_to_sensitive(osroot_windir_absolute, 'SYSTEM.DAT')
@@ -161,7 +161,7 @@ def registry_add_reg(osroot_base, osroot_windir_relative, reg_file, output_866_f
     shutil.copy2(system_dat, registry_temp_windir_absolute)
     shutil.copy2(user_dat, registry_temp_windir_absolute)
 
-    # Reboot hack, find appropriate shell32 version.
+    # Reboot hack, find the appropriate shell32 version.
 
     shell32_dll = 'SHELL32.DLL'
 
@@ -178,13 +178,13 @@ def registry_add_reg(osroot_base, osroot_windir_relative, reg_file, output_866_f
 
     pushd(registry_temp_windir_absolute)
 
-    # Copy to temporary file and append reboot file to it
+    # Copy to a temporary file and append the reboot file to it
     shutil.copy2(reg_file, 'tmp.reg')
     append_line_to_file('tmp.reg', f'[HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Windows\\CurrentVersion\\RunOnce]')
     append_line_to_file('tmp.reg', f'"Reboot"="RUNDLL32.EXE {shell32_dll},SHExitWindowsEx 2"\n')
 
     run_regedit('tmp.reg')
-    
+
     os.remove('tmp.reg')
 
     mercypak_pack(registry_temp_path, output_866_file)
@@ -211,7 +211,7 @@ def move_inf_cab_files(directory_path, inf_directory, cab_directory):
             # Move the file to the CAB directory
             shutil.move(file_path, os.path.join(cab_directory, file_name))
 
-# Runs the "drivercopy" tool, platform independent as usual with WINE magic... 
+# Runs the "drivercopy" tool, platform independent as usual with WINE magic...
 def drivercopy(source_path, output_path):
 
     drivercopy_path = os.path.join(script_base_path, 'tools', 'drivercopy.exe')
@@ -219,7 +219,7 @@ def drivercopy(source_path, output_path):
     shutil.copy2(os.path.join(script_base_path, 'tools', 'makecab.exe'), 'makecab.exe')
 
     if platform.system() == 'Windows':
-        subprocess.run([drivercopy_path, source_path, output_path], check=True, stdout=global_stdout)       
+        subprocess.run([drivercopy_path, source_path, output_path], check=True, stdout=global_stdout)
     else:
         source_path = get_wine_path(source_path)
         output_path = get_wine_path(output_path)
@@ -233,7 +233,7 @@ def preprocess_drivers(output_base, input_drivers_base, input_drivers_extra):
 
     print('Preprocessing drivers...')
 
-    # First do the extra drivers
+    # First, do the extra drivers
     print('Preprocessing EXTRA drivers...')
     output_drivers_extra = os.path.join(output_base, 'driver.ex')
     drivercopy(input_drivers_extra, output_drivers_extra)
@@ -272,7 +272,7 @@ def process_drivers_cleanup(output_base):
 
 # Make an ISO File (TODO: Use pycdlib to remove mkisofs dependency)
 def make_iso(output_base, output_iso):
-    print('Creating ISO file...')
+    print('Creating ISO file', output_iso, '...')
     pushd(output_base)
     if platform.system() == 'Windows':
         mkisofs_path = os.path.join(script_base_path, 'tools', 'mkisofs.exe')
@@ -319,8 +319,9 @@ input_drivers_extra = os.path.abspath(args.extradrivers)
 if args.verbose:
     global_stdout = None
 
-# add the default value to the extras list if it's not already there
+# add the default value to the "extras" list if it's not already there
 if '_EXTRA_CD_FILES_' not in input_extras:
+    print("Including default directory for Extra CD Files", "_EXTRA_CD_FILES_")
     input_extras.append('_EXTRA_CD_FILES_')
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -397,7 +398,7 @@ for osroot in input_osroots:
     if os.path.exists(modem_inf_file):
         shutil.move(modem_inf_file, modem_bak_file)
 
-    # Cleanup unnecessary files
+    # Clean up unnecessary files
     delete_file(osroot_windir,                                              'win386.swp')
     delete_file(osroot_windir,                                              'ndislog.txt')
     delete_file(osroot_windir,                                              '*.log')
