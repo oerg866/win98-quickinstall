@@ -5,11 +5,15 @@ PREFIX=$PWD/i486-linux-musl-cross/i486-linux-musl
 OUTPUT=$PWD/__BIN__
 CDROOT=$OUTPUT/cdromroot
 
-sudo rm -rf ./filesystem
-sudo rm -rf $OUTPUT
-sudo rm -rf mnt
-mkdir -p mnt
+rm -rf $OUTPUT
+
+if [ -d ./filesystem ]; then
+  echo Deleting generated Linux filesystem root
+  sudo rm -rf ./filesystem
+fi
 mkdir -p ./filesystem
+rm -rf ./mnt
+mkdir -p mnt
 
 set -e 1
 
@@ -29,8 +33,14 @@ popd
 
 pushd filesystem
 	mkdir -pv {dev,proc,etc/init.d,sys,tmp,usr/lib/terminfo/l,lib/firmware,usr/local/share}
-	sudo mknod dev/console c 5 1
-	sudo mknod dev/null c 1 3
+
+  pushd dev
+    # Run mknod in the target directory to accomodate lxc container restrictions.
+    # You'll also need to allow mknod, setxattr, mount syscalls for the container.
+	  sudo mknod console c 5 1
+	  sudo mknod null c 1 3
+	popd
+
 	cp ../supplement/welcome ./
 	cp ../supplement/inittab ./etc/inittab
 	cp ../supplement/rc ./etc/init.d/rc
@@ -42,7 +52,9 @@ pushd filesystem
 	ln -s /install/bin/pci.ids ./usr/local/share/pci.ids
 	chmod +x etc/init.d/rc
 	chmod +x ./findcd.sh
+
 	sudo chown -R root:root .
+
 	find . | cpio -H newc -o | xz --check=crc32 > ../rootfs.cpio.xz
 	find . | cpio -H newc -o > ../rootfs.cpio
 popd
