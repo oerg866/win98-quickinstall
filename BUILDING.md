@@ -2,8 +2,8 @@
 
 Here is a summary of the build process:
 
-- Construct root file system
-- Compile Kernel in two variants
+- Construct the root file system
+- Compile the Linux kernel in two variants
   - bzImage.cd
 
     Extended Kernel for CD-ROM boot and 2.88MB floppy disks (if you have such a thing...).
@@ -14,9 +14,9 @@ Here is a summary of the build process:
 
     Minimal Kernel for 1.44MB floppy disks.
     
-    This version lacks USB support and is compressed using XZ so it can fit, which decompresses a *lot* slower especially on slow machines. I sadly do not have a way around this at the current time.
+    This version lacks USB support and is compressed using XZ so it can fit, which decompresses a *lot* slower, especially on slow machines. I sadly do not have a way around this at the current time.
     
-    This version lacks boot messages in order to save binary size. It is quiet and may seem frozen until it is fully booted.
+    This version lacks boot messages to save binary size. It is quiet and may seem frozen until it is fully booted.
 
 - Build `dosfstools`
 - Build `syslinux`
@@ -39,9 +39,12 @@ Here is a summary of the build process:
 
 The framework must be built on Linux. It was tested using Ubuntu 20.04 and 22.04 running natively as well as under **Windows Subsystem For Linux**.
 
-You must install the following packages:
+You must install the packages below. 
+To enable 32-bit Wine to run correctly, multiarch needs to be enabled first:
+`sudo dpkg --add-architecture i386 && apt-get update`
 
-`build-essential tic python3 python-is-python3 gunzip libuuid wine dd nasm uuid-dev mkisofs zip syslinux automake libtool gettext bison autopoint pkg-config flex`
+`build-essential ncurses-bin python3 python3-pip python-is-python3 wine coreutils nasm uuid-dev mkisofs zip syslinux automake libtool gettext bison autopoint pkg-config flex gzip libtinfo-dev lzop binutils tar`
+(the commands tic, dd, gunzip, and objdump are required and provided by ncurses-bin, coreutils, gzip, and binutils respectively)
 
 (this might be incomplete, be warned)
 
