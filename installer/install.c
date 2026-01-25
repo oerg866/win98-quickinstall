@@ -235,31 +235,63 @@ static bool inst_showOSVariantSelect(size_t *variantIndex, size_t *variantCount)
     }    
 }
 
+static void inst_handleNonMBRDiskPartitioning(util_HardDisk *hdd) {
+    bool hasTableType = (strlen(hdd->tableType) > 0);
+    int action = ad_yesNoBox("Hard Disk Partition Table Issue", true,
+        "Selected disk: '%s'.\n"
+        "Current partition table type (may be inacccurate): %s\n\n"
+        "This disk does not contain a MBR / DOS style partition table.\n"
+        "As a result, this disk will not work as an installation target.\n"
+        "The existing partition table can be wiped, so that CFDISK can\n"
+        "create a MBR / DOS style partition table in its place.\n"
+        "Would you like to do this? (WARNING: THIS WILL CAUSE DATA LOSS!)",
+        hdd->device,
+        hasTableType ? hdd->tableType : "<?>");
+    
+    if (action == AD_YESNO_YES) {
+        if (!util_wipePartitionTable(hdd)) {
+            ad_okBox("Error", false,
+                "An error occurred trying to wipe the partition table:\n"
+                "%s (%d)", strerror(errno), errno);
+        }
+    }
+}
+
 /* Show partition wizard, returns true if user finished or false if he selected BACK. */
-static void inst_showPartitionWizard(util_HardDiskArray *hdds) {
+static void inst_showPartitionWizard(util_HardDiskArray **hddsPtr) {
     char cfdiskCmd[UTIL_MAX_CMD_LENGTH];
     int menuResult;
-
-    QI_ASSERT(hdds);
-
-    if (hdds->count == 0) {
-        inst_noHardDisksFoundError();
-        return;
-    }
 
     while (1) {
         ad_Menu *menu = ad_menuCreate("Partition Wizard", 
             "Select the Hard Disk you wish to partition.\n"
             "An asterisk (*) means that this is the source media and\n"
-            "cannot be altered.", true);
+            "cannot be altered.\n"
+            "A question mark <?> means that this drive does not have a\n"
+            "valid/known partition table type.", true);
 
         QI_ASSERT(menu);
 
+        // At the beginning of every loop of the wizard, we need to refresh our disk list
+        // and update the pointer of the caller
+        util_hardDiskArrayDestroy(*hddsPtr);
+        *hddsPtr = inst_getSystemHardDisks();
+        QI_ASSERT(*hddsPtr != NULL);
+
+        util_HardDiskArray *hdds = *hddsPtr;
+
+        if (hdds->count == 0) {
+            inst_noHardDisksFoundError();
+            return;
+        }
+
         for (size_t i = 0; i < hdds->count; i++) {
-            ad_menuAddItemFormatted(menu, "%s [%s] - Size: %llu MB %s",
+            bool hasPartitionTableType = (strlen(hdds->disks[i].tableType) > 0);
+            ad_menuAddItemFormatted(menu, "%s [%s] (%llu MB) %s %s",
                 hdds->disks[i].device,
                 hdds->disks[i].model,
                 hdds->disks[i].size / 1024ULL / 1024ULL,
+                hasPartitionTableType ? hdds->disks[i].tableType : "<?>",
                 inst_isInstallationSourceDisk(&hdds->disks[i]) ? "(*)" : ""
                 );
         }
@@ -282,6 +314,10 @@ static void inst_showPartitionWizard(util_HardDiskArray *hdds) {
         if (inst_isInstallationSourceDisk(&hdds->disks[menuResult])) {
             inst_showInstallationSourceDiskError();
             continue;
+        }
+
+        if (!util_stringEquals(hdds->disks[menuResult].tableType, "dos")) {
+            inst_handleNonMBRDiskPartitioning(&hdds->disks[menuResult]);
         }
 
         // Invoke cfdisk command for chosen drive.
@@ -760,12 +796,7 @@ bool inst_main() {
                 currentStep = INSTALL_MAIN_MENU;
                 goToNext = false;
 
-                util_hardDiskArrayDestroy(hda);
-                hda = inst_getSystemHardDisks();
-
-                QI_ASSERT(hda != NULL);
-
-                inst_showPartitionWizard(hda);
+                inst_showPartitionWizard(&hda);
                 continue;
             }
 

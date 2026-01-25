@@ -18,7 +18,7 @@
 
 #define CMD_SURPRESS_OUTPUT " 2>/dev/null 1>/dev/null"
 
-#define CMD_LSBLK_ALL "lsblk -I 8,3,259 -n -b -p -P -oTYPE,KNAME,PARTTYPE,SIZE,MIN-IO,OPT-IO,MODEL"
+#define CMD_LSBLK_ALL "lsblk -I 8,3,259 -n -b -p -P -oTYPE,KNAME,PARTTYPE,SIZE,MIN-IO,OPT-IO,MODEL,PTTYPE"
 
 // Update parents after a reallocation of a hard disk array
 static inline void util_HardDisksUpdatePartitionParents(util_HardDisk *hdds, size_t diskCount) {
@@ -33,10 +33,11 @@ static inline void util_HardDisksUpdatePartitionParents(util_HardDisk *hdds, siz
 }
 
 // Appends a HardDisk with given parameters to a HardDiskArray and returns a pointer to the newly created disk.
-static util_HardDisk *util_HardDiskArrayAppend(util_HardDiskArray *hda, const char *device, const char *model, uint64_t size, uint32_t sectorSize, uint32_t optIoSize) {
+static util_HardDisk *util_HardDiskArrayAppend(util_HardDiskArray *hda, const char *device, const char *model, uint64_t size, uint32_t sectorSize, uint32_t optIoSize, const char *tableType) {
     QI_ASSERT(hda != NULL);
     QI_ASSERT(device != NULL);
     QI_ASSERT(model != NULL);
+    QI_ASSERT(tableType != NULL);
 
     hda->count++;
     hda->disks = realloc(hda->disks, hda->count * sizeof(util_HardDisk));
@@ -51,6 +52,7 @@ static util_HardDisk *util_HardDiskArrayAppend(util_HardDiskArray *hda, const ch
 
     strncpy(ret->device, device, sizeof(ret->device));
     strncpy(ret->model, model, sizeof(ret->model));
+    strncpy(ret->tableType, tableType, sizeof(ret->tableType));
 
     ret->size = size;
     ret->sectorSize = sectorSize;
@@ -140,6 +142,7 @@ util_HardDiskArray *util_getSystemHardDisks() {
         char tmpType        [4+1] = "";
         char tmpDevice      [UTIL_HDD_DEVICE_STRING_LENGTH];
         char tmpModel       [UTIL_HDD_MODEL_STRING_LENGTH];
+        char tmpPtType      [UTIL_TABLE_TYPE_STRING_LENGTH] = "";
         char tmpNumStr      [64+1] = "";
         bool success = true;
         
@@ -148,6 +151,8 @@ util_HardDiskArray *util_getSystemHardDisks() {
         success &= util_getValueFromKey(lsblkOut->lines[i], "KNAME", tmpDevice, sizeof(tmpDevice));
 
         success &= util_getValueFromKey(lsblkOut->lines[i], "MODEL", tmpModel, sizeof(tmpModel));
+
+        success &= util_getValueFromKey(lsblkOut->lines[i], "PTTYPE", tmpPtType, sizeof(tmpPtType));
         
         success &= util_getValueFromKey(lsblkOut->lines[i], "PARTTYPE", tmpNumStr, sizeof(tmpNumStr));
         util_FileSystem tmpFileSystem = util_partitionTypeByteToUtilFilesystem(strtoul(tmpNumStr, NULL, 16));
@@ -163,7 +168,7 @@ util_HardDiskArray *util_getSystemHardDisks() {
 
         if (util_stringEquals(tmpType, "disk")) {
             /* This is a hard disk. */
-            currentDisk = util_HardDiskArrayAppend(ret, tmpDevice, tmpModel, tmpSize, tmpSectorSize, tmpOptIoSize);
+            currentDisk = util_HardDiskArrayAppend(ret, tmpDevice, tmpModel, tmpSize, tmpSectorSize, tmpOptIoSize, tmpPtType);
         } else if (util_stringEquals(tmpType, "part")) {
             /* This is a partition. */
             QI_ASSERT(currentDisk != NULL);
@@ -358,26 +363,32 @@ static bool util_writeSector(char *dev, size_t sector, size_t ioSize, const uint
 }
 
 bool util_readSectorFromDisk(util_HardDisk *hdd, size_t sector, uint8_t *buf) {
+    util_returnOnNull(hdd, NULL);
     return util_readSector(hdd->device, sector, hdd->sectorSize, buf);
 }
 
 bool util_readSectorFromPartition(util_Partition *part, size_t sector, uint8_t *buf) {
+    util_returnOnNull(part, NULL);
     return util_readSector(part->device, sector, part->sectorSize, buf);
 }
 
 bool util_writeSectorToDisk(util_HardDisk *hdd, size_t sector, const uint8_t *buf) {
+    util_returnOnNull(hdd, NULL);
     return util_writeSector(hdd->device, sector, hdd->sectorSize, buf);
 }
 
 bool util_writeSectorToPartition(util_Partition *part, size_t sector, const uint8_t *buf) {
+    util_returnOnNull(part, NULL);
     return util_writeSector(part->device, sector, part->sectorSize, buf);
 }
 
 uint8_t *util_readSectorFromDiskAllocate(util_HardDisk *hdd, size_t sector) {
+    util_returnOnNull(hdd, NULL);
     return util_readSectorAllocate(hdd->device, sector, hdd->sectorSize);
 }
 
 uint8_t *util_readSectorFromPartitionAllocate(util_Partition *part, size_t sector) {
+    util_returnOnNull(part, NULL);
     return util_readSectorAllocate(part->device, sector, part->sectorSize);
 }
 
@@ -395,6 +406,24 @@ bool util_writeMBRToDrive(util_HardDisk *hdd, const uint8_t *newMBRCode) {
     bool result = util_writeSectorToDisk(hdd, 0, existingMBR);
     free(existingMBR);
     return result;
+}
+
+bool util_wipePartitionTable(util_HardDisk *hdd) {
+    bool success = true;
+    uint8_t dummySector[512];
+
+    QI_ASSERT(hdd != NULL);
+
+    memset(dummySector, 0, sizeof(dummySector));
+
+    // Wiping the first 34 sectors is enough to make cf not recognize GPT anymore
+    for (size_t sectorIndex = 0; sectorIndex < 34; sectorIndex++) {
+        success &= util_writeSectorToDisk(hdd, sectorIndex, dummySector);
+    }
+
+    sync();
+
+    return success;
 }
 
 static bool util_modifyBootSector(util_Partition *part, const util_BootSectorModifier *modifierList) {

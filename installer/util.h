@@ -16,6 +16,7 @@
 #define UTIL_CMD_OUTPUT_LINE_LENGTH (1024)
 #define UTIL_HDD_DEVICE_STRING_LENGTH (16+1)
 #define UTIL_HDD_MODEL_STRING_LENGTH (64+1)
+#define UTIL_TABLE_TYPE_STRING_LENGTH (8)
 #define DISK_MBR_CODE_LENGTH (446)
 
 // this enum shows the file system of a partition
@@ -42,6 +43,7 @@ typedef struct {
 typedef struct util_HardDisk {
     char device[UTIL_HDD_DEVICE_STRING_LENGTH];
     char model[UTIL_HDD_MODEL_STRING_LENGTH];
+    char tableType[UTIL_TABLE_TYPE_STRING_LENGTH];
     uint64_t size;
     uint32_t sectorSize;
     uint32_t optIoSize;    
@@ -130,6 +132,8 @@ uint8_t *util_readSectorFromDiskAllocate(util_HardDisk *hdd, size_t sector);
 // Reads a sector from a partition on a disk into a newly allocated buffer
 uint8_t *util_readSectorFromPartitionAllocate(util_Partition *part, size_t sector);
 
+// Wipes the partition table of a given disk.
+bool util_wipePartitionTable(util_HardDisk *hdd);
 // Writes new MBR code to a physical disk (FDISK /MBR equivalent). newMBRCode must contain exactly DISK_MBR_CODE_LENGTH bytes.
 bool util_writeMBRToDrive(util_HardDisk *hdd, const uint8_t *newMBRCode);
 // Writes a FAT16/FAT32 Boot Sector to a partition on a disk (SYS.COM equivalent, sans copying system files)
