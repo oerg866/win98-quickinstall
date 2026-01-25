@@ -248,7 +248,10 @@ static void inst_showPartitionWizard(util_HardDiskArray *hdds) {
     }
 
     while (1) {
-        ad_Menu *menu = ad_menuCreate("Partition Wizard", "Select the Hard Disk you wish to partition.", true);
+        ad_Menu *menu = ad_menuCreate("Partition Wizard", 
+            "Select the Hard Disk you wish to partition.\n"
+            "An asterisk (*) means that this is the source media and\n"
+            "cannot be altered.", true);
 
         QI_ASSERT(menu);
 
@@ -305,7 +308,10 @@ static util_Partition *inst_showPartitionSelector(util_HardDiskArray *hdds) {
     }
 
     while (1) {
-        ad_Menu *menu = ad_menuCreate("Installation Destination", "Select the partition you wish to install to.", true);
+        ad_Menu *menu = ad_menuCreate("Installation Destination", 
+            "Select the partition you wish to install to.\n"
+            "An asterisk (*) means that this is the source media and\n"
+            "cannot be used.", true);
 
         QI_ASSERT(menu);
 
