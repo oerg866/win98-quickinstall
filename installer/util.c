@@ -161,17 +161,25 @@ bool util_setDosFileTime(int fd, uint16_t dosDate, uint16_t dosTime) {
 }
 
 bool util_readFirstLineFromFileIntoBuffer(const char *filename, char *dest, size_t bufSize) {
-    FILE *fp = fopen(filename, "r");
+    FILE *fp;
+    char *result = NULL;
 
-    if (fp == NULL) {
+    util_returnOnNull(dest, false);
+
+    fp = fopen(filename, "r");
+    util_returnOnNull(fp, false);
+
+    *dest = 0x00;
+    result = fgets(dest, (int) bufSize, fp);
+
+    fclose(fp);
+
+    // fgets returning NULL means failure, and we also need a non-empty string
+    if (result == NULL || strlen(dest) == 0) {
         return false;
     }
 
-    fgets(dest, (int) bufSize, fp);
-    fclose(fp);
-
     util_stringReplaceChar(dest, '\n', 0x00);
-   
     return true;
 }
 
