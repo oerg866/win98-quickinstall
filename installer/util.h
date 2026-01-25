@@ -16,6 +16,7 @@
 #define UTIL_CMD_OUTPUT_LINE_LENGTH (1024)
 #define UTIL_HDD_DEVICE_STRING_LENGTH (16+1)
 #define UTIL_HDD_MODEL_STRING_LENGTH (64+1)
+#define DISK_MBR_CODE_LENGTH (446)
 
 // this enum shows the file system of a partition
 typedef enum {
@@ -54,17 +55,14 @@ typedef struct {
 } util_HardDiskArray;
 
 // This struct models a part of a boot sector that is to be overwritten with parts of data blocks
+// In essence, the sector number 'sectorIndex' will have 'length' bytes at 'offset'
+// overwritten with data from 'replacementData' (offset 0)
 typedef struct {
     size_t sectorIndex;
     size_t offset;
     size_t length;
     const uint8_t *replacementData;
 } util_BootSectorModifier;
-
-typedef struct {
-    size_t count;   // there must be a more elegant way to do this.. bleh
-    const util_BootSectorModifier *modifiers;
-} util_BootSectorModifierList;
 
 typedef struct {
     size_t lineCount;
@@ -132,10 +130,10 @@ uint8_t *util_readSectorFromDiskAllocate(util_HardDisk *hdd, size_t sector);
 // Reads a sector from a partition on a disk into a newly allocated buffer
 uint8_t *util_readSectorFromPartitionAllocate(util_Partition *part, size_t sector);
 
-// Writes a Windows 98 MBR to a physical disk (FDISK /MBR equivalent)
-bool util_writeWin98MBRToDrive(util_HardDisk *hdd);
-// Writes a Windows 98 Boot Sector to a partition on a disk (SYS.COM equivalent, sans copying system files)
-bool util_writeWin98BootSectorToPartition(util_Partition *part);
+// Writes new MBR code to a physical disk (FDISK /MBR equivalent). newMBRCode must contain exactly DISK_MBR_CODE_LENGTH bytes.
+bool util_writeMBRToDrive(util_HardDisk *hdd, const uint8_t *newMBRCode);
+// Writes a FAT16/FAT32 Boot Sector to a partition on a disk (SYS.COM equivalent, sans copying system files)
+bool util_modifyAndwriteBootSectorToPartition(util_Partition *part, const util_BootSectorModifier *modifierList);
 
 /* File IO functions*/
 

@@ -381,15 +381,15 @@ uint8_t *util_readSectorFromPartitionAllocate(util_Partition *part, size_t secto
     return util_readSectorAllocate(part->device, sector, part->sectorSize);
 }
 
-#include "mbr_boot_win98.h"
-
-bool util_writeWin98MBRToDrive(util_HardDisk *hdd) {
+bool util_writeMBRToDrive(util_HardDisk *hdd, const uint8_t *newMBRCode) {
     // Read existing MBR first
     uint8_t *existingMBR = util_readSectorFromDiskAllocate(hdd, 0);
     if (!existingMBR) return false;
 
+    QI_ASSERT(newMBRCode != NULL);
+
     // Overwrite the start with the win98 MBR code
-    memcpy(existingMBR, __MBR_WIN98__, DISK_MBR_CODE_LENGTH);
+    memcpy(existingMBR, newMBRCode, DISK_MBR_CODE_LENGTH);
 
     // write it back to the disk
     bool result = util_writeSectorToDisk(hdd, 0, existingMBR);
@@ -397,30 +397,33 @@ bool util_writeWin98MBRToDrive(util_HardDisk *hdd) {
     return result;
 }
 
-static bool util_modifyBootSector(util_Partition *part, util_BootSectorModifierList modifierList) {
+static bool util_modifyBootSector(util_Partition *part, const util_BootSectorModifier *modifierList) {
     uint8_t *sector = NULL;
     size_t oldSectorIndex = 0;
     bool success = true;
-    for (size_t i = 0; i < modifierList.count; i++) {
-        util_BootSectorModifier mod = modifierList.modifiers[i];
+
+    QI_ASSERT(part != NULL);
+    QI_ASSERT(modifierList != NULL);
+
+    // ReplacementData == NULL -> End of list marker
+    while (modifierList->replacementData != NULL) {
+        const util_BootSectorModifier *mod = modifierList;
+
         // New sector index found in the list = we need to write previous sector and free its databuffer
-        if (sector && (mod.sectorIndex != oldSectorIndex)) {
+        if (sector && (mod->sectorIndex != oldSectorIndex)) {
             success = util_writeSectorToPartition(part, oldSectorIndex, sector);
             free (sector);
             sector = NULL;
         }
-        
-        // printf("%d %d %d %d\n", i, (int) mod.sectorIndex, (int) mod.offset, (int) mod.length);
-        // util_hexDump(mod.replacementData, 0, mod.length);
 
         // If we need to read a new sector
         if (sector == NULL) {
-            sector = util_readSectorFromPartitionAllocate(part, mod.sectorIndex);
-            oldSectorIndex = mod.sectorIndex;
+            sector = util_readSectorFromPartitionAllocate(part, mod->sectorIndex);
+            oldSectorIndex = mod->sectorIndex;
             success &= (sector != NULL);
         }
 
-        assert(success && "modifyBootSector failed");
+        QI_ASSERT(success && "modifyBootSector failed");
 
         if (!success) {
             free(sector);
@@ -428,9 +431,11 @@ static bool util_modifyBootSector(util_Partition *part, util_BootSectorModifierL
         }
 
         // Copy the replacement data therefore injecting the boot sector code
+        memcpy(sector + mod->offset, mod->replacementData, mod->length);
 
-        memcpy(sector + mod.offset, mod.replacementData, mod.length);
-    }
+        // Next modifier
+        modifierList++;
+    }    
 
     // If there is a pending sector write left, execute it now
     if (sector) {
@@ -441,11 +446,8 @@ static bool util_modifyBootSector(util_Partition *part, util_BootSectorModifierL
     return success;
 }
 
-bool util_writeWin98BootSectorToPartition(util_Partition *part) {
-    // Fat16 only has one boot sector and smaller BPB, so we need to use a different, simpler modification list for it
-    util_BootSectorModifierList bsModifierList = part->fileSystem == fs_fat16 ? __WIN98_FAT16_BOOT_SECTOR_MODIFIER_LIST__ 
-                                                                              : __WIN98_FAT32_BOOT_SECTOR_MODIFIER_LIST__;
-    bool result = util_modifyBootSector(part, bsModifierList);
+bool util_modifyAndwriteBootSectorToPartition(util_Partition *part, const util_BootSectorModifier *modifierList) {
+    bool result = util_modifyBootSector(part, modifierList);
 
     if (result && part->fileSystem == fs_fat32) {
         // Copy sectors to backup now (FAT32 only, FAT16 has no backup it seems, at least not on Win9x)
@@ -471,7 +473,8 @@ bool util_isPartitionMounted(util_Partition *part) {
 }
 
 bool util_getFormatCommand(util_Partition *part, util_FileSystem fs, char *buf, size_t bufSize) {
-    assert(part);
+    QI_ASSERT(part);
+
     if (util_isPartitionMounted(part)) {
         util_unmountPartition(part);
     }

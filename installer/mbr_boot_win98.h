@@ -1,5 +1,3 @@
-#define DISK_MBR_CODE_LENGTH (446)
-
 /*
  * Win98 MBR and Boot Sector codes.
  * (C) 1999 Microsoft Corporation
@@ -226,27 +224,21 @@ static const uint8_t __WIN98__FAT32_BOOT_SECTOR__[] = {
 
 /* The starting offsets for the actual code come from https://wiki.osdev.org/FAT */
 
+#define END_OF_MODIFIER_LIST { 0, 0, 0, NULL }
+
 static const util_BootSectorModifier __WIN98_FAT16_BOOT_SECTOR_MODIFIERS__[] = {
-  { 0, 0, 3, __WIN98__FAT16_BOOT_SECTOR__ + 0}, // first 3 bytes
-  { 0, 3, 8, __WIN98__FAT16_BOOT_SECTOR__ + 3}, // MSWIN 4.0
-  { 0, 0x3e, 0x1c2, __WIN98__FAT16_BOOT_SECTOR__ + 0x3e}, // boot sector code
+  { 0,  0,    3,      __WIN98__FAT16_BOOT_SECTOR__ + 0 }, // first 3 bytes
+  { 0,  3,    8,      __WIN98__FAT16_BOOT_SECTOR__ + 3 }, // MSWIN 4.0
+  { 0,  0x3e, 0x1c2,  __WIN98__FAT16_BOOT_SECTOR__ + 0x3e }, // boot sector code
+  END_OF_MODIFIER_LIST
 };
 
 static const util_BootSectorModifier __WIN98_FAT32_BOOT_SECTOR_MODIFIERS__[] = {
-  { 0, 0, 3, __WIN98__FAT32_BOOT_SECTOR__ + 0}, // first 3 bytes
-  { 0, 3, 8, __WIN98__FAT32_BOOT_SECTOR__ + 3}, // MSWIN 4.1
-  { 0, 0x5a, 0x1a6, __WIN98__FAT32_BOOT_SECTOR__ + 0x5a}, // boot sector code
-  // sector 1 maybe needs some stufF?
-  { 1, 0x1FE, 0x02, __WIN98__FAT32_BOOT_SECTOR__ + 0x200 + 0x1FE },
-  { 2, 0, 0x200, __WIN98__FAT32_BOOT_SECTOR__ + 0x400}, // rest of the boot sector code
+  { 0,  0,    3,      __WIN98__FAT32_BOOT_SECTOR__ + 0 }, // first 3 bytes
+  { 0,  3,    8,      __WIN98__FAT32_BOOT_SECTOR__ + 3 }, // MSWIN 4.1
+  { 0,  0x5a, 0x1a6,  __WIN98__FAT32_BOOT_SECTOR__ + 0x5a }, // boot sector code
+  { 1,  0x1FE,0x02,   __WIN98__FAT32_BOOT_SECTOR__ + 0x200 + 0x1FE },
+  { 2,  0,    0x200,  __WIN98__FAT32_BOOT_SECTOR__ + 0x400 }, // rest of the boot sector code
+  END_OF_MODIFIER_LIST
 };
 
-static const util_BootSectorModifierList __WIN98_FAT16_BOOT_SECTOR_MODIFIER_LIST__ = {
-  sizeof(__WIN98_FAT16_BOOT_SECTOR_MODIFIERS__) / sizeof(util_BootSectorModifier),
-  __WIN98_FAT16_BOOT_SECTOR_MODIFIERS__
-};
-
-static const util_BootSectorModifierList __WIN98_FAT32_BOOT_SECTOR_MODIFIER_LIST__ = {
-  sizeof(__WIN98_FAT32_BOOT_SECTOR_MODIFIERS__) / sizeof(util_BootSectorModifier),
-  __WIN98_FAT32_BOOT_SECTOR_MODIFIERS__
-};

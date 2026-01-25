@@ -26,6 +26,7 @@
 #include "mappedfile.h"
 #include "util.h"
 #include "version.h"
+#include "mbr_boot_win98.h"
 
 #include "anbui/anbui.h"
 
@@ -577,10 +578,21 @@ static bool inst_copyFiles(MappedFile *file, const char *installPath, const char
 /* Inform user and setup boot sector and MBR. */
 static bool inst_setupBootSectorAndMBR(util_Partition *part, bool setActiveAndDoMBR) {
     bool success = true;
+    const util_BootSectorModifier *bsModifierList = NULL;
     // TODO: ui_showInfoBox("Setting up Master Boot Record and Boot sector...");
-    success &= util_writeWin98BootSectorToPartition(part);
+    QI_ASSERT(part != NULL);
+
+    if (part->fileSystem == fs_fat16) {
+        bsModifierList = __WIN98_FAT16_BOOT_SECTOR_MODIFIERS__;
+    } else if (part->fileSystem == fs_fat32) {
+        bsModifierList = __WIN98_FAT32_BOOT_SECTOR_MODIFIERS__;
+    } else {
+        QI_ASSERT(false && "invalid file system???");
+    }
+
+    success &= util_modifyAndwriteBootSectorToPartition(part, bsModifierList);
     if (setActiveAndDoMBR) {
-        success &= util_writeWin98MBRToDrive(part->parent);
+        success &= util_writeMBRToDrive(part->parent, __MBR_WIN98__);
         char activateCmd[UTIL_MAX_CMD_LENGTH];
         snprintf(activateCmd, UTIL_MAX_CMD_LENGTH, "sfdisk --activate %s %zu", part->parent->device, part->indexOnParent);
         success &= (0 == ad_runCommandBox("Activating partition...", activateCmd));
