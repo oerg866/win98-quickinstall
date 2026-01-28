@@ -12,7 +12,7 @@
 #include "install.h"
 
 int main(int argc, char *argv[]) {
-    bool ret = inst_main();
+    bool ret = inst_main(argc, argv);
 
     (void) argc;
     (void) argv;

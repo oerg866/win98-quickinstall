@@ -30,11 +30,9 @@
 
 #include "anbui/anbui.h"
 
-
-#define CD_FILE_PATH_ROOT   (0)
+#include "install_msg.inc"
 
 typedef enum {
-    INSTALL_WELCOME = 0,
     INSTALL_OSROOT_VARIANT_SELECT,
     INSTALL_MAIN_MENU,
     INSTALL_PARTITION_WIZARD,
@@ -47,17 +45,6 @@ typedef enum {
 } inst_InstallStep;
 
 
-#pragma pack(1)
-
-typedef struct {
-    uint8_t fileFlags;
-    uint16_t fileDate;
-    uint16_t fileTime;
-    uint32_t fileSize;
-    int32_t fileno;
-} inst_MercyPakFileDescriptor;
-
-#pragma pack()
 
 // -sizeof(int) because the fileno is not part of the descriptor read from the mercypak file
 #define MERCYPAK_FILE_DESCRIPTOR_SIZE (sizeof(inst_MercyPakFileDescriptor) - sizeof(int))
@@ -70,88 +57,11 @@ typedef struct {
 #define MERCYPAK_V2_MAGIC "MRCY"
 
 #define INST_CFDISK_CMD "cfdisk "
-#define INST_COLS (74)
 
 #define INST_SYSROOT_FILE "FULL.866"
 #define INST_DRIVER_FILE  "DRIVER.866"
 #define INST_SLOWPNP_FILE "SLOWPNP.866"
 #define INST_FASTPNP_FILE "FASTPNP.866"
-
-#define INST_CDROM_IO_SIZE (512*1024)
-#define INST_DISK_IO_SIZE (512*1024)
-
-static const char *cdrompath = NULL;    // Path to install source media
-static const char *cdromdev = NULL;     // Block device for install source media
-                                        // ^ initialized in install_main
-
-/* Gets the absolute CDROM path of a file. 
-   osVariantIndex is the index for the source variant, 0 means from the root. */
-static const char *inst_getCDFilePath(size_t osVariantIndex, const char *filepath) {
-    static char staticPathBuf[1024];
-    if (osVariantIndex > 0) {
-        snprintf(staticPathBuf, sizeof(staticPathBuf), "%s/osroots/%zu/%s", cdrompath, osVariantIndex, filepath);
-    } else {
-        snprintf(staticPathBuf, sizeof(staticPathBuf), "%s/%s", cdrompath, filepath);
-    }
-    return staticPathBuf;
-}
-
-/* Opens a file from the source media. osVariantIndex is the index for the source variant, 0 means from the root. */
-static inline MappedFile *inst_openSourceFile(size_t osVariantIndex, const char *filename, size_t readahead) {
-    return mappedFile_open(inst_getCDFilePath(osVariantIndex, filename), readahead);
-}
-
-/* Shows disclaimer text */
-static inline void inst_showDisclaimer() {
-    ad_textFileBox("DISCLAIMER", inst_getCDFilePath(0, "install.txt"));
-}
-
-/* Shows welcome screen, returns false if user wants to exit to shell */
-static inline void inst_showWelcomeScreen() {
-    ad_okBox("Welcome", false, "Welcome to Windows 9x QuickInstall!");
-}
-
-/* Checks if given hard disk contains the installation source */
-static inline bool inst_isInstallationSourceDisk(util_HardDisk *disk) {
-    return (util_stringStartsWith(cdromdev, disk->device));
-}
-
-/* Checks if given partition is the installation source */
-static inline bool inst_isInstallationSourcePartition(util_Partition *part) {
-    return (util_stringEquals(cdromdev, part->device));
-}
-
-/* Tells the user he is trying to partition the install source disk */
-static inline void inst_showInstallationSourceDiskError() {
-    ad_okBox("Attention", false, "The selected disk contains the installation source.\nIt can not be partitioned.");
-}
-
-/* Tells the user he is trying to install to the install source partition */
-static inline void inst_showInstallationSourcePartitionError() {
-    ad_okBox("Attention", false, "The selected partition contains the installation source.\nIt cannot be the installation destination.");
-}
-
-/* Tells the user he is trying to install to a non-FAT partition */
-static inline void inst_showUnsupportedFileSystemError() {
-    ad_okBox("Attention", false, "The selected partition has an unsupported file system.\nIt cannot be the installation destination.");
-}
-
-/* Tells the user he is trying to install to a computer without hard disks. */
-static inline void inst_noHardDisksFoundError() {
-    ad_okBox("Attention", false, "No hard disks found!\nPlease install a hard disk and try again!");
-}
-
-/* Tells the user about an oopsie trying to open a file for reading. */
-static inline void inst_showFileError() {
-    ad_okBox("Attention", false, "ERROR: A problem occured handling a file for this OS variant.\n(%d: %s)", errno, strerror(errno));
-}
-
-static inline util_HardDiskArray *inst_getSystemHardDisks() {
-    ad_setFooterText("Obtaining System Hard Disk Information...");
-    util_HardDiskArray *ret = util_getSystemHardDisks();
-    ad_clearFooter();
-    return ret;
-}
 
 typedef enum {
     SETUP_ACTION_INSTALL = 0,
@@ -195,10 +105,8 @@ static bool inst_showOSVariantSelect(size_t *variantIndex, size_t *variantCount)
     // Find and get available OS variants.
 
     while (true) {
-        char tmpInfPath[256];
         char tmpVariantLabel[128];
-
-        snprintf(tmpInfPath, sizeof(tmpInfPath), "%s/osroots/%zu/win98qi.inf", cdrompath, (*variantCount) + 1); // Variant index starts at 1
+        const char *tmpInfPath = inst_getSourceFilePath((*variantCount) + 1, "win98qi.inf");
 
         if (!util_fileExists(tmpInfPath)) {
             break;
@@ -212,7 +120,6 @@ static bool inst_showOSVariantSelect(size_t *variantIndex, size_t *variantCount)
         ad_menuAddItemFormatted(menu, "%zu: %s", (*variantCount) + 1, tmpVariantLabel);
 
         *variantCount += 1;
-
     }
 
     if (*variantCount > 1) {
@@ -235,24 +142,12 @@ static bool inst_showOSVariantSelect(size_t *variantIndex, size_t *variantCount)
     }    
 }
 
-static void inst_handleNonMBRDiskPartitioning(util_HardDisk *hdd) {
-    bool hasTableType = (strlen(hdd->tableType) > 0);
-    int action = ad_yesNoBox("Hard Disk Partition Table Issue", true,
-        "Selected disk: '%s'.\n"
-        "Current partition table type (may be inacccurate): %s\n\n"
-        "This disk does not contain a MBR / DOS style partition table.\n"
-        "As a result, this disk will not work as an installation target.\n"
-        "The existing partition table can be wiped, so that CFDISK can\n"
-        "create a MBR / DOS style partition table in its place.\n"
-        "Would you like to do this? (WARNING: THIS WILL CAUSE DATA LOSS!)",
-        hdd->device,
-        hasTableType ? hdd->tableType : "<?>");
-    
-    if (action == AD_YESNO_YES) {
+/* On invalid/unsupported partition table, ask user if he wants to wipe it */
+static void inst_invalidPartTableAskUserAndWipe(util_HardDisk *hdd) {
+    if (msg_askNonMbrWarningWipeMBR(hdd)) {
         if (!util_wipePartitionTable(hdd)) {
-            ad_okBox("Error", false,
-                "An error occurred trying to wipe the partition table:\n"
-                "%s (%d)", strerror(errno), errno);
+            // No return value here since we can't do much and we'll launch cfdisk anyway
+            msg_wipeMbrFailed();
         }
     }
 }
@@ -281,7 +176,7 @@ static void inst_showPartitionWizard(util_HardDiskArray **hddsPtr) {
         util_HardDiskArray *hdds = *hddsPtr;
 
         if (hdds->count == 0) {
-            inst_noHardDisksFoundError();
+            msg_noHardDisksFoundError();
             return;
         }
 
@@ -312,12 +207,12 @@ static void inst_showPartitionWizard(util_HardDiskArray **hddsPtr) {
         
         // Check if we're trying to partition the install source disk. If so, warn user and continue looping.
         if (inst_isInstallationSourceDisk(&hdds->disks[menuResult])) {
-            inst_showInstallationSourceDiskError();
+            msg_installationSourceDiskError();
             continue;
         }
 
         if (!util_stringEquals(hdds->disks[menuResult].tableType, "dos")) {
-            inst_handleNonMBRDiskPartitioning(&hdds->disks[menuResult]);
+            inst_invalidPartTableAskUserAndWipe(&hdds->disks[menuResult]);
         }
 
         // Invoke cfdisk command for chosen drive.
@@ -325,9 +220,7 @@ static void inst_showPartitionWizard(util_HardDiskArray **hddsPtr) {
         system(cfdiskCmd);
 
         ad_restore();
-        ad_okBox("Attention", false,
-            "Remember to answer 'yes' to the format prompt\n"
-            "if you are installing on a partition you've just created!");
+        msg_reminderToFormatNewPartition();
     }
 }
 
@@ -339,7 +232,7 @@ static util_Partition *inst_showPartitionSelector(util_HardDiskArray *hdds) {
     QI_ASSERT(hdds);
 
     if (hdds->count == 0) {
-        inst_noHardDisksFoundError();
+        msg_noHardDisksFoundError();
         return NULL;
     }
 
@@ -386,82 +279,17 @@ static util_Partition *inst_showPartitionSelector(util_HardDiskArray *hdds) {
 
         // Is this the installation source? If yes, show menu again.
         if (inst_isInstallationSourcePartition(result)) {
-            inst_showInstallationSourcePartitionError();
+            msg_sourcePartitionError();
             continue;
         }
         
         if (result->fileSystem == fs_unsupported || result->fileSystem == fs_none) {
-            inst_showUnsupportedFileSystemError();
+            msg_unsupportedFileSystemError();
             continue;
         }
 
         return result;
     }
-}
-
-/* Asks user if he wants to format selected partition. Returns true if so. */
-static inline int inst_formatPartitionDialog(util_Partition *part) {
-    return ad_yesNoBox("Confirm", true,
-        "You have chosen the partition '%s'.\n"
-        "Would you like to format it before the installation (recommended)?\n",
-        part->device);
-}
-
-static bool inst_formatPartition(util_Partition *part) {
-    char formatCmd[UTIL_MAX_CMD_LENGTH];
-    bool ret = util_getFormatCommand(part, part->fileSystem, formatCmd, UTIL_MAX_CMD_LENGTH);
-    QI_ASSERT(ret && "GetFormatCommand");
-    return (0 == ad_runCommandBox("Formatting partition...", formatCmd));
-}
-
-/* Asks user if he wants to overwrite the MBR and set the partition active. Returns true if so. */
-static inline int inst_askUserToOverwriteMBRAndSetActive(util_Partition *part) {
-    return ad_yesNoBox("Confirm", true,
-        "You have chosen the partition '%s'.\n"
-        "Would you like to overwrite the Master Boot Record (MBR)\n"
-        "and set the partition active (recommended)?", 
-        part->device);
-}
-
-/* Show message box informing user that formatting failed. */
-static inline void inst_showFailedFormat(util_Partition *part) {
-    ad_okBox("Error", false,
-        "The partition %s could not be formatted.\n"
-        "The last recorded error was: '%s'.\n"
-        "There may be a disk problem.\n"
-        "Try re-partitioning the disk or using another partition.\n"
-        "Returning to the partition selector.",
-        part->device, strerror(errno));
-}
-
-/* Show message box informing user that mount failed*/
-static inline void inst_showFailedMount(util_Partition *part) {
-    ad_okBox("Error", false,
-        "The partition %s could not be accessed.\n"
-        "The last recorded error was: '%s'.\n"
-        "There may be a disk problem.\n"
-        "You can try formatting the partition.\n"
-        "Returning to the partition selector.",
-        part->device, strerror(errno));
-}
-
-/* Show message box informing user that copying failed*/
-static inline void inst_showFailedCopy(const char *sourceFile) {
-    ad_okBox("Error", false,
-        "An error occured while unpacking '%s'\n"
-        "for this operating system variant.\n"
-        "The last recorded error was: '%s'.\n"
-        "There may be a disk problem.\n"
-        "You can try a different source / destination disk.\n"
-        "Returning to the partition selector.", 
-        sourceFile,
-        strerror(errno));
-}
-
-
-/* Ask user if he wants to install driver package */
-static inline int inst_showDriverPrompt() {
-    return ad_yesNoBox("Selection", true, "Would you like to install the integrated device drivers?");
 }
 
 /* Gets a MercyPak string (8 bit length + n chars) into dst. Must be a buffer of >= 256 bytes size. */
@@ -607,12 +435,7 @@ static bool inst_copyFiles(MappedFile *file, const char *installPath, const char
 
     }
 
-    /*
-        TODO: ERROR HANDLING
-     */
-
     ad_progressBoxDestroy(pbox);
-
     free(destPath);
     return success;
 }
@@ -642,64 +465,14 @@ static bool inst_setupBootSectorAndMBR(util_Partition *part, bool setActiveAndDo
     return success;
 }
 
-/* Show success screen. Ask user if he wants to reboot */
-static inline bool inst_showSuccessAndAskForReboot() {
-    // Returns TRUE (meaning reboot = true) if YES (0) happens. sorry for the confusion.
-    ad_Menu *menu = ad_menuCreate("Windows 9x QuickInstall: Success", 
-        "The installation was successful.\n"
-        "Would you like to reboot or exit to a shell?", 
-        false);
-
-    QI_ASSERT(menu);
-
-    ad_menuAddItemFormatted(menu, "Reboot");
-    ad_menuAddItemFormatted(menu, "Exit to shell");
-
-    int menuResult = ad_menuExecute(menu);
-
-    ad_menuDestroy(menu);
-
-    return menuResult == 0;
-}
-
-/* Show failure screen :( */
-static inline void inst_showFailMessage() {
-    ad_okBox("Error!", false,
-        "There was a problem during installation! :(\n"
-        "You can press ENTER to get to a shell and inspect the damage.");
-}
-
-/* Asks user which version of the hardware detection scheme he wants */
-static const char *inst_askUserForRegistryVariant(void) {
-    const char *optionFiles[] = { 
-        "FASTPNP.866", 
-        "SLOWPNP.866"
-    };
-    const char *optionLabels[] = { 
-        "Fast hardware detection, skipping most non-PNP devices.",
-        "Full hardware detection, including ALL non-PNP devices."
-    };
-
-    int menuResult = ad_menuExecuteDirectly("Select hardware detection method", true, 
-        util_arraySize(optionLabels), optionLabels, 
-        "Please select the hardware detection method to use.");
-
-    if (menuResult == AD_CANCELED) {
-        return NULL;
-    }
-
-    QI_ASSERT(menuResult < (int) util_arraySize(optionLabels));
-    return optionFiles[menuResult];
-}
-
 /* Main installer process. Assumes the CDROM environment variable is set to a path with valid install.txt, FULL.866 and DRIVER.866 files. */
-bool inst_main() {
+bool inst_main(int argc, char *argv[]) {
     MappedFile *sourceFile = NULL;
     size_t readahead = util_getProcSafeFreeMemory() * 6 / 10;
     util_HardDiskArray *hda = NULL;
     const char *registryUnpackFile = NULL;
     util_Partition *destinationPartition = NULL;
-    inst_InstallStep currentStep = INSTALL_WELCOME;
+    inst_InstallStep currentStep = (inst_InstallStep) 0;
     size_t osVariantIndex = 0;
 
     bool installDrivers = false;
@@ -714,14 +487,18 @@ bool inst_main() {
 
     setlocale(LC_ALL, "C.UTF-8");
 
-    cdrompath = getenv("CDROM");
-    cdromdev = getenv("CDDEV");
+    // If we have commandline parameters use them, otherwise use the environment.
+    if (argc == 3) {
+        inst_setSourceMedia(argv[1], argv[2]);
+    } else if (getenv("CDROM") && getenv("CDDEV")) {
+        inst_setSourceMedia(getenv("CDROM"), getenv("CDDEV"));
+    } else {
+        msg_environmentError();
+        ad_deinit();
+        return false;
+    }
 
-    QI_ASSERT(cdrompath);
-    QI_ASSERT(cdromdev);
-
- 
-    inst_showDisclaimer();
+    msg_disclaimer();
 
     while (!quit) {
 
@@ -731,11 +508,6 @@ bool inst_main() {
          *  */
 
         switch (currentStep) {
-            case INSTALL_WELCOME:
-                inst_showWelcomeScreen();
-                goToNext = true;
-                break;
-
             case INSTALL_OSROOT_VARIANT_SELECT: {
                 bool previousGoToNext = goToNext;
                 size_t osVariantCount = 0;
@@ -756,7 +528,7 @@ bool inst_main() {
                     sourceFile = inst_openSourceFile(osVariantIndex, INST_SYSROOT_FILE, readahead);
 
                     if (sourceFile == NULL) {
-                        inst_showFileError();
+                        msg_fileOpenError(osVariantIndex, INST_SYSROOT_FILE);
                         continue;
                     }
                 }
@@ -825,7 +597,7 @@ bool inst_main() {
             /* Menu prompt:
              * Does user want to format the hard disk? */
             case INSTALL_FORMAT_PARTITION_PROMPT: {
-                int answer = inst_formatPartitionDialog(destinationPartition);
+                int answer = msg_askFormatPartition(destinationPartition);
                 formatPartition = (answer == AD_YESNO_YES);
                 goToNext = (answer != AD_CANCELED);
                 break;
@@ -834,7 +606,7 @@ bool inst_main() {
             /* Menu prompt:
              * Does user want to update MBR and set the partition active? */
             case INSTALL_MBR_ACTIVE_BOOT_PROMPT: {
-                int answer = inst_askUserToOverwriteMBRAndSetActive(destinationPartition);
+                int answer = msg_askOverwriteMBRAndSetActive(destinationPartition);
                 setActiveAndDoMBR = (answer == AD_YESNO_YES);
                 goToNext = (answer != AD_CANCELED);
                 break;
@@ -844,8 +616,10 @@ bool inst_main() {
             /* Menu prompt:
              * Fast / Slow non-PNP HW detection? */
             case INSTALL_REGISTRY_VARIANT_PROMPT: {
-                registryUnpackFile = inst_askUserForRegistryVariant();
-                goToNext = (registryUnpackFile != NULL);
+                int answer = msg_askSkipPnpDetection();
+                registryUnpackFile = (answer == AD_YESNO_YES) ? INST_FASTPNP_FILE
+                                                              : INST_SLOWPNP_FILE;
+                goToNext = (answer != AD_CANCELED);
                 break;
             }
 
@@ -853,8 +627,8 @@ bool inst_main() {
              * Does the user want to install the base driver package? */
             case INSTALL_INTEGRATED_DRIVERS_PROMPT: {
                 // It's optional, if the file doesn't exist, we don't have to ask
-                if (util_fileExists(inst_getCDFilePath(osVariantIndex, INST_DRIVER_FILE))) {
-                    int response = inst_showDriverPrompt();
+                if (util_fileExists(inst_getSourceFilePath(osVariantIndex, INST_DRIVER_FILE))) {
+                    int response = msg_askInstallDrivers();
                     installDrivers = (response == AD_YESNO_YES);
                     goToNext = (response != AD_CANCELED);
                 } else {
@@ -872,7 +646,7 @@ bool inst_main() {
                     installSuccess = inst_formatPartition(destinationPartition);
 
                 if (!installSuccess) {
-                    inst_showFailedFormat(destinationPartition);
+                    msg_formatFailed(destinationPartition);
                     currentStep = INSTALL_MAIN_MENU;
                     continue;
                 }
@@ -881,7 +655,7 @@ bool inst_main() {
                 // If mounting failed, we will display a message and go back after.
 
                 if (!installSuccess) {
-                    inst_showFailedMount(destinationPartition);
+                    msg_mountFailed(destinationPartition);
                     currentStep = INSTALL_MAIN_MENU;
                     continue;
                 }
@@ -891,7 +665,7 @@ bool inst_main() {
                 mappedFile_close(sourceFile);
 
                 if (!installSuccess) {
-                    inst_showFailedCopy(INST_DRIVER_FILE);
+                    msg_unpackFailed(INST_SYSROOT_FILE);
                     currentStep = INSTALL_MAIN_MENU;
                     continue;
                 }
@@ -905,7 +679,7 @@ bool inst_main() {
                 }
 
                 if (!installSuccess) {
-                    inst_showFailedCopy(INST_DRIVER_FILE);
+                    msg_unpackFailed(INST_DRIVER_FILE);
                     currentStep = INSTALL_MAIN_MENU;
                     continue;
                 }
@@ -919,7 +693,7 @@ bool inst_main() {
                 }
 
                 if (!installSuccess) {
-                    inst_showFailedCopy(registryUnpackFile);
+                    msg_unpackFailed(registryUnpackFile);
                     currentStep = INSTALL_MAIN_MENU;
                     continue;
                 }
@@ -931,16 +705,30 @@ bool inst_main() {
                     installSuccess = inst_setupBootSectorAndMBR(destinationPartition, setActiveAndDoMBR);
                 }
 
-                if (installSuccess) {                    
-                    doReboot = inst_showSuccessAndAskForReboot();
-                } else {
-                    inst_showFailMessage();
+                if (!installSuccess) {
+                    msg_failure();
+                }
+
+                // Determine what to do after installation
+                switch (msg_askPostInstallAction()) {
+                    case QI_POSTINSTALL_REBOOT:
+                        doReboot = true;
+                        quit = true;
+                        break;
+                    case QI_POSTINSTALL_MAIN_MENU:
+                        currentStep = INSTALL_MAIN_MENU;
+                        break;
+                    case QI_POSTINSTALL_EXIT:
+                        quit = true;
+                        break;
+                    default:
+                        abort(); // Shouldn't arrive here.
                 }
 
                 quit = true;
 
                 break;
-            }           
+            }
 
         }
         currentStep += goToNext ? 1 : -1;
