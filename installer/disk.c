@@ -498,7 +498,27 @@ bool util_modifyAndwriteBootSectorToPartition(util_Partition *part, const util_B
 }
 
 bool util_isPartitionMounted(util_Partition *part) {
-    return (part->mountPath != NULL);
+    // Check if partition is mounted using /proc/self/mounts
+    char devStringToCompare[UTIL_HDD_DEVICE_STRING_LENGTH+1] = "";
+
+    // you could have a lot of logical  partitions so it's best to check for that PLUS a space.
+    sprintf(devStringToCompare, "%s ", part->device);
+
+    util_CommandOutput *mountLines = util_commandOutputCapture("cat /proc/self/mounts");
+    QI_ASSERT(mountLines != NULL);
+
+    bool ret = false;
+
+    for (size_t i = 0; i < mountLines->lineCount; i++) {
+        if (util_stringStartsWith(mountLines->lines[i], devStringToCompare)) {
+            ret = true;
+            break;
+        }
+    }
+
+    util_commandOutputDestroy(mountLines);
+
+    return ret;
 }
 
 bool util_getFormatCommand(util_Partition *part, util_FileSystem fs, char *buf, size_t bufSize) {
