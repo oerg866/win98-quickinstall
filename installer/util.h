@@ -95,6 +95,9 @@ typedef struct {
 
 #define util_returnOnNull(ptr, return_value) if (ptr == NULL) { printf("ERROR - '" #ptr "' is NULL! Result = '" #return_value "'\r\n"); return return_value; }
 
+// Returns whether program is running as root
+bool util_runningAsRoot(void);
+
 // Get a value for a given key from /proc/meminfo
 uint64_t util_getProcMeminfoValue(const char *key);
 

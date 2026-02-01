@@ -26,6 +26,10 @@
 
 /* Utility Functions */
 
+bool util_runningAsRoot(void) {
+    return geteuid() == 0;
+}
+
 uint64_t util_getProcMeminfoValue(const char *key) {
     FILE *meminfo = fopen("/proc/meminfo", "r");
     uint64_t ret = 0;
