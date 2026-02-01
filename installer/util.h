@@ -11,6 +11,7 @@
 #include <string.h>
 #include <sys/param.h>
 #include <sys/types.h>
+#include <assert.h>
 
 #define UTIL_MAX_CMD_LENGTH (2048)
 #define UTIL_CMD_OUTPUT_LINE_LENGTH (1024)
@@ -65,6 +66,21 @@ typedef struct {
     size_t length;
     const uint8_t *replacementData;
 } util_BootSectorModifier;
+
+#pragma pack(1)
+typedef struct {
+    uint8_t bootFlag;
+    uint8_t startingHead;
+    uint16_t startingSectorAndCylinder;
+    uint8_t systemId;
+    uint8_t endingHead;
+    uint16_t endingSectorAndCylinder;
+    uint32_t startSectorLBA;
+    uint32_t totalSectors;
+} util_PartitionTableEntry;
+
+static_assert(sizeof(util_PartitionTableEntry) == 16);
+#pragma pack()
 
 typedef struct {
     size_t lineCount;
@@ -134,6 +150,8 @@ uint8_t *util_readSectorFromPartitionAllocate(util_Partition *part, size_t secto
 
 // Wipes the partition table of a given disk.
 bool util_wipePartitionTable(util_HardDisk *hdd);
+// Sets the given partition active. MUST have a valid parent field!
+bool util_setPartitionActive(util_Partition *part);
 // Writes new MBR code to a physical disk (FDISK /MBR equivalent). newMBRCode must contain exactly DISK_MBR_CODE_LENGTH bytes.
 bool util_writeMBRToDrive(util_HardDisk *hdd, const uint8_t *newMBRCode);
 // Writes a FAT16/FAT32 Boot Sector to a partition on a disk (SYS.COM equivalent, sans copying system files)

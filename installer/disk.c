@@ -392,6 +392,33 @@ uint8_t *util_readSectorFromPartitionAllocate(util_Partition *part, size_t secto
     return util_readSectorAllocate(part->device, sector, part->sectorSize);
 }
 
+bool util_setPartitionActive(util_Partition *part) {
+    util_returnOnNull(part, false);
+    util_returnOnNull(part->parent, false);
+
+    QI_FATAL(part->indexOnParent > 0 && part->indexOnParent < 5, "Bad partition index.");
+
+    uint8_t *firstSector = util_readSectorFromDiskAllocate(part->parent, 0);
+    
+    util_returnOnNull(firstSector, false);
+
+    // Partition table starts at the end of MBR code
+    util_PartitionTableEntry *table = (util_PartitionTableEntry *) &firstSector[DISK_MBR_CODE_LENGTH];
+
+    // set all partiitions to un-bootable except the one we have
+    for (size_t i = 0; i < 4; i++) {
+        table[i].bootFlag = 0x00;
+    }
+
+    table[part->indexOnParent - 1].bootFlag = 0x80;
+
+    bool success = util_writeSectorToDisk(part->parent, 0, firstSector);
+
+    free(firstSector);
+
+    return success;
+}
+
 bool util_writeMBRToDrive(util_HardDisk *hdd, const uint8_t *newMBRCode) {
     // Read existing MBR first
     uint8_t *existingMBR = util_readSectorFromDiskAllocate(hdd, 0);
