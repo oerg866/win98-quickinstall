@@ -35,9 +35,10 @@ uint64_t util_getProcMeminfoValue(const char *key) {
     uint64_t ret = 0;
     char fmt[1024];
     char line[1024] = {0};
+    char *result = line;
     sprintf(fmt, "%s: %s", key, "%llu kB\n");
-    while (!ferror(meminfo) && !feof(meminfo) && sscanf(line, fmt, &ret) < 1)
-        fgets(line, sizeof(line), meminfo);
+    while (!ferror(meminfo) && !feof(meminfo) && sscanf(line, fmt, &ret) < 1 && result)
+        result = fgets(line, sizeof(line), meminfo);
     fclose(meminfo);
     return (uint64_t) ret;
 }
