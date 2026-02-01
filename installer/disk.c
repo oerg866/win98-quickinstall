@@ -561,10 +561,6 @@ bool util_isPartitionMounted(util_Partition *part) {
 bool util_getFormatCommand(util_Partition *part, util_FileSystem fs, char *buf, size_t bufSize) {
     QI_ASSERT(part);
 
-    if (util_isPartitionMounted(part)) {
-        util_unmountPartition(part);
-    }
-
     if (fs == fs_fat16) {
         snprintf(buf, bufSize, "mkfs.fat -v -S %d -F 16 %s", part->sectorSize, part->device); // no clue what win9x wants to see here tbh...
     } else if (fs == fs_fat32) {
