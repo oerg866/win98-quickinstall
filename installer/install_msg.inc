@@ -18,6 +18,13 @@ static inline void msg_unsupportedFileSystemError(void) {
     ad_okBox("Attention", false, "The selected partition has an unsupported file system.\nIt cannot be the installation destination.");
 }
 
+/* Tells the user he is trying to install to a non-MBR hard drive*/
+static inline void msg_destinationInvalidPartitionTable(void) {
+    ad_okBox("Attention", false, 
+        "The selected partition is on a disk with a non-MBR partition table\n"
+        "(i.e. GPT or similar). It cannot be used as the destination.");
+}
+
 /* Tells the user he is trying to install to a computer without hard disks. */
 static inline void msg_noHardDisksFoundError(void) {
     ad_okBox("Attention", false, "No hard disks found!\nPlease install a hard disk and try again!");
@@ -26,13 +33,14 @@ static inline void msg_noHardDisksFoundError(void) {
 /* Tells the user about an oopsie trying to open a file for reading. */
 static inline void msg_fileOpenError(size_t osRootIndex, const char *filename) {
     ad_okBox("Attention", false, 
-        "ERROR: A problem occured opening file for unpacking.\n"
+        "ERROR: A problem occurred opening file for unpacking.\n"
         "OSRoot: '%u', file '%s'\n"
         "Error:  '%s' (%d)", 
         (unsigned) osRootIndex, filename, 
         strerror(errno), errno);
 }
 
+/* Shows warning about UEFI */
 static inline void msg_uefiInfoBox(void) {
     ad_okBox("UEFI Information", false,
         "You have selected UEFI support to be enabled.\n"
@@ -44,13 +52,54 @@ static inline void msg_uefiInfoBox(void) {
         "\n"
         "Due to the non-standard nature of this UEFI boot\n"
         "method, you may not be able to find the target disk\n"
-        "as a boot option in your UEFI confugration menu!\n"
+        "as a boot option in your UEFI confugration menu.\n"
+        "In this case, try manually adding a reference to this file:\n"
+        "\n"
+        "<TARGET PARTITION>/EFI/BOOT/BOOTIA32.EFI\n"
         "\n"
         "ATTTENTION: Ensure that the following conditions are met:\n"
         "- DISABLE Secure Boot\n"
         "- DISABLE Above 4G Decoding/Resizable BAR/Smart Access Memory\n"
         "- DISABLE your computer's CSM if available/enabled.\n");
 }
+
+/* Shows warning about CREGFIX */
+static inline void msg_cregfixInfoBox(void) {
+    ad_okBox("CREGFIX Information", false,
+        "You have selected the CREGFIX patch to be applied.\n"
+        "This is a feature that needs a modern CPU to work,\n"
+        "fixing a bug present in most UEFI CSM implementations.\n"
+        "\n"
+        "It uses instructions not supported by older CPUs.\n"
+        "Applying this patch on an older system will render the\n"
+        "installation un-bootable.\n");
+}
+
+/* Shows warning about CREGFIX if boot sector update wasn't selected*/
+static inline bool msg_askGoBackOnCregfixWithoutBootsector(void) {
+    int action = ad_yesNoBox("Warning", false,
+        "You have selected the CREGFIX patch to be applied,\n"
+        "but not that the boot sector should be updated.\n"
+        "\n"
+        "Since QuickInstall embeds the CREGFIX code in the bootloader,\n"
+        "the patch will not be applied.\n"
+        "\n"
+        "Do you wish to go back to the configuration menu to fix this?");
+    return (action == AD_YESNO_YES);
+}
+
+/* Shows info that partition is mounted and asks if user wants to unmount and proceed */
+static inline bool msg_askUnmountBeforeInstall(util_Partition *part) {
+    int action = ad_yesNoBox("Partition Warning", true,
+        "Selected partition: '%s'.\n"
+        "\n"
+        "The partition you selected is already mounted in the system.\n"
+        "It may be in use - do you wish to unmount it and proceed?\n"
+        "WARNING - this may lead to data loss if unwanted!",
+        part->device);
+    return (action == AD_YESNO_YES);
+}
+
 
 /* Shows invalid partition table message and asks user if he wants to wipe it */
 static inline bool msg_askNonMbrWarningWipeMBR(util_HardDisk *hdd) {
@@ -67,38 +116,6 @@ static inline bool msg_askNonMbrWarningWipeMBR(util_HardDisk *hdd) {
         hasTableType ? hdd->tableType : "<?>");
 
     return (action == AD_YESNO_YES);
-}
-
-/*  Asks user if he wants to overwrite the MBR and set the partition active.
-    Returns AD_YESNO_YES if so. AD_CANCELED means go back. */
-static inline int msg_askOverwriteMBRAndSetActive(util_Partition *part) {
-    return ad_yesNoBox("Confirm", true,
-        "You have chosen the partition '%s'.\n"
-        "Would you like to overwrite the Master Boot Record (MBR)\n"
-        "and set the partition active (recommended)?", 
-        part->device);
-}
-
-/*  Asks user if he wants to format selected partition.
-    Returns AD_YESNO_YES if so. AD_CANCELED means go back. */
-static inline int msg_askFormatPartition(util_Partition *part) {
-    return ad_yesNoBox("Confirm", true,
-        "You have chosen the partition '%s'.\n"
-        "Would you like to format it before the installation (recommended)?\n",
-        part->device);
-}
-
-/* Ask user if he wants to install driver package */
-static inline int msg_askInstallDrivers(void) {
-    return ad_yesNoBox("Selection", true, 
-        "Would you like to install the base device drivers package?\n");
-}
-
-/* Ask user if he wants to skip legacy non-pnp detection. */
-static inline int msg_askSkipPnpDetection(void) {
-    return ad_yesNoBox("Selection", true,
-        "Would you like to skip the legacy non-PnP detection phase?\n"
-        "NOTE: Not recommended on ISA/VLB and early PCI machines.");
 }
 
 /* Show message box informing user that formatting failed. */
@@ -128,7 +145,7 @@ static inline void msg_mountFailed(util_Partition *part) {
 /* Show message box informing user that copying failed*/
 static inline void msg_unpackFailed(const char *sourceFile) {
     ad_okBox("Error", false,
-        "An error occured while unpacking '%s'.\n"
+        "An error occurred while unpacking '%s'.\n"
         "The last recorded error was:\n"
         "'%s' (%d).\n"
         "There may be a disk problem.\n"
@@ -144,11 +161,17 @@ static inline void msg_wipeMbrFailed(void) {
     "'%s' (%d)", strerror(errno), errno);
 }
 
-/* Show failure screen :( */
-static inline void msg_failure(void) {
-    ad_okBox("Error!", false,
-        "There was a problem during installation! :(\n"
-        "You can press ENTER to get to a shell and inspect the damage.");
+/* Show message box informing user that getting disk info failed */
+static inline void msg_refreshDiskError(void) {
+    ad_okBox("Error", false,
+    "An error occurred trying to evaluate all disks in the system:\n"
+    "'%s' (%d)", strerror(errno), errno);
+}
+
+/* Show message box informing user that the program is not running as root. */
+static inline void msg_notRunningAsRootError(void) {
+    ad_okBox("Fatal error!", false,
+        "The installer must be run as root!");
 }
 
 static inline void msg_environmentError(void) {
@@ -166,18 +189,22 @@ static inline void msg_reminderToFormatNewPartition(void) {
         "if you are installing on a partition you've just created!");
 }
 
-static inline qi_PostInstallOption msg_askPostInstallAction(void) {
-    const char *postInstallOptions[] = {
-        "Reboot", "Return to Main Menu", "Exit to Linux Shell"
-    };
 
-    int selection = ad_menuExecuteDirectly("Windows 9x QuickInstall: Success",  false,
-        (size_t) QI_POSTINSTALL_COUNT, postInstallOptions,
-        "The installation was successful!\n"
-        "What would you like to do now?");
-
-    QI_ASSERT(selection < (int) QI_POSTINSTALL_COUNT);
-
-    return (qi_PostInstallOption) selection;
+static inline void msg_directoryWarning(void) {
+    ad_okBox("Attention", false,
+        "Warning: Failed to create one or more directories!\n"
+        "The last recorded error was:\n"
+        "'%s' (%d)\n"
+        "This may not be fatal. Continue at your own risk!",
+        strerror(errno), errno);
 }
 
+static inline void msg_installError(const char *optionLabel) {
+    ad_okBox("Error!", false,
+        "A problem occurred during installation!\n"
+        "Failed step:\n"
+        "  '%s'\n"
+        "The last recorded error was:\n"
+        "  '%s' (%d)\n",
+        optionLabel, strerror(errno), errno);
+}

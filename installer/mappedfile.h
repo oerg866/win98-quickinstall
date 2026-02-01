@@ -21,10 +21,22 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+
 typedef struct MappedFile MappedFile;
 
+// Enum depicting what to do when read errors occur
+typedef enum {
+    MF_NONE = 0,    // The error was not acknowledged yet
+    MF_RETRY,   // Retry the read
+    MF_CANCEL   // Cancel the whole operation
+} MappedFile_ErrorReaction;
+
+// Callback type for read errors. _errno is the errno value after the read attempt was made.
+typedef MappedFile_ErrorReaction (*MappedFile_ErrorCallback)(int _errno, MappedFile *file);
+
 // Open the mapped File. Readahead is a parameter indicating how much RAM the system can spare to read ahead.
-MappedFile *mappedFile_open(const char *filename, size_t readahead);
+// errorCallback will be called on any read error, can be NULL (then it will just retry forever)
+MappedFile *mappedFile_open(const char *filename, size_t readahead, MappedFile_ErrorCallback errorCallback);
 // Closes the file and releases all resources associated with it
 void        mappedFile_close(MappedFile *file);
 

@@ -31,209 +31,398 @@
 #include "anbui/anbui.h"
 
 #include "install_msg.inc"
-
-typedef enum {
-    INSTALL_OSROOT_VARIANT_SELECT,
-    INSTALL_MAIN_MENU,
-    INSTALL_PARTITION_WIZARD,
-    INSTALL_SELECT_DESTINATION_PARTITION,
-    INSTALL_FORMAT_PARTITION_PROMPT,
-    INSTALL_MBR_ACTIVE_BOOT_PROMPT,
-    INSTALL_REGISTRY_VARIANT_PROMPT,
-    INSTALL_INTEGRATED_DRIVERS_PROMPT,
-    INSTALL_DO_INSTALL,
-} inst_InstallStep;
-
-
+#include "install_cfg.inc"
 
 // -sizeof(int) because the fileno is not part of the descriptor read from the mercypak file
 #define MERCYPAK_FILE_DESCRIPTOR_SIZE (sizeof(inst_MercyPakFileDescriptor) - sizeof(int))
 // -sizeof(uint32_t) because the filesize is not part of the descriptor read from the mercypak v2 file
 #define MERCYPAK_V2_FILE_DESCRIPTOR_SIZE ((MERCYPAK_FILE_DESCRIPTOR_SIZE) - sizeof(uint32_t))
-
 #define MERCYPAK_V2_MAX_IDENTICAL_FILES (16)
+#define MERCYPAK_STRING_MAX (256)
 
 #define MERCYPAK_V1_MAGIC "ZIEG"
 #define MERCYPAK_V2_MAGIC "MRCY"
 
-#define INST_CFDISK_CMD "cfdisk "
 
 #define INST_SYSROOT_FILE "FULL.866"
 #define INST_DRIVER_FILE  "DRIVER.866"
 #define INST_SLOWPNP_FILE "SLOWPNP.866"
 #define INST_FASTPNP_FILE "FASTPNP.866"
 
-typedef enum {
-    SETUP_ACTION_INSTALL = 0,
-    SETUP_ACTION_PARTITION_WIZARD,
-    SETUP_ACTION_EXIT_TO_SHELL,
-} inst_SetupAction;
+#define QI_VARIANT_NAME_SIZE (70)
 
-static inst_SetupAction inst_showMainMenu() {
-    ad_Menu *menu = ad_menuCreate("Windows 9x QuickInstall: Main Menu", "Where do you want to go today(tm)?", true);
-    QI_ASSERT(menu);
+typedef bool (*qi_OptionFunc)(size_t progressBarIndex);
 
-    ad_menuAddItemFormatted(menu, "[INSTALL] Install selected Operating System variant");
-    ad_menuAddItemFormatted(menu, " [CFDISK] Partition hard disks");
-    ad_menuAddItemFormatted(menu, "  [SHELL] Exit to minmal diagnostic Linux shell");
+// Structure depicting all the static state needed for the wizard / installers
+typedef struct {
+    bool disclaimerShown;
+    MappedFile *osRootFile;
+    uint64_t readahead;
+    ad_ProgressBox *progress;
+    util_HardDiskArray *hda;
+    util_Partition *destination;
+    size_t variantIndex;
+    char variantName[QI_VARIANT_NAME_SIZE];
+    bool error;
+    qi_OptionIdx errorIndex;
+    uint32_t preparationProgress;
+} qi_InstallContext;
 
-    int menuResult = ad_menuExecute(menu);
+static qi_InstallContext qi_wizData;
 
-    QI_ASSERT(menuResult != AD_ERROR);
 
-    if (menuResult == AD_CANCELED) /* Canceled = exit to shell for us */
-        menuResult = (int) SETUP_ACTION_EXIT_TO_SHELL;
-
-    ad_menuDestroy(menu);
-
-    return (inst_SetupAction) menuResult;
+/* Gets a MercyPak string (8 bit length + n chars) into dst. Must be a buffer of >= 256 bytes size. */
+static inline bool inst_getMercyPakString(MappedFile *file, char *dst) {
+    bool success;
+    uint8_t count;
+    success = mappedFile_getUInt8(file, &count);
+    success &= mappedFile_read(file, (uint8_t*) dst, (size_t) (count));
+    dst[(size_t) count] = 0x00;
+    return success;
 }
 
-/* 
-    Shows OS Variant select. This is a bit peculiar because the dialog is not shown if
-    there is only one OS variant choice. In that case it always returns "true".
-    Otherwise it can return "false" if the user selected BACK.
-*/
-static bool inst_showOSVariantSelect(size_t *variantIndex, size_t *variantCount) {
-    ad_Menu *menu = ad_menuCreate("Installation Variant", "Select the operating system variant you wish to install.", true);
-    int menuResult;
+// Creates all directory from an opened and header-parsed MercyPak file
+// destPath is a buffer to hold the destination path name
+// destPathAppend is a pointer to within that buffer where the mount point path stops and the target file name starts
+// The buffer size starting at the append pointer needs to be MERCYPAK_STRING_MAX + 1 bytes
+static bool qi_unpackCreateDirectories(MappedFile *file, uint32_t dirCount, char *destPath, char *destPathAppend) {
+    bool success = true;
+    for (uint32_t d = 0; d < dirCount; d++) {
+        uint8_t dirFlags;
+        success &= mappedFile_getUInt8(file, &dirFlags);
+        success &= inst_getMercyPakString(file, destPathAppend);
+        util_stringReplaceChar(destPathAppend, '\\', '/'); // DOS paths innit
+        success &= util_mkDir(destPath, dirFlags);
+    }
+    return success;
+}
 
-    QI_ASSERT(menu);
+// Unpacks all files from an opened and header-parsed MercyPak V1 file
+// destPath is a buffer to hold the destination path name
+// destPathAppend is a pointer to within that buffer where the mount point path stops and the target file name starts
+// The buffer size starting at the append pointer needs to be MERCYPAK_STRING_MAX + 1 bytes
+static bool qi_unpackExtractAllFilesV1(MappedFile *file, uint32_t fileCount, char *destPath, char *destPathAppend, size_t progressBarIndex) {
+    inst_MercyPakFileDescriptor fileToWrite;
+    bool success = true;
 
-    *variantCount = 0;
+    for (uint32_t f = 0; f < fileCount; f++) {
 
-    // Find and get available OS variants.
+        ad_progressBoxMultiUpdate(qi_wizData.progress, progressBarIndex, mappedFile_getPosition(file));
+
+        /* Mercypak file metadata (see mercypak.txt) */
+
+        success &= inst_getMercyPakString(file, destPathAppend);    // First, filename string
+        util_stringReplaceChar(destPathAppend, '\\', '/');          // DOS paths innit
+
+        success &= mappedFile_read(file, &fileToWrite, MERCYPAK_FILE_DESCRIPTOR_SIZE);
+
+        int outfd = open(destPath,  O_WRONLY | O_CREAT | O_TRUNC);
+        QI_ASSERT(outfd >= 0);
+
+        success &= mappedFile_copyToFiles(file, 1, &outfd, fileToWrite.fileSize);
+
+        success &= util_setDosFileTime(outfd, fileToWrite.fileDate, fileToWrite.fileTime);
+        success &= util_setDosFileAttributes(outfd, fileToWrite.fileFlags);
+
+        close(outfd);
+    }
+
+    return success;
+}
+
+// Unpacks all files from an opened and header-parsed MercyPak V2 file
+// destPath is a buffer to hold the destination path name
+// destPathAppend is a pointer to within that buffer where the mount point path stops and the target file name starts
+// The buffer size starting at the append pointer needs to be MERCYPAK_STRING_MAX + 1 bytes
+static bool qi_unpackExtractAllFilesV2(MappedFile *file, uint32_t fileCount, char *destPath, char *destPathAppend, size_t progressBarIndex) {
+    /* Handle mercypak v2 pack file with redundant files optimized out */
+
+    inst_MercyPakFileDescriptor    *filesToWrite            = calloc(MERCYPAK_V2_MAX_IDENTICAL_FILES, sizeof(inst_MercyPakFileDescriptor));
+    int                            *fileDescriptorsToWrite  = calloc(MERCYPAK_V2_MAX_IDENTICAL_FILES, sizeof(int));
+    uint8_t                         identicalFileCount      = 0;
+    bool                            success                 = true;
+
+    QI_FATAL(filesToWrite != NULL,              "Error allocating MercyPak V2 file headers.");
+    QI_FATAL(fileDescriptorsToWrite != NULL,    "Error allocating MercyPak V2 file descriptors.");
+
+    for (uint32_t f = 0; f < fileCount;) {
+        ad_progressBoxMultiUpdate(qi_wizData.progress, progressBarIndex, mappedFile_getPosition(file));
+
+        success &= mappedFile_getUInt8(file, &identicalFileCount);
+
+        QI_ASSERT(identicalFileCount <= MERCYPAK_V2_MAX_IDENTICAL_FILES);
+
+        // For every output file for this input file, open a write file descriptor
+        for (uint32_t subFile = 0; success && subFile < identicalFileCount; subFile++) {
+            success &= inst_getMercyPakString(file, destPathAppend);
+            util_stringReplaceChar(destPathAppend, '\\', '/');
+
+            fileDescriptorsToWrite[subFile] = open(destPath,  O_WRONLY | O_CREAT | O_TRUNC);
+
+            success &= (fileDescriptorsToWrite[subFile] > 0);
+            success &= mappedFile_read(file, &filesToWrite[subFile], MERCYPAK_V2_FILE_DESCRIPTOR_SIZE);
+        }
+
+        if (!success) break;
+        
+        uint32_t fileSize = 0;
+        success &= mappedFile_getUInt32(file, &fileSize);
+
+        success &= mappedFile_copyToFiles(file, identicalFileCount, fileDescriptorsToWrite, fileSize);
+
+        for (uint32_t subFile = 0; success && subFile < identicalFileCount; subFile++) {
+            success &= util_setDosFileTime(fileDescriptorsToWrite[subFile], filesToWrite[subFile].fileDate, filesToWrite[subFile].fileTime);
+            success &= util_setDosFileAttributes(fileDescriptorsToWrite[subFile], filesToWrite[subFile].fileFlags);
+            close(fileDescriptorsToWrite[subFile]);
+        }
+
+        f += identicalFileCount;
+    }
+
+    // Just in case
+    if (!success) {
+        for (uint32_t subFile = 0; subFile < MERCYPAK_V2_MAX_IDENTICAL_FILES; subFile++) {
+            close(fileDescriptorsToWrite[subFile]);
+        }
+    }
+
+    free(filesToWrite);
+    free(fileDescriptorsToWrite);
+    return success;
+}
+
+// Unpack an already opened Mercypak File. installPath = destination, progressBarIndex = progress bar in the main box to update
+static bool qi_unpackGeneric(MappedFile *file, const char *installPath, size_t progressBarIndex) {
+    char fileHeader[5] = {0};
+    char *destPath = calloc(1, strlen(installPath) + MERCYPAK_STRING_MAX + 1);   // Full path of destination dir/file, the +256 is because mercypak strings can only be 255 chars max
+    char *destPathAppend = destPath + strlen(installPath) + 1;  // Pointer to first char after the base install path in the destination path + 1 for the extra "/" we're gonna append
+
+    sprintf(destPath, "%s/", installPath);
+
+    bool success = true;
+    uint32_t dirCount;
+    uint32_t fileCount;
+
+    success &= mappedFile_read(file, (uint8_t*) fileHeader, 4);
+    success &= mappedFile_getUInt32(file, &dirCount);
+    success &= mappedFile_getUInt32(file, &fileCount);
+
+    if (!success) {
+        return false;
+    }
+
+    // Check if we're unpacking a V2 file, which does redundancy stuff.
+    bool isV1 = util_stringEquals(fileHeader, MERCYPAK_V1_MAGIC);
+    bool isV2 = util_stringEquals(fileHeader, MERCYPAK_V2_MAGIC);
+
+    QI_FATAL(isV1 || isV2, "MercyPak File Version Error");
+
+    // Create all the directories
+    if (!qi_unpackCreateDirectories(file, dirCount, destPath, destPathAppend)) {
+        msg_directoryWarning();
+    }
+
+    // Unpack all the files
+    ad_progressBoxSetMaxProgress(qi_wizData.progress, progressBarIndex, mappedFile_getFileSize(file));
+
+    if (isV2) {
+        success = qi_unpackExtractAllFilesV2(file, fileCount, destPath, destPathAppend, progressBarIndex);
+    } else {
+        success = qi_unpackExtractAllFilesV1(file, fileCount, destPath, destPathAppend, progressBarIndex);
+    }
+
+    ad_progressBoxMultiUpdate(qi_wizData.progress, progressBarIndex, mappedFile_getPosition(file));
+
+    free(destPath);
+    return success;
+}
+
+// Copy all files from sourceBase to targetBase.
+// fileCount is updated for every file copied
+// progressBarIndex = progress bar in the main box to update
+static bool qi_copyAllFilesInDirectoryRecursive(const char *sourceBase, const char *targetBase, uint32_t *fileCount, size_t progressBarIndex) {
+    struct dirent *e;
+    DIR *d = opendir(sourceBase);
+    util_returnOnNull(d, false);
+
+    bool success = true;
+
+    if (!util_fileExists(targetBase)) {
+        success &= util_mkDir(targetBase, 0);        
+    }
+
+    while (success && (e = readdir(d))) {
+        if (util_stringEquals(e->d_name, ".") || util_stringEquals(e->d_name, ".."))
+            continue;
+
+        char *newSource = util_pathAppend(sourceBase, e->d_name);
+        char *newTarget = util_pathAppend(targetBase, e->d_name);       
+
+        QI_FATAL(newSource != NULL && newTarget != NULL, "Failed to allocate path string");
+
+        if (util_isFile(newSource)) {
+            success &= util_fileCopy(newSource, newTarget);
+            *fileCount += 1;
+            ad_progressBoxMultiUpdate(qi_wizData.progress, progressBarIndex, *fileCount);
+        } else if (util_isDir(newSource)) {
+            qi_copyAllFilesInDirectoryRecursive(newSource, newTarget, fileCount, progressBarIndex);
+        }
+
+        free(newSource);
+        free(newTarget);
+    }
+
+    closedir(d);
+    return success;
+}
+
+// Copies a file tree from <source media>/source to <destination partition>/subdir, updating progress bar in the process
+static bool qi_copyFileTree(const char *source, const char *subdir, size_t progressBarIndex) {
+    const char *sourceBase = inst_getSourceFilePath(0, source);
+    const char *targetBase = inst_getTargetFilePath(qi_wizData.destination, subdir);
+    
+    ad_progressBoxSetMaxProgress(qi_wizData.progress, progressBarIndex, util_getFileCountRecursive(sourceBase));
+
+    uint32_t fileCount = 0;
+    return qi_copyAllFilesInDirectoryRecursive(sourceBase, targetBase, &fileCount, progressBarIndex);
+}
+
+MappedFile_ErrorReaction qi_readErrorHandler(int _errno, MappedFile *mf) {
+    const char *errorMenuOptions[] = { "Retry", "Cancel" };
+    
+    ad_screenSaveState();
+    ad_restore();
+
+    int32_t whatToDo = ad_menuExecuteDirectly("Read error!", false, 2, errorMenuOptions,
+        "An error has occured while reading the install data!\n\n"
+        "Position: %zu Bytes\n"
+        "Error:    %s (%d)", mappedFile_getPosition(mf), strerror(_errno), _errno);
+    
+    ad_screenLoadState();
+
+    return whatToDo == 0 ? MF_RETRY : MF_CANCEL;
+}
+
+// Refreshes the internal hard diisk array.
+static bool qi_refreshDisks() {
+    ad_setFooterText("Obtaining System Hard Disk Information...");
+    if (qi_wizData.hda != NULL) {
+        util_hardDiskArrayDestroy(qi_wizData.hda);
+    }
+    qi_wizData.hda = util_getSystemHardDisks();
+    qi_wizData.destination = NULL;
+    ad_clearFooter();
+    return qi_wizData.hda != NULL;
+}
+
+// Does a cleanup of all dynamic resources in the install context
+static void qi_cleanup() {
+    // If OSRoot file is open, close it first.
+    if (qi_wizData.osRootFile != NULL) {
+        mappedFile_close(qi_wizData.osRootFile);
+        qi_wizData.osRootFile = NULL;
+    }
+
+    // if we have a destination partition, make sure it is unmounted.
+    if (qi_wizData.destination != NULL) {
+        util_unmountPartition(qi_wizData.destination);
+        qi_wizData.destination = NULL;
+    }
+
+    if (qi_wizData.hda != NULL) {
+        util_hardDiskArrayDestroy(qi_wizData.hda);
+        qi_wizData.destination = NULL;
+        qi_wizData.hda = NULL;
+    }
+
+    if (qi_wizData.progress != NULL) {
+        ad_progressBoxDestroy(qi_wizData.progress);
+        qi_wizData.progress = NULL;
+    }
+
+    qi_wizData.error = false;
+    qi_wizData.preparationProgress = 0;
+}
+
+static qi_WizardAction qi_variantSelectAndStartPrebuffering() {
+    size_t variantCount = 0;
+
+    ad_Menu *menu = ad_menuCreate("Installation Variant", "Select the operating system variant you wish to install.", false);
+    QI_ASSERT(menu != NULL);
 
     while (true) {
+        // Find and get all available OS variants on this source disc
         char tmpVariantLabel[128];
-        const char *tmpInfPath = inst_getSourceFilePath((*variantCount) + 1, "win98qi.inf");
+        const char *tmpInfPath = inst_getSourceFilePath(variantCount + 1, "win98qi.inf");
 
-        if (!util_fileExists(tmpInfPath)) {
-            break;
-        }
+        if (!util_fileExists(tmpInfPath)) break;
 
-        if (!util_readFirstLineFromFileIntoBuffer(tmpInfPath, tmpVariantLabel, sizeof(tmpVariantLabel))) {
-            ad_okBox("Error", false, "Error while reading file\n'%s'", tmpInfPath);
-            break;
-        }
+        bool infFileReadOK = util_readFirstLineFromFileIntoBuffer(tmpInfPath, tmpVariantLabel, sizeof(tmpVariantLabel));
+        QI_FATAL(infFileReadOK, "Cannot get OS data from source.");
 
-        ad_menuAddItemFormatted(menu, "%zu: %s", (*variantCount) + 1, tmpVariantLabel);
+        ad_menuAddItemFormatted(menu, "%zu: %s", variantCount + 1, tmpVariantLabel);
 
-        *variantCount += 1;
+        variantCount++;
     }
 
-    if (*variantCount > 1) {
+    QI_FATAL(variantCount != 0, "No OS variants found on this install source.");
+
+    // Don't have to show a menu if we have no choice to do innit.
+    int menuResult = 0;
+
+    if (variantCount > 1) {
         menuResult = ad_menuExecute(menu);
-    } else {
-        // Don't have to show a menu if we have no choice to do innit.
-        menuResult = 0;
     }
 
+    ad_menuGetItemText(menu, (size_t) menuResult, qi_wizData.variantName, QI_VARIANT_NAME_SIZE);
+
+    ad_menuDestroy(menu);
+
+    qi_wizData.readahead = util_getProcSafeFreeMemory() * 6 / 10;
+    qi_wizData.variantIndex = (size_t) menuResult + 1;
+    qi_wizData.osRootFile = inst_openSourceFile(qi_wizData.variantIndex, INST_SYSROOT_FILE, qi_wizData.readahead);
+
+    QI_FATAL(qi_wizData.osRootFile != NULL, "Could not open OS data file for reading");
+
+    return WIZ_NEXT;
+}
+
+static qi_WizardAction qi_mainMenu() {
+    if (!qi_wizData.disclaimerShown) {
+        msg_disclaimer();
+        qi_wizData.disclaimerShown = true;
+    }
+
+    ad_Menu *menu = ad_menuCreate("Windows 9x QuickInstall: Main Menu", "Where do you want to go today(tm)?", true);
+    QI_ASSERT(menu);
+    ad_menuAddItemFormatted(menu, "[INSTALL] Install selected Operating System variant");
+    ad_menuAddItemFormatted(menu, " [CFDISK] Partition hard disks");
+    ad_menuAddItemFormatted(menu, "     [OS] Change Operating System variant");
+    ad_menuAddItemFormatted(menu, "  [SHELL] Exit to minmal diagnostic Linux shell");
+    int menuResult = ad_menuExecute(menu);
     ad_menuDestroy(menu);
 
     QI_ASSERT(menuResult != AD_ERROR);
 
-    if (menuResult == AD_CANCELED) {
-        // BACK was pressed.
-        return false;
-    } else {
-        *variantIndex = (size_t) menuResult + 1; // Just in case the directory listing is out of order for some reason...
-        return true;   
-    }    
-}
-
-/* On invalid/unsupported partition table, ask user if he wants to wipe it */
-static void inst_invalidPartTableAskUserAndWipe(util_HardDisk *hdd) {
-    if (msg_askNonMbrWarningWipeMBR(hdd)) {
-        if (!util_wipePartitionTable(hdd)) {
-            // No return value here since we can't do much and we'll launch cfdisk anyway
-            msg_wipeMbrFailed();
-        }
+    switch (menuResult) {
+        case 0:             return WIZ_SELECT_PARTITION;
+        case 1:             return WIZ_PARTITION;
+        case 2:             return WIZ_REDO_FROM_START;
+        case 3:             return WIZ_EXIT_TO_SHELL;
+        case AD_CANCELED:   return WIZ_REDO_FROM_START;
+        default:            QI_FATAL(false, "Inconsistent menu state");
+                            return WIZ_REDO_FROM_START;
     }
 }
 
-/* Show partition wizard, returns true if user finished or false if he selected BACK. */
-static void inst_showPartitionWizard(util_HardDiskArray **hddsPtr) {
-    char cfdiskCmd[UTIL_MAX_CMD_LENGTH];
+static qi_WizardAction qi_partitionSelect(void) {
     int menuResult;
 
-    while (1) {
-        ad_Menu *menu = ad_menuCreate("Partition Wizard", 
-            "Select the Hard Disk you wish to partition.\n"
-            "An asterisk (*) means that this is the source media and\n"
-            "cannot be altered.\n"
-            "A question mark <?> means that this drive does not have a\n"
-            "valid/known partition table type.", true);
+    QI_FATAL(qi_refreshDisks(), "Cannot get hard disk information");
 
-        QI_ASSERT(menu);
-
-        // At the beginning of every loop of the wizard, we need to refresh our disk list
-        // and update the pointer of the caller
-        util_hardDiskArrayDestroy(*hddsPtr);
-        *hddsPtr = inst_getSystemHardDisks();
-        QI_ASSERT(*hddsPtr != NULL);
-
-        util_HardDiskArray *hdds = *hddsPtr;
-
-        if (hdds->count == 0) {
-            msg_noHardDisksFoundError();
-            return;
-        }
-
-        for (size_t i = 0; i < hdds->count; i++) {
-            bool hasPartitionTableType = (strlen(hdds->disks[i].tableType) > 0);
-            ad_menuAddItemFormatted(menu, "%s [%s] (%llu MB) %s %s",
-                hdds->disks[i].device,
-                hdds->disks[i].model,
-                hdds->disks[i].size / 1024ULL / 1024ULL,
-                hasPartitionTableType ? hdds->disks[i].tableType : "<?>",
-                inst_isInstallationSourceDisk(&hdds->disks[i]) ? "(*)" : ""
-                );
-        }
-        
-        ad_menuAddItemFormatted(menu, "%s", "[FINISHED]");
-
-        menuResult = ad_menuExecute(menu);
-
-        ad_menuDestroy(menu);
-
-        QI_ASSERT(menuResult != AD_ERROR);
-
-        if (menuResult == AD_CANCELED) // BACK was pressed.
-            return;
-        
-        if (menuResult == (int) hdds->count)
-            return;
-        
-        // Check if we're trying to partition the install source disk. If so, warn user and continue looping.
-        if (inst_isInstallationSourceDisk(&hdds->disks[menuResult])) {
-            msg_installationSourceDiskError();
-            continue;
-        }
-
-        if (!util_stringEquals(hdds->disks[menuResult].tableType, "dos")) {
-            inst_invalidPartTableAskUserAndWipe(&hdds->disks[menuResult]);
-        }
-
-        // Invoke cfdisk command for chosen drive.
-        snprintf(cfdiskCmd, UTIL_MAX_CMD_LENGTH, "%s%s", INST_CFDISK_CMD, hdds->disks[menuResult].device);      
-        system(cfdiskCmd);
-
-        ad_restore();
-        msg_reminderToFormatNewPartition();
-    }
-}
-
-/* Shows partition selector. Returns pointer to the selected partition. A return value of NULL means the user wants to go back. */
-static util_Partition *inst_showPartitionSelector(util_HardDiskArray *hdds) {
-    int menuResult;
-    util_Partition *result = NULL;
-
-    QI_ASSERT(hdds);
-
-    if (hdds->count == 0) {
+    if (qi_wizData.hda->count == 0) {
         msg_noHardDisksFoundError();
-        return NULL;
+        return WIZ_MAIN_MENU;
     }
 
     while (1) {
@@ -244,8 +433,8 @@ static util_Partition *inst_showPartitionSelector(util_HardDiskArray *hdds) {
 
         QI_ASSERT(menu);
 
-        for (size_t disk = 0; disk < hdds->count; disk++) {
-            util_HardDisk *harddisk = &hdds->disks[disk];
+        for (size_t disk = 0; disk < qi_wizData.hda->count; disk++) {
+            util_HardDisk *harddisk = &qi_wizData.hda->disks[disk];
 
             for (size_t part = 0; part < harddisk->partitionCount; part++) {
                 util_Partition *partition = &harddisk->partitions[part];
@@ -263,229 +452,466 @@ static util_Partition *inst_showPartitionSelector(util_HardDiskArray *hdds) {
 
         if (ad_menuGetItemCount(menu) == 0) {
             ad_menuDestroy(menu);
-            ad_okBox("Error", false, "No partitions were found! Partition your disk and try again!");
-            return NULL;
+            ad_okBox("Error", false, "No partitions were found! Partition a disk and try again!");
+            return WIZ_BACK;
         }
 
         menuResult = ad_menuExecute(menu);
         ad_menuDestroy(menu);
         
-        if (menuResult < 0) { // User wants to go back
-            return NULL;
+        if (menuResult == AD_CANCELED) {
+            return WIZ_MAIN_MENU;
         }
 
-        result = util_getPartitionFromIndex(hdds, menuResult);
-        QI_ASSERT(result);
+        util_Partition *partition = util_getPartitionFromIndex(qi_wizData.hda, menuResult);
+        QI_ASSERT(partition);
 
         // Is this the installation source? If yes, show menu again.
-        if (inst_isInstallationSourcePartition(result)) {
+        if (inst_isInstallationSourcePartition(partition)) {
             msg_sourcePartitionError();
             continue;
         }
-        
-        if (result->fileSystem == fs_unsupported || result->fileSystem == fs_none) {
+
+        if (!util_stringEquals(partition->parent->tableType, "dos")) {
+            msg_destinationInvalidPartitionTable();
+            continue;
+        }
+
+        if (partition->fileSystem == fs_unsupported || partition->fileSystem == fs_none) {
             msg_unsupportedFileSystemError();
             continue;
         }
 
-        return result;
+        if (util_isPartitionMounted(partition)) {
+            if (!msg_askUnmountBeforeInstall(partition)) {
+                // Partition is mounted but user does not wish to unmount -- continue looping
+                continue;
+            }
+
+            util_unmountPartition(partition);
+        }
+
+        qi_wizData.destination = partition;
+        return WIZ_NEXT;
     }
 }
 
-/* Gets a MercyPak string (8 bit length + n chars) into dst. Must be a buffer of >= 256 bytes size. */
-static inline bool inst_getMercyPakString(MappedFile *file, char *dst) {
-    bool success;
-    uint8_t count;
-    success = mappedFile_getUInt8(file, &count);
-    success &= mappedFile_read(file, (uint8_t*) dst, (size_t) (count));
-    dst[(size_t) count] = 0x00;
+/* On invalid/unsupported partition table, ask user if he wants to wipe it */
+static void qi_invalidPartTableAskUserAndWipe(util_HardDisk *hdd) {
+    if (msg_askNonMbrWarningWipeMBR(hdd)) {
+        if (!util_wipePartitionTable(hdd)) {
+            // No return value here since we can't do much and we'll launch cfdisk anyway
+            msg_wipeMbrFailed();
+        }
+    }
+}
+
+static qi_WizardAction qi_partitioning(void) {
+    char cfdiskCmd[UTIL_MAX_CMD_LENGTH];
+
+    while (1) {
+        // At the beginning of every loop of the wizard, we need to refresh our disk list
+        // and update the pointer of the caller
+        if (!qi_refreshDisks()) {
+            msg_refreshDiskError();
+            return WIZ_MAIN_MENU;
+        } else if (qi_wizData.hda->count == 0) {
+            msg_noHardDisksFoundError();
+            return WIZ_MAIN_MENU;
+        }
+
+        ad_Menu *menu = ad_menuCreate("Partition Wizard", 
+            "Select the Hard Disk you wish to partition.\n"
+            "An asterisk (*) means that this is the source media and\n"
+            "cannot be altered.\n"
+            "A question mark <?> means that this drive does not have a\n"
+            "valid/known partition table type.", true);
+
+        QI_ASSERT(menu);
+
+        for (size_t i = 0; i < qi_wizData.hda->count; i++) {
+            util_HardDisk *disk = &qi_wizData.hda->disks[i];
+            bool hasPartitionTableType = (strlen(disk->tableType) > 0);
+            ad_menuAddItemFormatted(menu, "%s [%s] (%llu MB) %s %s",
+                disk->device,
+                disk->model,
+                disk->size / 1024ULL / 1024ULL,
+                hasPartitionTableType ? disk->tableType : "<?>",
+                inst_isInstallationSourceDisk(disk) ? "(*)" : ""
+                );
+        }
+        
+        ad_menuAddItemFormatted(menu, "[Back]");
+        int menuResult = ad_menuExecute(menu);
+        ad_menuDestroy(menu);
+
+        // Back / ESC pressed?
+        if (menuResult == AD_CANCELED || menuResult == (int) qi_wizData.hda->count) {
+            break;
+        }
+        
+        util_HardDisk *selectedDisk = &qi_wizData.hda->disks[menuResult];
+            
+        // Check if we're trying to partition the install source disk. If so, warn user and continue looping.
+        if (inst_isInstallationSourceDisk(selectedDisk)) {
+            msg_installationSourceDiskError();
+            continue;
+        }
+
+        if (!util_stringEquals(selectedDisk->tableType, "dos")) {
+            qi_invalidPartTableAskUserAndWipe(selectedDisk);
+        }
+
+        // Invoke cfdisk command for chosen drive.
+        snprintf(cfdiskCmd, UTIL_MAX_CMD_LENGTH, "cfdisk %s", selectedDisk->device);
+
+        system(cfdiskCmd);
+
+        ad_restore();
+    }
+
+    msg_reminderToFormatNewPartition();
+    return WIZ_MAIN_MENU;
+}
+
+qi_Option *qi_configGetItemByOptionIdx(qi_OptionIdx index) {
+    for (size_t i = 0; i < QI_OPTION_ARRAY_SIZE; i++) {
+        if (qi_options[i].idx == index)
+            return &qi_options[i];
+    }
+    QI_FATAL(false, "Internal configuration state invalid.");
+    return NULL;
+}
+
+static size_t qi_configGet(qi_OptionIdx index) {
+    qi_Option *cfg = qi_configGetItemByOptionIdx(index);
+    return cfg->selected;
+}
+
+static void qi_configSet(qi_OptionIdx index, size_t value) {
+    qi_Option *cfg = qi_configGetItemByOptionIdx(index);
+    cfg->selected = value;
+}
+
+static size_t qi_configGetProgressBarIndex(qi_OptionIdx index) {
+    qi_Option *cfg = qi_configGetItemByOptionIdx(index);
+    return cfg->progressBarIdx;
+}
+
+static void qi_configSetProgressBarIndex(qi_OptionIdx index, size_t value) {
+    qi_Option *cfg = qi_configGetItemByOptionIdx(index);
+    QI_FATAL(cfg != NULL, "Internal configuration state invalid.");
+    cfg->progressBarIdx = value;
+}
+
+static size_t qi_configGetPreparationStepCount() {
+    size_t result = 0;
+    for (size_t i = 0; i < QI_OPTION_ARRAY_SIZE; i++) {
+        if (qi_options[i].partOfPreparation && qi_options[i].selected == QI_OPTION_YES) {
+            result++;
+        }
+    }
+    return result;
+}
+
+static const char *qi_configGetLabel(qi_OptionIdx index) {
+    qi_Option *cfg = qi_configGetItemByOptionIdx(index);
+    return cfg->prompt;
+}
+
+static qi_WizardAction qi_config(void) {
+    ad_MultiSelector *menu = ad_multiSelectorCreate("Configuration", 
+        "Please configure your installation:", true);
+
+    QI_ASSERT(menu);
+
+    // Make a menu selector entry for every configurable detail
+    for (qi_OptionIdx i = 0; i < QI_OPTIONIDX_MAX; i++) {
+        qi_Option *cfg = qi_configGetItemByOptionIdx(i);
+        QI_FATAL(cfg != NULL, "Internal configuration state invalid.");
+        ad_multiSelectorAddItem(menu, cfg->prompt, cfg->optionCount, cfg->selected, cfg->optionStrings);
+    }
+    int menuResult = ad_multiSelectorExecute(menu);
+
+    // Read the configuration back from the MultiSelctor TUI object and store the results in our options array.
+    for (qi_OptionIdx i = 0; i < QI_OPTIONIDX_MAX; i++) {
+        size_t value = ad_multiSelectorGet(menu, (size_t) i);
+        qi_configSet(i, value);
+    }
+
+    ad_multiSelectorDestroy(menu);
+
+    if (menuResult == AD_CANCELED) {
+        return WIZ_BACK;
+    }
+
+    if (QI_OPTION_YES == qi_configGet(o_uefi)) {
+        msg_uefiInfoBox();
+    }
+
+    if (QI_OPTION_YES == qi_configGet(o_cregfix)) {
+        msg_cregfixInfoBox();
+    }
+ 
+    return WIZ_NEXT;
+}
+
+static void qi_installAddToProgressBoxIfEnabled(size_t *pbIndex, qi_OptionIdx optionIndex, const char *label) {
+    if (QI_OPTION_YES == qi_configGet(optionIndex)) {
+        ad_progressBoxAddItem(qi_wizData.progress, label, 0);
+        qi_configSetProgressBarIndex(optionIndex, *pbIndex);
+        (*pbIndex)++;
+    }
+}
+
+static bool qi_installWriteMbrSetActive(size_t progressBarIndex) {
+    bool success = util_writeMBRToDrive(qi_wizData.destination->parent, __MBR_WIN98__)
+                && util_setPartitionActive(qi_wizData.destination);
+    ad_progressBoxMultiUpdate(qi_wizData.progress, progressBarIndex, ++qi_wizData.preparationProgress);
     return success;
 }
 
-static bool inst_copyFiles(MappedFile *file, const char *installPath, const char *filePromptString) {
-    char fileHeader[5] = {0};
-    char *destPath = malloc(strlen(installPath) + 256 + 1);   // Full path of destination dir/file, the +256 is because mercypak strings can only be 255 chars max
-    char *destPathAppend = destPath + strlen(installPath) + 1;  // Pointer to first char after the base install path in the destination path + 1 for the extra "/" we're gonna append
-    bool mercypakV2 = false;
+static bool qi_installWriteBootSector(size_t progressBarIndex) {
+    const util_BootSectorModifier *bsModifierList = NULL;
 
-    sprintf(destPath, "%s/", installPath);
+    if (qi_wizData.destination->fileSystem == fs_fat16) {
+        bsModifierList = __WIN98_FAT16_BOOT_SECTOR_MODIFIERS__;
+    } else if (qi_wizData.destination->fileSystem == fs_fat32) {
+        bsModifierList = __WIN98_FAT32_BOOT_SECTOR_MODIFIERS__;
+    }
 
-    uint32_t dirCount;
-    uint32_t fileCount;
+    bool success = util_modifyAndwriteBootSectorToPartition(qi_wizData.destination, bsModifierList);
+
+    ad_progressBoxMultiUpdate(qi_wizData.progress, progressBarIndex, ++qi_wizData.preparationProgress);
+    return success;
+}
+
+static bool qi_installFormat(size_t progressBarIndex) {
+    char formatCmd[UTIL_MAX_CMD_LENGTH];
+    bool ret = util_getFormatCommand(qi_wizData.destination, qi_wizData.destination->fileSystem, formatCmd, UTIL_MAX_CMD_LENGTH);
+    QI_ASSERT(ret && "GetFormatCommand");
+
+    util_CommandOutput *cmd = util_commandOutputCapture(formatCmd);
+    QI_FATAL(cmd, "Failed to obtain format command output");
+    int result = cmd->returnCode;
+    if (result != 0) {
+        msg_formatFailed(qi_wizData.destination);
+    }
+    util_commandOutputDestroy(cmd);
+    ad_progressBoxMultiUpdate(qi_wizData.progress, progressBarIndex, ++qi_wizData.preparationProgress);
+    return result == 0;
+}
+
+static bool qi_installMountPartition(size_t progressBarIndex) {
+    bool success = util_mountPartition(qi_wizData.destination);
+    ad_progressBoxMultiUpdate(qi_wizData.progress, progressBarIndex, ++qi_wizData.preparationProgress);
+    return success;
+}
+
+static bool qi_installUefi(size_t progressBarIndex) {
     bool success = true;
 
-    success &= mappedFile_read(file, (uint8_t*) fileHeader, 4);
-    QI_ASSERT(success && "fileHeader");
-    success &= mappedFile_getUInt32(file, &dirCount);
-    QI_ASSERT(success && "dirCount");
-    success &= mappedFile_getUInt32(file, &fileCount);
-    QI_ASSERT(success && "fileCount");
+    success &= util_mkDir(inst_getTargetFilePath(qi_wizData.destination, "EFI/BOOT"), 0);
+    success &= util_fileCopy(inst_getSourceFilePath(0, "csmwrap.efi"), inst_getTargetFilePath(qi_wizData.destination, "EFI/BOOT/BOOTIA32.EFI"));
 
-    /* printf("File header: %s, dirs %d files: %d\n", fileHeader, (int) dirCount, (int) fileCount); */
+    ad_progressBoxMultiUpdate(qi_wizData.progress, progressBarIndex, ++qi_wizData.preparationProgress);
+    return success;
+}
 
-    /* Check if we're unpacking a V2 file, which does redundancy stuff. */
+static bool qi_installUnpackGeneric(size_t progressBarIndex, const char *fileName) {
+    MappedFile *file = mappedFile_open(inst_getSourceFilePath(qi_wizData.variantIndex, fileName),
+         qi_wizData.readahead, qi_readErrorHandler);
 
-    if (util_stringEquals(fileHeader, MERCYPAK_V1_MAGIC)) {
-        mercypakV2 = false;
-    } else if (util_stringEquals(fileHeader, MERCYPAK_V2_MAGIC)) {
-        mercypakV2 = true;
-    } else {
-        QI_ASSERT(false && "File header wrong");
-        free(destPath);
+    QI_FATAL (file != NULL, "Failed to open MappedFile for opening");
+    
+    bool success = qi_unpackGeneric(file, qi_wizData.destination->mountPath, progressBarIndex);
+    mappedFile_close(file);
+    return success;
+}
+
+static bool qi_installDriversBase(size_t progressBarIndex) {
+    return qi_installUnpackGeneric(progressBarIndex, INST_DRIVER_FILE);
+}
+
+static bool qi_installRegistry(size_t progressBarIndex) {
+    bool skipLegacy = (QI_OPTION_YES == qi_configGet(o_skipLegacyDetection));
+    const char *filename = skipLegacy ? INST_FASTPNP_FILE : INST_SLOWPNP_FILE;
+    return qi_installUnpackGeneric(progressBarIndex, filename);
+}
+
+static bool qi_installCopyOSRoot(size_t progressBarIndex) {
+    bool success = qi_unpackGeneric(qi_wizData.osRootFile, qi_wizData.destination->mountPath, progressBarIndex);
+    mappedFile_close(qi_wizData.osRootFile);
+    qi_wizData.osRootFile = NULL;
+    return success;
+}
+
+static bool qi_installDriversExtra(size_t progressBarIndex) {
+    return qi_copyFileTree("driver.ex", "driver.ex", progressBarIndex);
+}
+
+static bool qi_installCopyExtras(size_t progressBarIndex) {
+    return qi_copyFileTree("extras", "extras", progressBarIndex);
+}
+
+static void qi_installExecuteIfEnabled(qi_OptionIdx index, qi_OptionFunc func, const char *footerText) {
+    if (QI_OPTION_NO == qi_configGet(index) || qi_wizData.error) {
+        return;
+    }
+
+    ad_setFooterText(footerText);
+    if (!func(qi_configGetProgressBarIndex(index))) {
+        qi_wizData.error = true;
+        qi_wizData.errorIndex = index;
+    }
+    ad_clearFooter();
+
+    getchar();
+}
+
+static qi_WizardAction qi_install(void) {
+    // Small hack to detect inconsistency in confiiguration for CREGFIX
+    if (QI_OPTION_YES == qi_configGet(o_cregfix) && QI_OPTION_NO == qi_configGet(o_bootSector)) {
+        // CREGFIX + no boot sector update = impossible condition, ask to go back
+        if (msg_askGoBackOnCregfixWithoutBootsector()) {
+            return WIZ_BACK;
+        }
+    }
+ 
+
+    // Make the progress bars
+    qi_wizData.progress = ad_progressBoxMultiCreate("Installing...",
+        "Please wait while your OS is being installed:\n",
+        "%s", qi_wizData.variantName);
+
+    QI_FATAL(qi_wizData.progress != NULL, "Cannot allocate progress box UI");
+
+    ad_progressBoxAddItem(qi_wizData.progress, "Disk & Patch Preparation",      0);     // ProgressBar index = 0
+    ad_progressBoxAddItem(qi_wizData.progress, "Copy files (Operating System)", 0);     // ProgressBar index = 1
+    ad_progressBoxAddItem(qi_wizData.progress, "Copy files (System Registry)",  0);     // ProgressBar index = 2
+
+    size_t progressBarIndex = 3;
+    
+    qi_installAddToProgressBoxIfEnabled(&progressBarIndex, o_installDriversBase,        "Copy Files (Base Drivers)");
+    qi_installAddToProgressBoxIfEnabled(&progressBarIndex, o_installDriversExtra,       "Copy Files (Extended Drivers)");
+    qi_installAddToProgressBoxIfEnabled(&progressBarIndex, o_copyExtras,                "Copy Files (Extras & Tools)");
+
+    ad_progressBoxPaint(qi_wizData.progress);
+
+    // The topmost progress bar must be updated with the maximum value, which is the amount of steps in the preparation
+    ad_progressBoxSetMaxProgress(qi_wizData.progress, 0, qi_configGetPreparationStepCount());
+
+    // Execute preparation steps
+    qi_wizData.preparationProgress = 0;
+    qi_installExecuteIfEnabled(o_writeMBRAndSetActive,  qi_installWriteMbrSetActive,    "Writing MBR & Setting Partition Active");
+    qi_installExecuteIfEnabled(o_bootSector,            qi_installWriteBootSector,      "Writing Boot Sector");
+    qi_installExecuteIfEnabled(o_formatTargetPartition, qi_installFormat,               "Formatting Target Partition");
+    qi_installExecuteIfEnabled(o_mount,                 qi_installMountPartition,       "Mounting Target Partition");
+    qi_installExecuteIfEnabled(o_uefi,                  qi_installUefi,                 "Installing UEFI support");
+
+    // Execute file copies
+    qi_installExecuteIfEnabled(o_baseOS,                qi_installCopyOSRoot,           "Copying operating system files...");
+    qi_installExecuteIfEnabled(o_registry,              qi_installRegistry,             "Copying system registry...");
+    qi_installExecuteIfEnabled(o_installDriversBase,    qi_installDriversBase,          "Copying base driver library files...");
+    qi_installExecuteIfEnabled(o_installDriversExtra,   qi_installDriversExtra,         "Copying extended driver library files...");
+    qi_installExecuteIfEnabled(o_copyExtras,            qi_installCopyExtras,           "Copying extras folder (tools, drivers, updates)...");
+
+    ad_progressBoxDestroy(qi_wizData.progress);
+    qi_wizData.progress = NULL;
+
+    // Any failing module here will cause the installation to be canceled completely, regardless of state. 
+    if (qi_wizData.error) {
+        msg_installError(qi_configGetLabel(qi_wizData.errorIndex));
+        return WIZ_REDO_FROM_START;
+    }
+
+    return WIZ_NEXT;
+}
+
+static qi_WizardAction qi_thisIsTheEnd() {
+    const char *postInstallOptions[] = { "Reboot", "Return to Main Menu", "Exit to Linux Shell" };
+
+    int selection = ad_menuExecuteDirectly("Windows 9x QuickInstall: Success",  false,
+        3, postInstallOptions,
+        "The installation was successful!\n"
+        "What would you like to do now?");
+
+    switch (selection) {
+        case 0: return WIZ_REBOOT;
+        case 1: return WIZ_REDO_FROM_START; // Can't just do main menu here because we need to cleanup.
+        case 2: return WIZ_EXIT_TO_SHELL;
+        default: QI_FATAL(false, "Bad menu state");
+                 return WIZ_EXIT_TO_SHELL;
+    }
+}
+
+static void qi_exit(bool doReboot) {
+    qi_cleanup();
+    sync();
+    system("clear");
+    ad_deinit();
+    if (doReboot) {
+        reboot(RB_AUTOBOOT);
+    }
+}
+bool qi_wizard() {
+    qi_WizardAction state = WIZ_VARIANT_SELECT;
+    qi_WizardAction result = WIZ_NEXT;
+
+    while (true) {
+        switch (state) {
+            case WIZ_VARIANT_SELECT:
+                result = qi_variantSelectAndStartPrebuffering(); break;
+            case WIZ_MAIN_MENU:
+                result = qi_mainMenu(); break;
+            case WIZ_SELECT_PARTITION:
+                result = qi_partitionSelect(); break;
+            case WIZ_CONFIGURE:
+                result = qi_config(); break;
+            case WIZ_DO_INSTALL:
+                result = qi_install(); break;
+            case WIZ_PARTITION:
+                result = qi_partitioning(); break;
+            case WIZ_THE_END:
+                result = qi_thisIsTheEnd(); break;
+            case WIZ_REDO_FROM_START:
+                qi_cleanup();
+                result = WIZ_VARIANT_SELECT;
+                break;
+            case WIZ_REBOOT:
+                qi_exit(true);
+                QI_FATAL(false, "Failed to initiate reboot!");
+                break;
+            case WIZ_EXIT_TO_SHELL:
+                return true;
+            case WIZ_EXIT_ERROR:
+                return false;
+            default:
+                QI_FATAL(false, "Inconsistent wizard state!");
+        }
+        
+
+        switch (result) {
+            case WIZ_BACK:  state--; break;
+            case WIZ_NEXT:  state++; break;
+            default:        state = result;
+        }
+    }
+}
+
+
+bool qi_main(int argc, char *argv[]) {
+    ad_init(LUNMERCY_BACKTITLE);
+    setlocale(LC_ALL, "CP437");
+    // VGA BIOS pattern small square
+    ad_progressBoxSetCharAndColor((char) 0xFE, COLOR_WHITE, COLOR_BLACK, COLOR_WHITE, COLOR_GREEN);
+    
+    // Installer must run as root
+    if (!util_runningAsRoot()) {
+        msg_notRunningAsRootError();
+        ad_deinit();
         return false;
     }
-
-    ad_ProgressBox *pbox = ad_progressBoxCreate("Windows 9x QuickInstall", dirCount, "Creating Directories (%s)...", filePromptString);
-
-    QI_ASSERT(pbox);
-
-    for (uint32_t d = 0; d < dirCount; d++) {
-        uint8_t dirFlags;
-
-        ad_progressBoxUpdate(pbox, d);
-
-        success &= mappedFile_getUInt8(file, &dirFlags);
-        success &= inst_getMercyPakString(file, destPathAppend);
-        util_stringReplaceChar(destPathAppend, '\\', '/'); // DOS paths innit
-        success &= (mkdir(destPath, dirFlags) == 0 || (errno == EEXIST));    // An error value is ok if the directory already exists. It means we can write to it. IT'S FINE.
-    }
-
-    ad_progressBoxDestroy(pbox);
-
-    /*
-     *  Extract and copy files from mercypak files
-     */
-
-    success = true;
-
-    pbox = ad_progressBoxCreate("Windows 9x QuickInstall", mappedFile_getFileSize(file), "Copying Files (%s)...", filePromptString);
-
-    QI_ASSERT(pbox);
-
-    if (mercypakV2) {
-        /* Handle mercypak v2 pack file with redundant files optimized out */
-
-        inst_MercyPakFileDescriptor *filesToWrite = calloc(MERCYPAK_V2_MAX_IDENTICAL_FILES, sizeof(inst_MercyPakFileDescriptor));
-        int *fileDescriptorsToWrite = calloc(MERCYPAK_V2_MAX_IDENTICAL_FILES, sizeof(int));
-        uint8_t identicalFileCount = 0;
-
-        QI_ASSERT(filesToWrite != NULL);
-
-        for (uint32_t f = 0; f < fileCount;) {
-
-            uint32_t fileSize;
-
-            ad_progressBoxUpdate(pbox, mappedFile_getPosition(file));
-
-            success &= mappedFile_getUInt8(file, &identicalFileCount);
-
-            QI_ASSERT(identicalFileCount <= MERCYPAK_V2_MAX_IDENTICAL_FILES);
-
-            for (uint32_t subFile = 0; subFile < identicalFileCount; subFile++) {
-                success &= inst_getMercyPakString(file, destPathAppend);
-                util_stringReplaceChar(destPathAppend, '\\', '/');
-
-                fileDescriptorsToWrite[subFile] = open(destPath,  O_WRONLY | O_CREAT | O_TRUNC);
-                QI_ASSERT(fileDescriptorsToWrite[subFile] >= 0);
-
-                success &= mappedFile_read(file, &filesToWrite[subFile], MERCYPAK_V2_FILE_DESCRIPTOR_SIZE);
-            }
-
-            success &= mappedFile_getUInt32(file, &fileSize);
-
-            success &= mappedFile_copyToFiles(file, identicalFileCount, fileDescriptorsToWrite, fileSize);
-
-            for (uint32_t subFile = 0; subFile < identicalFileCount; subFile++) {
-                success &= util_setDosFileTime(fileDescriptorsToWrite[subFile], filesToWrite[subFile].fileDate, filesToWrite[subFile].fileTime);
-                success &= util_setDosFileAttributes(fileDescriptorsToWrite[subFile], filesToWrite[subFile].fileFlags);
-                close(fileDescriptorsToWrite[subFile]);
-            }
-
-            f += identicalFileCount;
-        }
-
-        free(filesToWrite);
-        free(fileDescriptorsToWrite);
-    } else {
-
-        inst_MercyPakFileDescriptor fileToWrite;
-
-        for (uint32_t f = 0; f < fileCount; f++) {
-
-            ad_progressBoxUpdate(pbox, mappedFile_getPosition(file));
-
-            /* Mercypak file metadata (see mercypak.txt) */
-
-            success &= inst_getMercyPakString(file, destPathAppend);    // First, filename string
-            util_stringReplaceChar(destPathAppend, '\\', '/');          // DOS paths innit
-
-            success &= mappedFile_read(file, &fileToWrite, MERCYPAK_FILE_DESCRIPTOR_SIZE);
-
-            int outfd = open(destPath,  O_WRONLY | O_CREAT | O_TRUNC);
-            QI_ASSERT(outfd >= 0);
-
-            success &= mappedFile_copyToFiles(file, 1, &outfd, fileToWrite.fileSize);
-
-            success &= util_setDosFileTime(outfd, fileToWrite.fileDate, fileToWrite.fileTime);
-            success &= util_setDosFileAttributes(outfd, fileToWrite.fileFlags);
-
-            close(outfd);
-
-        }
-
-    }
-
-    ad_progressBoxDestroy(pbox);
-    free(destPath);
-    return success;
-}
-
-/* Inform user and setup boot sector and MBR. */
-static bool inst_setupBootSectorAndMBR(util_Partition *part, bool setActiveAndDoMBR) {
-    bool success = true;
-    const util_BootSectorModifier *bsModifierList = NULL;
-    // TODO: ui_showInfoBox("Setting up Master Boot Record and Boot sector...");
-    QI_ASSERT(part != NULL);
-
-    if (part->fileSystem == fs_fat16) {
-        bsModifierList = __WIN98_FAT16_BOOT_SECTOR_MODIFIERS__;
-    } else if (part->fileSystem == fs_fat32) {
-        bsModifierList = __WIN98_FAT32_BOOT_SECTOR_MODIFIERS__;
-    } else {
-        QI_ASSERT(false && "invalid file system???");
-    }
-
-    success &= util_modifyAndwriteBootSectorToPartition(part, bsModifierList);
-    if (setActiveAndDoMBR) {
-        success &= util_writeMBRToDrive(part->parent, __MBR_WIN98__);
-        char activateCmd[UTIL_MAX_CMD_LENGTH];
-        snprintf(activateCmd, UTIL_MAX_CMD_LENGTH, "sfdisk --activate %s %zu", part->parent->device, part->indexOnParent);
-        success &= (0 == ad_runCommandBox("Activating partition...", activateCmd));
-    }
-    return success;
-}
-
-/* Main installer process. Assumes the CDROM environment variable is set to a path with valid install.txt, FULL.866 and DRIVER.866 files. */
-bool inst_main(int argc, char *argv[]) {
-    MappedFile *sourceFile = NULL;
-    size_t readahead = util_getProcSafeFreeMemory() * 6 / 10;
-    util_HardDiskArray *hda = NULL;
-    const char *registryUnpackFile = NULL;
-    util_Partition *destinationPartition = NULL;
-    inst_InstallStep currentStep = (inst_InstallStep) 0;
-    size_t osVariantIndex = 0;
-
-    bool installDrivers = false;
-    bool formatPartition = false;
-    bool setActiveAndDoMBR = false;
-    bool quit = false;
-    bool doReboot = false;
-    bool installSuccess = true;
-    bool goToNext = false;
-
-    ad_init(LUNMERCY_BACKTITLE);
-
-    setlocale(LC_ALL, "C.UTF-8");
 
     // If we have commandline parameters use them, otherwise use the environment.
     if (argc == 3) {
@@ -498,255 +924,10 @@ bool inst_main(int argc, char *argv[]) {
         return false;
     }
 
-    msg_disclaimer();
+    memset(&qi_wizData, 0, sizeof(qi_wizData));
 
-    while (!quit) {
+    bool success = qi_wizard();
 
-        /* Basic concept:
-         *  If goToNext is true, we advance one step, if it is false, we go back one step.
-            (Can be circumvented by using "continue")
-         *  */
-
-        switch (currentStep) {
-            case INSTALL_OSROOT_VARIANT_SELECT: {
-                bool previousGoToNext = goToNext;
-                size_t osVariantCount = 0;
-
-                goToNext = inst_showOSVariantSelect(&osVariantIndex, &osVariantCount);
-
-                if (osVariantCount == 1 && previousGoToNext == false) {
-                    // If there's only one OS variant the variant select will just return "true"
-                    // since the user doesn't get to press back we need to handle this here.
-                    // so if the previous go to next was false we will go back outright.
-                    goToNext = false;
-                } else if (goToNext) {
-                    if (sourceFile) {
-                        mappedFile_close(sourceFile);
-                        sourceFile = NULL;
-                    }
-
-                    sourceFile = inst_openSourceFile(osVariantIndex, INST_SYSROOT_FILE, readahead);
-
-                    if (sourceFile == NULL) {
-                        msg_fileOpenError(osVariantIndex, INST_SYSROOT_FILE);
-                        continue;
-                    }
-                }
-
-                break;
-            }
-
-            /* Main Menu:
-             * Select Setup Action to execute */
-            case INSTALL_MAIN_MENU: {
-                switch (inst_showMainMenu()) {
-                    case SETUP_ACTION_INSTALL:
-                        currentStep = INSTALL_SELECT_DESTINATION_PARTITION;
-                        continue;
-
-                    case SETUP_ACTION_PARTITION_WIZARD:
-                        currentStep = INSTALL_PARTITION_WIZARD;
-                        continue;
-
-                    case SETUP_ACTION_EXIT_TO_SHELL:
-                        doReboot = false;
-                        quit = true;
-                        break;
-
-                    default:
-                        break;
-                }
-
-                continue;
-            }
-
-            /* Setup Action:
-             * Partition wizard.
-             * Select hard disk to partition. */
-            case INSTALL_PARTITION_WIZARD: {
-                // Go back to selector after this regardless what happens
-                currentStep = INSTALL_MAIN_MENU;
-                goToNext = false;
-
-                inst_showPartitionWizard(&hda);
-                continue;
-            }
-
-            /* Setup Action:
-             * Start installation.
-             * Select the destination partition */
-            case INSTALL_SELECT_DESTINATION_PARTITION: {
-                util_hardDiskArrayDestroy(hda);
-                hda = inst_getSystemHardDisks();
-
-                QI_ASSERT(hda != NULL);
-
-                destinationPartition = inst_showPartitionSelector(hda);
-
-                if (destinationPartition == NULL) {
-                    // There was an error, the user canceled or we have no hard disks.
-                    // Either way, we have to go back.
-                    currentStep = INSTALL_MAIN_MENU;
-                    continue;
-                }
-
-                goToNext = true;
-                break;
-            }
-
-            /* Menu prompt:
-             * Does user want to format the hard disk? */
-            case INSTALL_FORMAT_PARTITION_PROMPT: {
-                int answer = msg_askFormatPartition(destinationPartition);
-                formatPartition = (answer == AD_YESNO_YES);
-                goToNext = (answer != AD_CANCELED);
-                break;
-            }
-
-            /* Menu prompt:
-             * Does user want to update MBR and set the partition active? */
-            case INSTALL_MBR_ACTIVE_BOOT_PROMPT: {
-                int answer = msg_askOverwriteMBRAndSetActive(destinationPartition);
-                setActiveAndDoMBR = (answer == AD_YESNO_YES);
-                goToNext = (answer != AD_CANCELED);
-                break;
-            }
-
-
-            /* Menu prompt:
-             * Fast / Slow non-PNP HW detection? */
-            case INSTALL_REGISTRY_VARIANT_PROMPT: {
-                int answer = msg_askSkipPnpDetection();
-                registryUnpackFile = (answer == AD_YESNO_YES) ? INST_FASTPNP_FILE
-                                                              : INST_SLOWPNP_FILE;
-                goToNext = (answer != AD_CANCELED);
-                break;
-            }
-
-            /* Menu prompt:
-             * Does the user want to install the base driver package? */
-            case INSTALL_INTEGRATED_DRIVERS_PROMPT: {
-                // It's optional, if the file doesn't exist, we don't have to ask
-                if (util_fileExists(inst_getSourceFilePath(osVariantIndex, INST_DRIVER_FILE))) {
-                    int response = msg_askInstallDrivers();
-                    installDrivers = (response == AD_YESNO_YES);
-                    goToNext = (response != AD_CANCELED);
-                } else {
-                    installDrivers = false;
-                }
-
-                break;
-            }
-
-
-            /* Do the actual install */
-            case INSTALL_DO_INSTALL: {
-                // Format partition
-                if (formatPartition)
-                    installSuccess = inst_formatPartition(destinationPartition);
-
-                if (!installSuccess) {
-                    msg_formatFailed(destinationPartition);
-                    currentStep = INSTALL_MAIN_MENU;
-                    continue;
-                }
-
-                installSuccess = util_mountPartition(destinationPartition);
-                // If mounting failed, we will display a message and go back after.
-
-                if (!installSuccess) {
-                    msg_mountFailed(destinationPartition);
-                    currentStep = INSTALL_MAIN_MENU;
-                    continue;
-                }
-
-                // sourceFile is already opened at this point for readahead prebuffering
-                installSuccess = inst_copyFiles(sourceFile, destinationPartition->mountPath, "Operating System");
-                mappedFile_close(sourceFile);
-
-                if (!installSuccess) {
-                    msg_unpackFailed(INST_SYSROOT_FILE);
-                    currentStep = INSTALL_MAIN_MENU;
-                    continue;
-                }
-
-                // If the main data copy was successful, we move on to the driver file
-                if (installSuccess && installDrivers) {
-                    sourceFile = inst_openSourceFile(osVariantIndex, INST_DRIVER_FILE, readahead);
-                    QI_ASSERT(sourceFile && "Failed to open driver file");
-                    installSuccess = inst_copyFiles(sourceFile, destinationPartition->mountPath, "Driver Library");
-                    mappedFile_close(sourceFile);
-                }
-
-                if (!installSuccess) {
-                    msg_unpackFailed(INST_DRIVER_FILE);
-                    currentStep = INSTALL_MAIN_MENU;
-                    continue;
-                }
-
-                // If driver data copy was successful, install registry for selceted hardware detection variant
-                if (installSuccess) {
-                    sourceFile = inst_openSourceFile(osVariantIndex, registryUnpackFile, readahead);
-                    QI_ASSERT(sourceFile && "Failed to open registry file");
-                    installSuccess = inst_copyFiles(sourceFile, destinationPartition->mountPath, "Registry");
-                    mappedFile_close(sourceFile);
-                }
-
-                if (!installSuccess) {
-                    msg_unpackFailed(registryUnpackFile);
-                    currentStep = INSTALL_MAIN_MENU;
-                    continue;
-                }
-
-                util_unmountPartition(destinationPartition);
-
-                // Final step: update MBR, boot sector and boot flag.
-                if (installSuccess && setActiveAndDoMBR) {
-                    installSuccess = inst_setupBootSectorAndMBR(destinationPartition, setActiveAndDoMBR);
-                }
-
-                if (!installSuccess) {
-                    msg_failure();
-                }
-
-                // Determine what to do after installation
-                switch (msg_askPostInstallAction()) {
-                    case QI_POSTINSTALL_REBOOT:
-                        doReboot = true;
-                        quit = true;
-                        break;
-                    case QI_POSTINSTALL_MAIN_MENU:
-                        currentStep = INSTALL_MAIN_MENU;
-                        break;
-                    case QI_POSTINSTALL_EXIT:
-                        quit = true;
-                        break;
-                    default:
-                        abort(); // Shouldn't arrive here.
-                }
-
-                quit = true;
-
-                break;
-            }
-
-        }
-        currentStep += goToNext ? 1 : -1;
-    }
-
-    // Flush filesystem writes clear screen yadayada...
-
-    sync();
-
-    util_hardDiskArrayDestroy(hda);
-
-    system("clear");
-
-    if (doReboot) {
-        reboot(RB_AUTOBOOT);
-    }
-
-    ad_deinit();
-
-    return installSuccess;
+    qi_exit(false);
+    return success;
 }

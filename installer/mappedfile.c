@@ -49,8 +49,10 @@ static inline void mappedFile_advancePosAndReadAhead(MappedFile *file, size_t le
     }
 }
 
-MappedFile *mappedFile_open(const char *filename, size_t readahead) {
+MappedFile *mappedFile_open(const char *filename, size_t readahead, MappedFile_ErrorCallback callback) {
     MappedFile *file = calloc(1, sizeof(MappedFile));
+
+    (void) callback; // Callback is unused in this version of the mapped file.
 
     file->fd = open(filename, O_RDONLY);
 
