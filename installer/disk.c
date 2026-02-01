@@ -264,15 +264,20 @@ bool util_mountPartition(util_Partition *part) {
 }
 
 bool util_unmountPartition(util_Partition *part) {
+    bool success = true;
+
+    if (util_isPartitionMounted(part)) {
+        char umountCmd[1024];
+        snprintf(umountCmd, sizeof(umountCmd), "umount -l %s" CMD_SURPRESS_OUTPUT, part->device);
+        success = (WEXITSTATUS(system(umountCmd)) == 0);
+    }
+
     if (part->mountPath != NULL) {
-        char mountCmd[1024];
-        snprintf(mountCmd, sizeof(mountCmd), "umount %s" CMD_SURPRESS_OUTPUT, part->mountPath);
         free(part->mountPath);
         part->mountPath = NULL;
-        return (system(mountCmd) == 0);
-    } else {
-        return true;
-    }
+    } 
+
+    return success;
 }
 
 size_t util_getHardDiskArrayIndexFromDevicestring(util_HardDiskArray *hdds, const char *str) {
