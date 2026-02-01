@@ -18,7 +18,7 @@
 
 #define CMD_SURPRESS_OUTPUT " 2>/dev/null 1>/dev/null"
 
-#define CMD_LSBLK_ALL "lsblk -I 8,3,259 -n -b -p -P -oTYPE,KNAME,PARTTYPE,SIZE,MIN-IO,OPT-IO,MODEL,PTTYPE"
+#define CMD_LSBLK_ALL "lsblk -I 8,3,259 -n -b -p -P -oTYPE,KNAME,PARTTYPE,SIZE,OPT-IO,MODEL,PTTYPE"
 
 // Update parents after a reallocation of a hard disk array
 static inline void util_HardDisksUpdatePartitionParents(util_HardDisk *hdds, size_t diskCount) {
@@ -160,8 +160,12 @@ util_HardDiskArray *util_getSystemHardDisks() {
         success &= util_getValueFromKey(lsblkOut->lines[i], "SIZE", tmpNumStr, sizeof(tmpNumStr));
         uint64_t tmpSize = strtoull(tmpNumStr, NULL, 10);
         
-        success &= util_getValueFromKey(lsblkOut->lines[i], "MIN-IO", tmpNumStr, sizeof(tmpNumStr));
-        uint32_t tmpSectorSize = strtoull(tmpNumStr, NULL, 10);
+        // This used to read MIN-IO as the sector size - it is NOT. The sector size would be PHY-SEC.
+        // But more importantly - Linux treats a sector as 512 bytes *always*, so it's not even relevant here
+        // And so does int13h translation, which is the point this relates to in this code.
+        // So we hardcode it to 512.
+        // success &= util_getValueFromKey(lsblkOut->lines[i], "MIN-IO", tmpNumStr, sizeof(tmpNumStr));
+        uint32_t tmpSectorSize = 512;
         
         success &= util_getValueFromKey(lsblkOut->lines[i], "OPT-IO", tmpNumStr, sizeof(tmpNumStr));
         uint32_t tmpOptIoSize = strtoull(tmpNumStr, NULL, 10);
