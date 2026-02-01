@@ -17,6 +17,10 @@
 #include <unistd.h>
 #include <linux/msdos_fs.h>
 #include <sys/ioctl.h>
+#include <dirent.h>
+#include <fcntl.h>
+#include <sys/sendfile.h>
+#include <errno.h>
 
 #include "qi_assert.h"
 
@@ -212,4 +216,177 @@ mode_t util_dosFileAttributeToUnixMode(uint8_t dosFlags) {
 
 bool util_fileExists(const char *filename) {
     return (access(filename, F_OK) == 0);
+}
+
+bool util_mkDir(const char *dirName, uint32_t dosFlags) {
+    char tmp[PATH_MAX + 1] = {0};
+
+    util_returnOnNull(dirName, false);
+
+    strncpy(tmp, dirName, sizeof(tmp));
+
+    // Skip beginning when parsing
+    char *curDir = dirName[0] == '/' ? &tmp[1] : tmp;
+    
+
+    bool success = true;
+    bool lastIteration = false;
+
+    do {
+        // if the input string has ended, run this loop one more time so that
+        // we create the final directory
+        lastIteration = (curDir[0] == 0x00);
+
+        if (curDir[0] == '/' || lastIteration) {
+            // Temporarily replace / with a null terminator
+            curDir[0] = 0x00;
+
+            // Create the actual directory now
+            if (!util_fileExists(tmp)) {
+                int result = mkdir(tmp, 0777);
+                success &= (result == 0) || (result == EEXIST);
+            }
+            
+            // Put the slash back
+            curDir[0] = '/';
+        }
+        curDir++;
+    } while (!lastIteration);
+
+    // Handle the DOS dir flags
+    // Remove DIR flag since that's read only in the ioctl
+    dosFlags &= ~(ATTR_DIR);
+
+    int fd = open(dirName, O_RDONLY | O_DIRECTORY);
+    success &= fd >= 0;
+
+    if (fd) {
+        success &= 0 == ioctl(fd, FAT_IOCTL_SET_ATTRIBUTES, &dosFlags);
+        close(fd);
+    }
+
+    return success;
+}
+
+bool util_isFile(const char *path) {
+        struct stat st;
+        return (0 == lstat(path, &st)) && S_ISREG(st.st_mode);
+}
+
+bool util_isDir(const char *path) {
+        struct stat st;
+        return (0 == lstat(path, &st)) && S_ISDIR(st.st_mode);
+}
+
+char *util_pathAppend(const char *basePath, const char *subPath) {
+    util_returnOnNull(basePath, NULL);
+    util_returnOnNull(subPath, NULL);
+    char *target = malloc(strlen(basePath) + 1 + strlen(subPath) + 1); // base + '/' + sub + null terminator
+    util_returnOnNull(target, NULL);
+    sprintf(target, "%s/%s", basePath, subPath);
+    return target;
+}
+
+size_t util_getFileCountRecursive(const char *baseDir) {
+    struct dirent *e;
+    DIR *d = opendir(baseDir);
+
+    util_returnOnNull(d, 0);
+    
+    size_t count = 0;
+
+    while ((e = readdir(d))) {
+        if (util_stringEquals(e->d_name, ".") || util_stringEquals(e->d_name, ".."))
+            continue;
+
+        char *newPath = util_pathAppend(baseDir, e->d_name);
+
+        QI_FATAL(newPath != NULL, "Failed to allocate path string");
+
+        if      (util_isDir(newPath))   count += util_getFileCountRecursive(newPath);
+        else if (util_isFile(newPath))  count += 1;
+
+        free (newPath);
+    }
+
+    closedir(d);
+    return count;
+}
+
+static size_t util_getFileSizeFromFd(int fd) {
+    ssize_t fileSize = (ssize_t) lseek(fd, 0, SEEK_END);
+    lseek(fd, 0, SEEK_SET);
+
+    if (fileSize < 0) return 0;
+
+    return (size_t) fileSize;
+}
+
+static inline __always_inline bool util_fileCopyWriteEnsure(int fd, uint8_t *buf, size_t size) {
+    while (size) {
+        ssize_t written = write(fd, buf, size);
+
+        if (written <= 0) {
+            return false;
+        }
+
+        buf += written;
+        size -= written;
+    }
+    return true;
+}
+
+// Fallback for fileCopy if sendfile fails.
+static bool util_fileCopyReadWrite(const char *source, const char *dest) {
+    int in = open(source, O_RDONLY);
+    int out = open(dest, O_WRONLY | O_CREAT | O_TRUNC, 0777);
+    bool success = (in >= 0) && (out >= 0);
+
+    if (!success) goto cleanup;
+
+    size_t leftToRead = util_getFileSizeFromFd(in);
+    
+    while (success && (leftToRead > 0)) {
+        uint8_t buf[4096];
+        ssize_t hasRead = read(in, buf, sizeof(buf));
+
+        leftToRead -= hasRead;
+
+        if (hasRead < 0 || !util_fileCopyWriteEnsure(out, buf, hasRead)) {
+            success = false;
+        } else if (hasRead == 0) {
+            break;
+        }
+    }
+
+cleanup:
+    close(in);
+    close(out);
+    return success;
+}
+
+bool util_fileCopy(const char *source, const char *dest) {
+    int in = open(source, O_RDONLY);
+    int out = open(dest, O_WRONLY | O_CREAT | O_TRUNC, 0777);
+    bool success = (in >= 0) && (out >= 0);
+
+    if (!success) goto cleanup;
+
+    off_t offset = 0;
+    size_t fileSize = util_getFileSizeFromFd(in);
+
+    while (success && (size_t) offset < fileSize) {
+        size_t toWrite = fileSize - offset;
+        ssize_t written = sendfile(out, in, &offset, toWrite);
+        if (written < 0) {
+            success = false;
+        }
+    }
+
+cleanup:
+    close(in);
+    close(out);
+
+    if (!success) success = util_fileCopyReadWrite(source, dest);
+    return success;
 }

@@ -147,6 +147,19 @@ bool util_setDosFileTime(int fd, uint16_t dosDate, uint16_t dosTime);
 bool util_setDosFileAttributes(int fd, uint32_t attributes);
 // Checks if a file exists.
 bool util_fileExists(const char *filename);
+// Creates a directory recursively and sets DOS flags on it
+bool util_mkDir(const char *dirName, uint32_t dosFlags);
+// Returns whether or not the given path is a file or not.
+bool util_isFile(const char *path);
+// Returns whether or not the given path is a directory or not.
+bool util_isDir(const char *path);
+// Copies a file from source to dest.
+bool util_fileCopy(const char *source, const char *dest);
+// Allocates a new string which holds "<basePath>/<subPath>""
+char *util_pathAppend(const char *basePath, const char *subPath);
+// Gets the total amount of files in a directory, including all files in all subdirectories
+size_t util_getFileCountRecursive(const char *baseDir);
+
 
 /* String functions */
 
@@ -176,6 +189,5 @@ bool util_readFirstLineFromFileIntoBuffer(const char *filename, char *dest, size
 time_t util_dosTimeToUnixTime(uint16_t dosDate, uint16_t dosTime);
 // Converts a DOS Flag byte to a mode_t for use with chmod or somesuch
 mode_t util_dosFileAttributeToUnixMode(uint8_t dosFlags);
-
 
 #endif
