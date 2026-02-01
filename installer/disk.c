@@ -194,7 +194,12 @@ void util_hardDiskArrayDestroy(util_HardDiskArray *hdds) {
             // Free partitions
             for (size_t i = 0; i < hdds->count; i++) {
                 for (size_t p = 0; p < hdds->disks[i].partitionCount; p++) {
-                    util_unmountPartition(&hdds->disks[i].partitions[p]);
+                    util_Partition *part = &hdds->disks[i].partitions[p];
+                    // unmount the partition ONLY if we mounted it
+                    if (part->mountPath) {
+                        util_unmountPartition(&hdds->disks[i].partitions[p]);
+                        free(part->mountPath);
+                    }
                 }
                 free(hdds->disks[i].partitions);
             }
