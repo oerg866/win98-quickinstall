@@ -1,3 +1,6 @@
 pyfatfs>=1.0.5
 fs>=2.4.0
 xattr>=0.10.1; platform_system != "Windows"
+FATtools>=1.1.7
+wininfparser>=1.0.12.1
+cabarchive>=0.2.4
