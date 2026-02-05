@@ -1,0 +1,2 @@
+These are DOS/Win32/Win64 programs to create/extract .866 files.
+I dunno, they may be useful.

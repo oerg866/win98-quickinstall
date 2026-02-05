@@ -194,7 +194,7 @@ def getCopyFilesSections(inf: WinINF, rawFiles: list[str]):
             # An individual file can be copied by prefixing the file name with an @ symbol (!!!)
             # Source: http://www-pc.uni-regensburg.de/systemsw/TECHTOOL/w95/doc/INFDOC.HTM#CopyFilesSections
             if cfSec.startswith('@'):
-                appendIfNew(rawFiles, cfSec[1:])
+                addOrUpdateSourceFile(rawFiles, cfSec[1:])
             else:
                 appendIfNew(sections, cfSec)
 
@@ -452,7 +452,7 @@ def copyFilesAndWriteCab(sourceDir: str, outDir: str, outCab: str, win98files: l
             logw(f'WARNING: File {localName} supplied by Win9x AND driver - potential conflict!!!')
 
         if localName:
-            logi(f'Adding {localName} to cabinet')
+            logd(f'Adding {localName} to cabinet')
 
             # We supplied this file, add it to the cab file
             fileData = open(localName, 'rb').read()
@@ -460,7 +460,7 @@ def copyFilesAndWriteCab(sourceDir: str, outDir: str, outCab: str, win98files: l
             # We have the file data, compress and add
             cabArchive[sfEntry.fileName] = CabFile(fileData)
         elif isFromWin98:
-            logi(f'File {sfEntry.fileName} supplied by Win9x!')
+            logd(f'File {sfEntry.fileName} supplied by Win9x!')
         else:
             # Last attempt: This file may be MS EXPAND/SZDD compressed.
             # Build a compressed file extension
@@ -483,7 +483,7 @@ def copyFilesAndWriteCab(sourceDir: str, outDir: str, outCab: str, win98files: l
                 if len(fileData) == 0:
                     logw(f'Decompressed file {localCompressed} empty?!')
 
-                logi(f'Adding {localCompressed} (SZDD Decompressed {len(fileData)} Bytes) to cabinet')
+                logd(f'Adding {localCompressed} (SZDD Decompressed {len(fileData)} Bytes) to cabinet')
                 # We have the file data, compress and add
                 cabArchive[sfEntry.fileName] = CabFile(fileData)
             else:
@@ -551,4 +551,4 @@ def driverCopy(inDir: str, outDir: str):
             handleDir(fullEntry, outDir, win98files)
 
 
-driverCopy('/work/testdrivers', '.drvtmp3')
+#driverCopy('/work/win98-quickinstall/win98-driver-lib-base/', '.drvtmp3')

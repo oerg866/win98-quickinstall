@@ -10,12 +10,14 @@ import errno
 import subprocess
 import platform
 import shutil
-import re
 import fnmatch
 import stat
 
+from FATtools import Volume, FAT
 from makeusb import make_usb
 from mercypak import mercypak_pack
+from drivercopy import driverCopy
+from makeiso import makeIso
 
 # Store the current working directory in a global variable
 cwd_stack = [os.getcwd()]
@@ -35,16 +37,10 @@ def popd():
         cwd_stack.pop()
         os.chdir(cwd_stack[-1])
 
-def file_exists(directory, filename):
-# Check if a file with a given filename exists in a directory in a case-insensitive manner.
-    for file in os.listdir(directory):
-        if file.lower() == filename.lower():
-            return True
-    return False
-
-def case_insensitive_to_sensitive(directory, filename):
+def case_insensitive_to_sensitive(fs: FAT.Dirtable, directory, filename):
 # Gets the case sensitive name of a file in a certain directory (the directory must be in correct case already though)
-    for file in os.listdir(directory):
+    newdir = fs.opendir(directory)
+    for file in newdir.listdir():
         if file.lower() == filename.lower():
             return os.path.join(directory, file)
     return os.path.join(directory, filename)
@@ -66,35 +62,6 @@ def handle_remove_readonly(func, path, exc_info):
     else:
         raise OSError("Unable to delete file: %s" % path)
 
-# Delete a file with a given filename in a directory in a case-insensitive manner. 'filename' may include wildcards ('*')
-def delete_file(directory, filename):
-    if not os.path.exists(directory):
-        return True
-
-    result = False
-
-    for file in os.listdir(directory):
-        if re.match(fnmatch.translate(filename), file, re.IGNORECASE):
-            try:
-                full_path = os.path.join(directory, file)
-                print(full_path)
-
-                # On windows, os.remove will FAIL to remove SYSTEM files, so we need to check for this attribute
-
-                if platform.system() == 'Windows':
-                    import ctypes
-                    ctypes.windll.kernel32.SetFileAttributesW(full_path, 0x00000080) # FILE_ATTRIBUTE_NORMAL; 128 (0x00000080). A file that does not have other attributes set
-
-                os.remove(full_path)
-
-                if os.path.exists(full_path):
-                    raise FileExistsError
-
-            except OSError:
-                return False
-
-    return True
-
 # Delete recursive... more or less just a wrapper around shutil.rmtree
 def delete_recursive(directory_path):
     try:
@@ -107,21 +74,58 @@ def append_line_to_file(filename, line):
     with open(filename, "a") as f:
         f.write(line + "\n")
 
-# Find Win9x directory in a base path (recursive)
-def get_win_dir(osroot_path):
-    for root, dirs, files in os.walk(osroot_path):
+def find_recursive_and_get_parent(fs: FAT.Dirtable, to_find):
+    result = None
+    for root, dirs, files in fs.walk():
         for file_name in files:
-            if file_name.upper() == 'WIN.COM'.upper():
-                return root
-    return None
+            if file_name.upper() == to_find.upper():
+                result = root
+    if result.startswith("./"):
+        result = result[2:]
+    return result
 
-# Find Win9x install CAB directory in a base path (recursive)
-def get_cab_dir(osroot_path):
-    for root, dirs, files in os.walk(osroot_path):
-        for file_name in files:
-            if file_name.upper() == 'PRECOPY1.CAB'.upper():
-                return root
-    return None
+# Find Win9x directory in an image (recursive)
+def get_win_dir(fs: FAT.Dirtable):
+    return find_recursive_and_get_parent(fs, 'WIN.COM')
+
+# Find Win9x install CAB directory in an image (recursive)
+def get_cab_dir(fs: FAT.Dirtable):
+    return find_recursive_and_get_parent(fs, 'PRECOPY1.CAB')
+
+# Get all files from an image
+def get_full_file_list(fs: FAT.Dirtable) -> list[str]:
+    ret = []
+    for root, dirs, files in fs.walk():
+        for name in files:
+            full_path = os.path.join(root, name)            
+            if full_path.startswith("./"):
+                full_path = full_path[2:]
+            ret.append(full_path)
+    return ret
+
+# Delete from file list with pattern
+def remove_from_file_list_if_present(files, subdirs, pattern, exceptions = []):
+    if subdirs:
+        full_pattern = os.path.join(*subdirs, pattern).lower()
+    else:
+        full_pattern = pattern.lower()
+    
+    # Make a lowercase set of exception filenames for fast lookup
+    except_lower = set(name.lower() for name in exceptions)
+
+    new_files = []
+
+    for f in files:
+        f_lower = f.lower()
+
+        # If it matches the pattern AND is not in the exception list, remove it
+        if fnmatch.fnmatch(f_lower, full_pattern):
+            if f_lower not in except_lower:
+                continue
+
+        new_files.append(f)
+
+    files[:] = new_files
 
 # Get the absolute path on a virtual WINE Windows environment (linux only, maybe mac?)
 def get_wine_path(path):
@@ -135,153 +139,129 @@ def run_regedit(reg_file):
     # regedit is called from *within* msdos.exe.
 
     if platform.system() == 'Windows':
-        subprocess.run([msdos_exe, regedit_exe, '/L:SYSTEM.DAT', '/R:USER.DAT', reg_file], check=True, stdout=global_stdout)
+        subprocess.run([msdos_exe, regedit_exe, '/L:SYSTEM.DAT', '/R:SYSTEM.DAT', reg_file], check=True, stdout=global_stdout)
     else:
         reg_file = get_wine_path(reg_file)
         regedit_exe = get_wine_path(regedit_exe)
-        subprocess.run(['wine', msdos_exe, regedit_exe, '/L:SYSTEM.DAT', '/R:USER.DAT', reg_file], check=True, stdout=global_stdout)
+        subprocess.run(['wine', msdos_exe, regedit_exe, '/L:SYSTEM.DAT', '/R:SYSTEM.DAT', reg_file], check=True, stdout=global_stdout)
+
+# Copy a file out of a FAT image, does not preserve attributes and datetime
+def image_copy_out(fs: FAT.Dirtable, filename, output):
+    f = fs.open(filename)
+    data = f.read()
+
+    with open(output, 'wb') as out:
+        out.write(data)
+
+def image_file_exists(fs: FAT.Dirtable, subdir, file):
+    newdir = fs.opendir(subdir)
+    if (newdir.find(file) == None):
+        return False
+    
+    return True
+
+
 
 # Add registry file to a given windows installation and pack the registry with mercypak
-def registry_add_reg(osroot_base, osroot_windir_relative, reg_file, output_866_file):
-    osroot_windir_absolute = os.path.join(osroot_base, osroot_windir_relative)
-    osroot_sysdir_absolute = case_insensitive_to_sensitive(osroot_windir_absolute, 'SYSTEM')
-    registry_temp_path = os.path.join(script_base_path, '.regtmp')
-    registry_temp_windir_absolute = os.path.join(registry_temp_path, osroot_windir_relative)
+def registry_add_reg(fs: FAT.Dirtable, windir, reg_file, output_866_file):
+#    osroot_windir_absolute = os.path.join(osroot_base, osroot_windir_relative)
+#    osroot_sysdir_absolute = case_insensitive_to_sensitive(osroot_windir_absolute, 'SYSTEM')
+
+    regtmp = os.path.join(script_base_path, '.regtmp')
+    regtmp_windir = os.path.join(regtmp, windir)
 
     print('Processing system registry...')
-
-    delete_recursive(registry_temp_path)
+    delete_recursive(regtmp)
 
     # Prepare directory with SYSTEM.DAT and USER.DAT files
-    mkdir(registry_temp_windir_absolute)
+    mkdir(regtmp_windir)
 
-    system_dat = case_insensitive_to_sensitive(osroot_windir_absolute, 'SYSTEM.DAT')
-    user_dat = case_insensitive_to_sensitive(osroot_windir_absolute, 'USER.DAT')
 
-    shutil.copy2(system_dat, registry_temp_windir_absolute)
-    shutil.copy2(user_dat, registry_temp_windir_absolute)
+    system_dat_in = case_insensitive_to_sensitive(fs, windir, 'SYSTEM.DAT')
+    system_dat_out = os.path.join(regtmp, system_dat_in)
+
+    print(f'system.dat in = {system_dat_in}, windir {regtmp_windir}')
+    image_copy_out(fs, system_dat_in, system_dat_out)
 
     # Reboot hack, find appropriate shell32 version.
 
     shell32_dll = 'SHELL32.DLL'
-
-    if file_exists(osroot_sysdir_absolute, 'SHELL32.W98'):
+    system_dir = case_insensitive_to_sensitive(fs, windir, 'SYSTEM')
+    if image_file_exists(fs, system_dir, 'SHELL32.W98'):
         shell32_dll = 'SHELL32.W98'
-        print ('98Lite on Windows 98 detected.')
-    elif file_exists(osroot_sysdir_absolute, 'SHELL32.WME'):
+        print('98Lite on Windows 98 detected.')
+    elif image_file_exists(fs, system_dir, 'SHELL32.WME'):
         shell32_dll = 'SHELL32.WME'
-        print ('98Lite on Windows ME detected.')
-    else:
+        print('98Lite on Windows ME detected.')
+    elif image_file_exists(fs, system_dir, 'SHELL32.DLL'):
         print('Stock Windows 9x detected.')
+    else:
+      raise Exception("SHELL32 not found in this filesystem")
+        
 
     print(f'Using {shell32_dll} to reboot!')
 
-    pushd(registry_temp_windir_absolute)
-
     # Copy to temporary file and append reboot file to it
-    shutil.copy2(reg_file, 'tmp.reg')
-    append_line_to_file('tmp.reg', f'[HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Windows\\CurrentVersion\\RunOnce]')
-    append_line_to_file('tmp.reg', f'"Reboot"="RUNDLL32.EXE {shell32_dll},SHExitWindowsEx 2"\n')
+    pushd(regtmp_windir)
+    tmp_reg_file = os.path.join(regtmp, 'tmp.reg')
+    shutil.copy2(reg_file, tmp_reg_file)
+    append_line_to_file(tmp_reg_file, f'[HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Windows\\CurrentVersion\\RunOnce]')
+    append_line_to_file(tmp_reg_file, f'"Reboot"="RUNDLL32.EXE {shell32_dll},SHExitWindowsEx 2"\n')
 
-    run_regedit('tmp.reg')
+    run_regedit(tmp_reg_file)
     
-    os.remove('tmp.reg')
+    os.remove(tmp_reg_file)
 
-    mercypak_pack(registry_temp_path, output_866_file)
+    mercypak_pack(output_866_file, local_files=regtmp)
 
     popd()
+    delete_recursive(regtmp)
 
-    delete_recursive(directory_path=registry_temp_path)
-
-# Move INF and CAB files after drivercopy processing into the relative directories they would be in after installation.
-def move_inf_cab_files(directory_path, inf_directory, cab_directory):
-    # Create the target directories if they do not exist
-    mkdir(inf_directory)
-    mkdir(cab_directory)
-
-    # Loop through all files in the directory
-    for file_name in os.listdir(directory_path):
-        file_path = os.path.join(directory_path, file_name)
-
-        # Check if the file is an INF or CAB file
-        if file_name.lower().endswith('.inf'):
-            # Move the file to the INF directory
-            shutil.move(file_path, os.path.join(inf_directory, file_name))
-        elif file_name.lower().endswith('.cab'):
-            # Move the file to the CAB directory
-            shutil.move(file_path, os.path.join(cab_directory, file_name))
-
-# Runs the "drivercopy" tool, platform independent as usual with WINE magic... 
-def drivercopy(source_path, output_path):
-
-    drivercopy_path = os.path.join(script_base_path, 'tools', 'drivercopy.exe')
-
-    shutil.copy2(os.path.join(script_base_path, 'tools', 'makecab.exe'), 'makecab.exe')
-
-    if platform.system() == 'Windows':
-        subprocess.run([drivercopy_path, source_path, output_path], check=True, stdout=global_stdout)       
-    else:
-        source_path = get_wine_path(source_path)
-        output_path = get_wine_path(output_path)
-        subprocess.run(['wine', drivercopy_path, source_path, output_path], check=True, stdout=global_stdout)
-
-    os.remove('makecab.exe')
+from drivercopy import driverCopy
 
 # Preprocess the slipstream + extra drivers for this sysprep run
 def preprocess_drivers(output_base, input_drivers_base, input_drivers_extra):
-    driver_temp = os.path.join(output_base, '.drvtmp')
-
     print('Preprocessing drivers...')
 
     # First do the extra drivers
     print('Preprocessing EXTRA drivers...')
     output_drivers_extra = os.path.join(output_base, 'driver.ex')
-    drivercopy(input_drivers_extra, output_drivers_extra)
+    driverCopy(input_drivers_extra, output_drivers_extra)
 
-    # Prepare the drivers. Later we need to finalize them for each OSRoot.
+    # Prepare the base drivers. Later we need to finalize them for each OSRoot.
     print('Preprocessing SLIPSTREAMED drivers...')
-    drivercopy(input_drivers_base, driver_temp)
+    driverCopy(input_drivers_base, '.driver_int')
 
 # Finalize the slipstream drivers for this sysprep run for a given OSRoot
 def finalize_drivers_for_osroot(output_base, output_osroot, osroot_cabdir_relative):
     print('Finalizing drivers for this OSRoot...')
 
-    # Working around a bug in drivercopy (or more specifically makecab) where the output has to be relative
-    # So all the cab files go into a local directory.
+    # The problem is that the cab files need to be in the WinCD cabinet directory so
+    # that win98 can find it without prompting, so for each OSRoot we have to copy the files once more
+    # infs into INF dir *and* cabs into Win CD dir
 
-    input_driver_temp = os.path.join(output_base, '.drvtmp')
-    output_driver_temp = os.path.join(output_base, '.drvtmp_osroot')
-    shutil.rmtree(output_driver_temp, ignore_errors=True)
-    mkdir(output_driver_temp)
-
-    shutil.copytree(input_driver_temp, output_driver_temp, dirs_exist_ok=True)
-
+    input_driver_temp = '.driver_int'
+    output_driver_temp = '.drvtmp_osroot'
     driver_temp_cabdir = os.path.join(output_driver_temp, osroot_cabdir_relative)
     driver_temp_infdir = os.path.join(output_driver_temp, 'DRIVER')
-
-    move_inf_cab_files(output_driver_temp, driver_temp_infdir, driver_temp_cabdir)
-
     output_866_file = os.path.join(output_osroot, 'DRIVER.866')
-    mercypak_pack(output_driver_temp, output_866_file)
 
-    shutil.rmtree(output_driver_temp)
+    shutil.rmtree(output_driver_temp, ignore_errors=True)
+    mkdir(driver_temp_cabdir)
+    mkdir(driver_temp_infdir)
 
-# Cleanup after processing the drivers
-def process_drivers_cleanup(output_base):
-    shutil.rmtree(os.path.join(output_base, '.drvtmp'))
+    # Loop through all files in the input directory
+    for file_name in os.listdir(input_driver_temp):
+        full_path = os.path.join(input_driver_temp, file_name)
+        # Check if the file is an INF or CAB file
+        if file_name.lower().endswith('.inf'):
+            # Move the file to the INF directory
+            shutil.copy(full_path, os.path.join(driver_temp_infdir, file_name))
+        elif file_name.lower().endswith('.cab'):
+            # Move the file to the CAB directory
+            shutil.move(full_path, os.path.join(driver_temp_cabdir, file_name))
 
-# Make an ISO File (TODO: Use pycdlib to remove mkisofs dependency)
-def make_iso(output_base, output_iso):
-    print('Creating ISO file...')
-    pushd(output_base)
-    if platform.system() == 'Windows':
-        mkisofs_path = os.path.join(script_base_path, 'tools', 'mkisofs.exe')
-    else:
-        mkisofs_path = 'mkisofs' # no path on Linux & co
-
-    os.remove(output_iso) if os.path.exists(output_iso) else None
-    subprocess.run([mkisofs_path, '-J', '-r', '-V', 'Win98 QuickInstall', '-o', output_iso, '-b', 'cdrom.img', '.'], check=True, stdout=global_stdout, stderr=global_stdout)
-    popd()
+    mercypak_pack(output_866_file, None, None, output_driver_temp, False)
 
 #############################################################################
 #
@@ -293,7 +273,8 @@ def make_iso(output_base, output_iso):
 parser = argparse.ArgumentParser(description='Windows 98 QuickInstall Image Creation Script', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('--iso', type=str, help='Target filename for output ISO file')
 parser.add_argument('--usb', type=str, help='Target filename for output USB image file')
-parser.add_argument('--osroot', type=str, action='append', help='Path to an OS root directory (can be specified multiple times)', required=True)
+parser.add_argument('--osroot',nargs=2, metavar=('PATH', 'LABEL'), action='append', required=True,
+    help='Path to an OS root image and its label (can be specified multiple times)')
 parser.add_argument('--extra', type=str, action='append', help='Path to extra files to be added to the output image\'s "extras" directory (can be specified multiple times)', default=['_EXTRA_CD_FILES_'])
 parser.add_argument('--drivers', type=str, help='Path to base drivers to slipstream.', default='_DRIVER_')
 parser.add_argument('--extradrivers', type=str, help='Path to drivers to be added to the output image\'s "driver.ex" directory. These are *NOT* slipstreamed.', default='_EXTRA_DRIVER_')
@@ -327,6 +308,7 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 output_base = os.path.join(script_dir, '_OUTPUT_')
 output_osroots_base = os.path.join(output_base, 'osroots')
 output_regtmp = os.path.join(script_dir, '.regtmp')
+output_oemtmp = os.path.join(script_dir, '.oemtmp')
 output_extras = os.path.join(output_base, 'extras')
 input_cdromroot = os.path.join(script_dir, 'cdromroot')
 input_oeminfo = os.path.join(script_dir, '_OEMINFO_')
@@ -343,31 +325,28 @@ shutil.rmtree(output_base, ignore_errors=True)
 
 mkdir(output_base)
 mkdir(output_regtmp)
+mkdir(output_oemtmp)
 
 # Preprocess drivers
 preprocess_drivers(output_base, input_drivers_base, input_drivers_extra)
 
 # Process all OSroots.
 osroot_idx = 1
-for osroot in input_osroots:
+for osroot, osroot_name in input_osroots:
     osroot = os.path.realpath(osroot)
-    print(f'Processing OS Root "{osroot}"')
+    print(f'Processing OS Root image file: "{osroot}"')
     output_osroot = os.path.join(output_osroots_base, str(osroot_idx))
     mkdir(output_osroot)
-
-    osroot_title = 'Windows 98 Installation'
-
+    
     # Give the OSRoot a name for the installer menu
+    with open(os.path.join(output_osroot, 'wini98qi.inf'), 'w') as labelFile:
+        labelFile.write(f'{osroot_name}\n')
 
-    if file_exists(osroot, 'win98qi.inf'):
-        with open(case_insensitive_to_sensitive(osroot, 'win98qi.inf'), 'r') as file:
-            osroot_title = file.read()
-    else:
-        print(f'The specified OS Root "{osroot}" does not contain a "win98qi.inf" file, which would contain the name for the installer menu.')
-        osroot_title = input('Please enter the name for this installation: ')
+    root = Volume.vopen(osroot, 'r+b', what='partition0')
+    fs = Volume.openvolume(root)
 
-    osroot_windir = get_win_dir(osroot)
-    osroot_cabdir = get_cab_dir(osroot)
+    osroot_windir = get_win_dir(fs)
+    osroot_cabdir = get_cab_dir(fs)
 
     if osroot_windir is None:
         raise ValueError("Could not find WIN.COM in directory tree")
@@ -375,80 +354,70 @@ for osroot in input_osroots:
     if osroot_cabdir is None:
         raise ValueError("Could not find CAB files in directory tree")
 
-    osroot_windir_relative = os.path.relpath(osroot_windir, osroot)
-    osroot_cabdir_relative = os.path.relpath(osroot_cabdir, osroot)
-
-    print(f'Windows directory: {osroot_windir} (relative: {osroot_windir_relative})')
-    print(f'Windows CAB directory: {osroot_cabdir} (relative: {osroot_cabdir_relative})')
+    print(f'Windows directory: {osroot_windir}')
+    print(f'Windows CAB directory: {osroot_cabdir}')
 
     # Process registry
     fastpnp_reg = os.path.join(script_dir, 'registry', 'fastpnp.reg')
     fastpnp_866 = os.path.join(output_osroot, 'FASTPNP.866')
     slowpnp_reg = os.path.join(script_dir, 'registry', 'slowpnp.reg')
     slowpnp_866 = os.path.join(output_osroot, 'SLOWPNP.866')
-    registry_add_reg(osroot, osroot_windir_relative, slowpnp_reg, slowpnp_866)
-    registry_add_reg(osroot, osroot_windir_relative, fastpnp_reg, fastpnp_866)
 
-    # Backup generic modem driver file
-    osroot_infdir = case_insensitive_to_sensitive(osroot_windir, 'inf')
-    modem_inf_file = case_insensitive_to_sensitive(osroot_infdir, 'mdmgen.inf')
-    modem_bak_file = os.path.join(osroot_infdir, 'mdmgen.bak')
+    registry_add_reg(fs, osroot_windir, slowpnp_reg, slowpnp_866)
+    registry_add_reg(fs, osroot_windir, fastpnp_reg, fastpnp_866)
 
-    if os.path.exists(modem_inf_file):
-        shutil.move(modem_inf_file, modem_bak_file)
+    # Get a list of all the files in the image
+    osroot_files = get_full_file_list(fs) 
 
-    # Cleanup unnecessary files
-    delete_file(osroot_windir,                                              'win386.swp')
-    delete_file(osroot_windir,                                              'ndislog.txt')
-    delete_file(osroot_windir,                                              '*.log')
-    delete_file(osroot_infdir,                                              'mdm*.inf')
-    delete_file(osroot_infdir,                                              'wdma_*.inf')
-    delete_file(osroot_infdir,                                              'drv*.bin')
-    delete_file(case_insensitive_to_sensitive(osroot_windir, 'recent'),     '*')
-    delete_file(case_insensitive_to_sensitive(osroot_windir, 'temp'),       '*')
-    delete_file(case_insensitive_to_sensitive(osroot_windir, 'applog'),     '*')
-    delete_file(case_insensitive_to_sensitive(osroot_windir, 'sysbckup'),   '*')
-    delete_file(case_insensitive_to_sensitive(osroot_infdir, 'other'),      '*')
-    delete_file(case_insensitive_to_sensitive(osroot,        'recycled'),   '*')
-    delete_file(osroot,                                                     'win386.swp')
-    delete_file(osroot,                                                     'bootlog.*')
-    delete_file(osroot,                                                     'frunlog.txt')
-    delete_file(osroot,                                                     'detlog.txt')
-    delete_file(osroot,                                                     'setuplog.txt')
-    delete_file(osroot,                                                     'scandisk.log')
-    delete_file(osroot,                                                     'netlog.txt')
-    delete_file(osroot,                                                     'suhdlog.dat')
-    delete_file(osroot,                                                     'msdos.---')
-    delete_file(osroot,                                                     'config.bak')
-    delete_file(osroot,                                                     'autoexec.bak')
-    delete_file(osroot,                                                     'io.bak')
-    delete_file(osroot,                                                     'command.dos')
-    delete_file(osroot,                                                     'videorom.bin')
+    osroot_infdir = case_insensitive_to_sensitive(fs, osroot_windir, 'inf')
 
-    # Restore generic modem driver file
-    if os.path.exists(modem_bak_file):
-        shutil.move(modem_bak_file, modem_inf_file)
+    remove_from_file_list_if_present(osroot_files, [osroot_infdir], 'mdm*.inf', ['windows/inf/mdmgen.inf'])
+    remove_from_file_list_if_present(osroot_files, [osroot_infdir], 'wdma_*.inf', ['windows/inf/wdma_usb.inf'])
+
+    remove_from_file_list_if_present(osroot_files, [osroot_windir], 'win386.swp')
+    remove_from_file_list_if_present(osroot_files, [osroot_windir], 'ndislog.txt')
+    remove_from_file_list_if_present(osroot_files, [osroot_windir], '*.log')
+    remove_from_file_list_if_present(osroot_files, [osroot_infdir], 'drv*.bin')
+    
+    remove_from_file_list_if_present(osroot_files, [osroot_windir, 'recent'], '*')
+    remove_from_file_list_if_present(osroot_files, [osroot_windir, 'temp'], '*')
+    remove_from_file_list_if_present(osroot_files, [osroot_windir, 'applog'], '*')
+    remove_from_file_list_if_present(osroot_files, [osroot_windir, 'sysbckup'], '*')
+    remove_from_file_list_if_present(osroot_files, [osroot_windir, 'other'], '*')
+    remove_from_file_list_if_present(osroot_files, ['recycled'], '*')
+    
+    remove_from_file_list_if_present(osroot_files, [], 'win386.swp')
+    remove_from_file_list_if_present(osroot_files, [], 'bootlog.*')
+    remove_from_file_list_if_present(osroot_files, [], 'frunlog.txt')
+    remove_from_file_list_if_present(osroot_files, [], 'detlog.txt')
+    remove_from_file_list_if_present(osroot_files, [], 'setuplog.txt')
+    remove_from_file_list_if_present(osroot_files, [], 'scandisk.log')
+    remove_from_file_list_if_present(osroot_files, [], 'netlog.txt')
+    remove_from_file_list_if_present(osroot_files, [], 'suhdlog.dat')
+    remove_from_file_list_if_present(osroot_files, [], 'msdos.---')
+    remove_from_file_list_if_present(osroot_files, [], 'config.bak')
+    remove_from_file_list_if_present(osroot_files, [], 'autoexec.bak')
+    remove_from_file_list_if_present(osroot_files, [], 'io.bak')
+    remove_from_file_list_if_present(osroot_files, [], 'command.dos')
+    remove_from_file_list_if_present(osroot_files, [], 'videorom.bin')
+
+    # No need to pack the registry, it's already included in SLOWPNP and FASTPNP
+    remove_from_file_list_if_present(osroot_files, [osroot_windir], 'system.dat')
 
     # Copy oeminfo
-    shutil.copy2(os.path.join(input_oeminfo, 'oeminfo.ini'), case_insensitive_to_sensitive(osroot_windir, 'system'))
-    shutil.copy2(os.path.join(input_oeminfo, 'oemlogo.bmp'), case_insensitive_to_sensitive(osroot_windir, 'system'))
+    if os.path.exists(input_oeminfo):
+        tmp_system_dir = os.path.join(output_oemtmp, case_insensitive_to_sensitive(fs, osroot_windir, 'system'))
+        mkdir(tmp_system_dir)
+        shutil.copy2(os.path.join(input_oeminfo, 'oeminfo.ini'), tmp_system_dir)
+        shutil.copy2(os.path.join(input_oeminfo, 'oemlogo.bmp'), tmp_system_dir)
+       
+    output_osroot_full866 = os.path.join(output_osroot, 'FULL.866')
+    mercypak_pack(output_osroot_full866, fs, osroot_files, output_oemtmp, mercypak_v2=True)
+    
+    if not os.path.exists(output_osroot_full866):
+        raise Exception('There was an error. The required OSROOT pack file was not created ("FULL.866")')
 
-    # Finalize drivers for every package.
-    finalize_drivers_for_osroot(output_base, output_osroot, osroot_cabdir_relative)
-
-    print("Packing system root...")
-
-    # Do the OSROOT mercypaking now.
-    mercypak_pack(osroot, os.path.join(output_osroot, 'FULL.866'), mercypak_v2=True)
-
-    if not file_exists(output_osroot, 'FULL.866'):
-        raise RuntimeError('There was an error. The required OSROOT pack file was not created ("FULL.866")')
-
-    # Do the title tag file.
-    with open(os.path.join(output_osroot, 'win98qi.inf'), 'w', encoding="utf-8") as file:
-        file.write(osroot_title)
-
-    osroot_idx += 1
+    finalize_drivers_for_osroot(output_base, output_osroot, osroot_cabdir)
 
 # Copy CDROM Root stuff
 print('Copying installation image base files...')
@@ -460,14 +429,15 @@ print('Copying extra CD files...')
 for extradir in input_extras:
     shutil.copytree(extradir, output_extras, dirs_exist_ok=True)
 
-process_drivers_cleanup(output_base)
-
 print(f'Sysprep complete, output is in "{output_base}"')
 
 # Create output images
 
+label = None
 if output_image_iso is not None:
-    make_iso(output_base, output_image_iso)
+    if label is None:
+        label = 'QuickInstall'
+    makeIso(output_base, output_image_iso, 'cdrom.img', label)
 
 if output_image_usb is not None:
     make_usb(output_base, output_image_usb)

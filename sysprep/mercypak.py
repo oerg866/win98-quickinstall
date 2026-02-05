@@ -102,6 +102,8 @@ import subprocess
 import time
 import hashlib
 
+from FATtools import FAT
+
 MERCYPAK_V1_MAGIC = b'ZIEG'
 MERCYPAK_V2_MAGIC = b'MRCY'
 
@@ -204,7 +206,6 @@ def add_to_known_files(file_data_list: list, data:bytearray, filename, attribute
     
     for file_data in file_data_list:
         if file_data.hash.digest() == hash.digest() and len(file_data.files_with_this_data) < MAX_FILES_PER_KNOWN_DATA:
-            print(f'file {filename} is duplicate, optimizing...')
             file_data.add_file(filename, attribute, dos_date, dos_time)
             return
 
@@ -214,37 +215,85 @@ def add_to_known_files(file_data_list: list, data:bytearray, filename, attribute
     file_data_list.append(new_file_data)
 
 
-def mercypak_pack(dir_path, output_file, mercypak_v2=False):
+
+# FATTools walk() has this annoying side effect of putting ./ at the start of everything
+# so we filter it out to make everything else easier
+def fattools_join(root: str, sub: str):
+    ret = os.path.join(root, sub)
+    if (ret.startswith('./')):
+        return ret[2:]
+    return ret
+
+# Pack files into mercypak file
+# output_file: the output .866 file
+# fattools_dirtable: FAT32 image dirtable to get files out of
+# -> Can be omitted, but then fattools_files is ignored
+# fattools_files: list of files in the fat32 image to get
+# local_files: optional list of local files to add as well
+def mercypak_pack(
+    output_file: str,
+    fattools_dirtable: FAT.Dirtable = None, 
+    fattools_files: list[str] = None,
+    local_files: str = None,
+    mercypak_v2: bool = False,
+):
     # Collect directory and file information
     dir_count = 0
     file_count = 0
     dir_info = []
 #    file_info = []
-    dir_path = os.path.abspath(dir_path)
     known_file_infos = list()
 
-    for root, dirs, files in os.walk(dir_path):
-        for dir_name in dirs:
-            dir_count += 1
-            dir_abs_path = os.path.join(root, dir_name)
-            dir_rel_path = os.path.relpath(dir_abs_path, dir_path)
-            dir_dos_attr = getfatattr(dir_abs_path)
-            dir_info.append((dir_rel_path.encode(), dir_dos_attr))
-        for file_name in files:
+    ####################################
+    # IMAGE FILES
+    if fattools_dirtable != None:
+        for root, dirs, files in fattools_dirtable.walk():
+            for dir_name in dirs:
+                dir_count += 1
+                dir_path = fattools_join(root, dir_name)
+                dir_dos_attr = fattools_dirtable.opendir(dir_path).handle.Entry.chDOSPerms
+                dir_info.append((dir_path.encode(), dir_dos_attr))
+
+
+        for file_name in fattools_files:
             file_count += 1
-            file_abs_path = os.path.join(root, file_name)
-            file_rel_path = os.path.relpath(file_abs_path, dir_path)
-            file_stat = os.stat(file_abs_path)
-            file_dos_date = dos_date(file_stat.st_mtime)
-            file_dos_time = dos_time(file_stat.st_mtime)
-            file_dos_attr = getfatattr(file_abs_path)
-            with open(file_abs_path, 'rb') as f:
-                file_data = f.read()
 
-            add_to_known_files(known_file_infos, file_data, file_rel_path.encode(), file_dos_attr, file_dos_date, file_dos_time)
- #           file_info.append((file_rel_path.encode(), file_dos_attr, file_dos_date, file_dos_time, len(file_data), file_data))
 
-    print(f'known unique files: {len(known_file_infos)}, total files {file_count}')
+            f = fattools_dirtable.open(file_name)
+            file_dos_attr = f.Entry.chDOSPerms
+            file_dos_date = f.Entry.wMDate
+            file_dos_time = f.Entry.wMTime
+            file_data = f.read()
+            f.close()
+
+            add_to_known_files(known_file_infos, file_data, file_name.encode(), file_dos_attr, file_dos_date, file_dos_time)
+
+    ####################################
+    # LOCAL FILES
+
+    if local_files != None:
+        for root, dirs, files in os.walk(local_files):
+            for dir_name in dirs:
+                dir_count += 1
+                dir_abs_path = os.path.join(root, dir_name)
+                dir_rel_path = os.path.relpath(dir_abs_path, local_files)
+                dir_dos_attr = getfatattr(dir_abs_path)
+                dir_info.append((dir_rel_path.encode(), dir_dos_attr))
+            for file_name in files:
+                file_abs_path = os.path.join(root, file_name)
+                file_count += 1
+
+                file_rel_path = os.path.relpath(file_abs_path, local_files)
+                file_stat = os.stat(file_abs_path)
+                file_dos_date = dos_date(file_stat.st_mtime)
+                file_dos_time = dos_time(file_stat.st_mtime)
+                file_dos_attr = getfatattr(file_abs_path)
+                with open(file_abs_path, 'rb') as f:
+                    file_data = f.read()
+
+                add_to_known_files(known_file_infos, file_data, file_rel_path.encode(), file_dos_attr, file_dos_date, file_dos_time)
+
+    print(f'{output_file}: known unique files: {len(known_file_infos)}, total files {file_count}')
 
     # Write the archive
     with open(output_file, 'wb') as f:
