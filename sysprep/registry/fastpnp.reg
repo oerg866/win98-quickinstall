@@ -53,3 +53,11 @@ REGEDIT4
 [HKEY_LOCAL_MACHINE\System\CurrentControlSet\Services\Class\Monitor]
 "SilentInstall"="1"
 
+; Silence Mass Storage driver popups (at least with sweetlow USB stack)
+[HKEY_LOCAL_MACHINE\System\CurrentControlSet\Services\USB\SilentClasses]
+"0"=hex:80,09,00,00
+"1"=hex:43,03,01,01
+"2"=hex:43,03,01,02
+"3"=hex:c3,08,06,50
+"4"=hex:83,03,01,01
+"5"=hex:83,03,01,02
