@@ -55,15 +55,16 @@ typedef bool (*qi_OptionFunc)(size_t progressBarIndex);
 
 // Structure depicting all the static state needed for the wizard / installers
 typedef struct {
-    bool disclaimerShown;
-    MappedFile *osRootFile;
-    uint64_t readahead;
-    ad_ProgressBox *progress;
-    util_HardDiskArray *hda;
-    util_Partition *destination;
-    size_t variantIndex;
-    char variantName[QI_VARIANT_NAME_SIZE];
-    bool error;
+    bool disclaimerShown;                   // Indicates disclaimer was shown
+    MappedFile *osRootFile;                 // The main OS data file, opened early for prebuffering
+    uint64_t readahead;                     // Maximum safe readahead memory size
+    ad_ProgressBox *progress;               // Multi-progress-bar-box ui element
+    util_HardDiskArray *hda;                // Hard Disk Array of all disks in the system
+    util_Partition *destination;            // destiination partition (Child of hda)
+    size_t variantCount;                    // Amount of OS variants in  this image
+    size_t variantIndex;                    // Selected OS variant
+    char variantName[QI_VARIANT_NAME_SIZE]; // Name of selected OS variant
+    bool error;                             // an error occurred in the installation
     qi_OptionIdx errorIndex;
     uint32_t preparationProgress;
 } qi_InstallContext;
@@ -397,8 +398,14 @@ static qi_WizardAction qi_mainMenu() {
     QI_ASSERT(menu);
     ad_menuAddItemFormatted(menu, "[INSTALL] Install selected Operating System variant");
     ad_menuAddItemFormatted(menu, " [CFDISK] Partition hard disks");
-    ad_menuAddItemFormatted(menu, "     [OS] Change Operating System variant");
     ad_menuAddItemFormatted(menu, "  [SHELL] Exit to minmal diagnostic Linux shell");
+
+    // Show the OS selection option in the menu only if we have more than 1 OS variant in this image.
+    if (qi_wizData.variantCount > 1) {
+        ad_menuAddItemFormatted(menu, "     [OS] Change Operating System variant");
+    }
+
+
     int menuResult = ad_menuExecute(menu);
     ad_menuDestroy(menu);
 
