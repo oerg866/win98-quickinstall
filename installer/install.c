@@ -770,6 +770,9 @@ static void qi_installExecuteIfEnabled(qi_OptionIdx index, qi_OptionFunc func, c
 }
 
 static qi_WizardAction qi_install(void) {
+    // Start error-less
+    qi_wizData.error = false;
+
     // Small hack to detect inconsistency in confiiguration for CREGFIX
     if (QI_OPTION_YES == qi_configGet(o_cregfix) && QI_OPTION_NO == qi_configGet(o_bootSector)) {
         // CREGFIX + no boot sector update = impossible condition, ask to go back
