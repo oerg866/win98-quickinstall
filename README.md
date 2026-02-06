@@ -1,19 +1,12 @@
-*****************************************************************************
-                 Windows 9x QuickInstall ISO Creator Package
+![](assets/logobig.png)
 
-                       (C) 2012-2024 Eric Voirin (oerg866)
-*****************************************************************************
+# Windows 9x QuickInstall - (C) 2012 - 2026 E.Voirin (oerg866)
 
-# Disclaimer
-
-**Windows is a trademark that belongs to Microsoft Corporation.**
-
-This project has ***NO ENDORSEMENT FROM ANY INVOLVED PARTIES, SUCH AS MICROSOFT.***
-
+```
+Windows is a trademark that belongs to Microsoft Corporation.
+This project has NO ENDORSEMENT FROM ANY INVOLVED PARTIES, SUCH AS MICROSOFT.
 Please don't sue. I just like old computers :(
-
-
-# Windows 9x QuickInstall
+```
 
 | | | |
 |--------------------------|--------------------------|--------------------------|
@@ -21,27 +14,90 @@ Please don't sue. I just like old computers :(
 | ![](assets/install4.png) | ![](assets/install5.png) | ![](assets/install6.png) |
 | ![](assets/windows1.png) | ![](assets/windows2.png) |                          |
 
-## Description
+## What is QuickInstall?
 
-This is a framework that is intended for creating and preparing Windows 98 installation ISO images in a way that is optimized for extremely quick installation, similar to *nLite*, but with a completely different method and context.
+Windows 9x QuickInstall is a framework intended to replace the original Windows 9x setup environment and in doing so provide an extremely quick installation process paired with integrated patches and drivers. In that sense, it is not dissimilar to *nlite*, but the method used to achieve this is very diifferent.
 
-It takes the root file system of an already installed Windows 98 system and packages it, whilst allowing drivers and tools to be slipstreamed at will.
+It uses a Linux-based custom installation environment that quickly copies a full installation image to a target directory of your choosing.
 
-For the installer, it uses Linux as a base, paired with some tools to allow hard disk partitioning and formatting, as well as  a custom installer with a custom data packing method that is optimized for streaming directly from CD to the hard disk without any seeking.
+In fact, doing it this way opens up this old operating system to a lot of modern hardware, giving you the possibility to add patches, drivers and tools to tailor the resulting installation image to your needs. 
 
-Bottom line, this means that the effort for the user to build an ISO is higher than for example nLite, but the degree of customizability is also massively increased.
+**You can finally install Windows 9x from USB without any fuss!**
+Or from a CD/DVD-R. Or you can boot from a floppy disk!
 
-## How fast is it really?
+It does not matter how you boot the system or where the QuickInstall data is located, the installation environment will find it!
 
-On a Pentium III class machine with ATA / ATAPI Ultra DMA available for all storage devices, Windows 98 -- using an ISO built with this framework -- can be installed from CD in roughly 60-90 seconds.
+This also means that on older systems, you can install it from USB, but boot the machine from floppy disk!
 
-# Building the Framework, Bugs, License, etc.
+The custom Linux-based installer is paired with some tools to allow hard disk partitioning and formatting, and uses a custom data packing method that is optimized for streaming directly from a CD or DVD-ROM to the hard disk without any seeking.
+
+While this means that the effort for a user to build an ISO is higher than for example nLite, but the degree of customizability is also massively increased.
+
+A set of reference images is also provided to get you installing your favorite flavor of vintage Windows as fast as possible!
+
+## How "Quick" is QuickInstall *really*?
+
+Depends where!
+
+- In VirtualBox on a modern machine? 15 seconds.
+- On a Pentium III 866MHz with a DVD-ROM and an ATA133 disk? 60 seconds.
+- On a 486 DX4-100? 4-5 minutes.
+
+In *any* case, QuickInstall is at least an ***order of magnitude (i.e. 10x)*** faster than the official Windows 98 `setup.exe`
+
+## Reference Images (aka. I don't want to read and/or do all of this.)
+
+The reference images come in three flavors:
+
+- Windows 98 SE: **Stock installation**
+- Windows 98 SE: **98Lite Micro De-Bloated installation with DirectX 8.1**
+- Wiindows ME: **98Lite Micro De-Bloated installation with DirectX 8.1**
+
+### Reference Image Content:
+
+* Microsoft Patches (QFEs), Windows 98 SE:
+  - Q239696, Q239887, Q245682, Q253697, Q253711, Q269601, Q270063, Q273017, Q276602, Q280448, Q281533, Q288430, Q291362, Q293793, Q293197, Q306453, Q381307
+* Microsoft Patches (QFEs), Windows ME:
+  - Q268452, Q276602, Q278289, Q280800, Q280127, Q290831, Q296773, Q301453, Q301540, Q305826
+* Common patches:
+  - Microsoft Installer 2.0
+  - R. Loew RAM Patch
+  - R. Loew SATA Patch
+  - R. Loew LBA48 Patch
+  - SweetLow patches:
+    - Patch for RLoew's AHCI.PDR 3.0 - disabled nonfunctional handler of IDE_PASS_THROUGH to prevent BSOD on SMART access
+    - Patch for (the latest version of) APIX.VXD (for Windows 98SE) - disabled special handling for devices on Port Driver ESDI_506.PDR
+    - Patches for ESDI_506.PDR from Windows 98SE / RLoew's Terabyte Plus Pack 2.1
+    - Patches for SMARTVSD.VXD - works for any combination of ATA channels and devices on these channels and more
+    - Right .INF for PCI Bus Master ATA Controllers including those in PCI Native Mode with RLoew's "SATA" Patch/Terabyte Package
+    - Bug fix VMM.VXD from Windows 98(SE) & ME on handling >4GiB addresses and description of problems with resource manager on newer BIOSes
+  - Microsoft Layer for Unicode (unicows)
+  - Windows 9x TLB invalidation bug patch (Patcher9x by JHRobotics)
+  - oerg866 SYSDMCPL HW Detection Speedup Patch
+  - oerg866 DOS Mouse Acceleration Fix
+  - WinRAR 3.93 pre-installed
+
+* Extras inside `extras` folder:
+  - **Microsoft Updates**: DirectX 9.0C (7-2007), .NET 2.0, IE6 SP1, VB6 / VC6 / VC2005 Runtime, Directory Services Client
+  - **KernelEx**: - v4.5.2, v4.5.2016.18 Update, 4.22.26pre2 Update, 4.22.25.2-TMT Cumulative Installer
+
+    **NOTE: This can brick your system, especially on the 98Lite versions this should not be used**
+  - Revolutions Pack 9.7 + Updates + Extra Fonts / Themes
+  - **Benchmarks**: 3DMark 99 + 2000 + 2001 SE, Super Pi Mod, Roadkill Disk Speed, Atto Disk Benchmark
+  - **CPU/Hardware Tools**: CPU-Z Vintage Edition, CPUFSB, HWiNFO32, HDAT2, K6INIT, WPCREDIT, PCIEDIT, Video Memory Tester (VMT / VMTCE)
+  - **Utilities**: Total Commander, Paragon NTFS, IrfanView, TCP Optimizer
+  - **Drivers**:
+    - ALi AGP (1.90, 1.82) + Utility (1.40), ALi Integrated (2.092)
+    - AMD: AMD75x Driver Pack (1.20), AMD76x Driver Pack
+    - VIA 4in1 (4.35, 4.43), VIA IDE Driver (3.20B with RLOEW fix), VIA Latency Patch
+    - SiS: 5600/600 AGP, SiS 961/964 IDE, SiS 964 RAID, SiS IDE 2.13, UIDE1.02, AGP/USB/ATA133 1.21
+    - Intel: INF Installer (6.3.0.1007)
+    - nVidia: GeForce (45.23, 81.98), nForce (4.20)
+
+
+## Building the Framework, Bugs, License, etc.
 
 See [BUILDING.md](./BUILDING.md).
-
-# I don't want to read and/or do all of this.
-
-Okay. Go to the releases tab :-)
 
 # Supported Target Operating Systems
 
@@ -53,18 +109,18 @@ Support for international versions is not properly tested. It should work and in
 
 **NO versions of Windows 95 are supported due to non-PNP device detection being part of the DOS-based installer stage.**
 
-# System requirements to use QuickInstall
+# System requirements to use a QuickInstall Image
   - i486-class CPU, at least a 486SX (but it will be very slow)
   - 24 MiB of memory
   - An IDE / SATA / SCSI controller supported by Linux
 
-# How to boot a QuickInstall image
+# How to boot a QuickInstall Image
 
 There are several provided methods to boot into Windows 98 QuickInstall:
 
 1. CD/DVD-ROM boot
 
-   The Windows 98 QuickInstall ISO image can be booted on any computer that supports floppy-emulation CD-ROM boot.
+   The Windows 9x QuickInstall ISO image can be booted on any computer that supports floppy-emulation CD-ROM boot.
 
    **Recommended if you have a PC that supports CD-ROM boot.**
 
@@ -103,11 +159,11 @@ There are several provided methods to boot into Windows 98 QuickInstall:
 
   Tested with:
 
-  * **Windows 10** 21H2, Build 19044.2846
-  * Windows Subsystem For Linux (Ubuntu 20.04.5 LTS)
-  * Ubuntu 20.04.4 LTS (native)
+  * **Windows 10** 21H2, Build 19045.6456
+  * Windows Subsystem For Linux (Ubuntu 22.04)
+  * Ubuntu 22.04 (native)
 
-- `python` (3.5 or newer)
+- `python` (3.8 or newer)
 
   * On **Windows 7 and 8.1**:
 
@@ -127,26 +183,12 @@ There are several provided methods to boot into Windows 98 QuickInstall:
 
   `pip3 install -r requirements.txt`
 
-- `mkisofs` from cdrtools
-  - On **Windows**:
-  
-    Tool is bundled with the framework, no action required.
+  ***WARNING:*** *There are no third-party tools to modify Windows 9x-format registry DAT files, but doing so is an essential part of the image building process. This uses an MS-DOS emulation layer and the 16-Bit part of the Windows 9x registry editor (`regedit.exe`). This means that currently, on platforms other than Windows, `wine` is needed to be installed:*
 
-  - On **Linux (Debian, Ubuntu):**
+  - `sudo apt install wine` (Debian, Ubuntu, ...)
+  - `sudo pacman -S wine` (Arch, ...)
 
-    `sudo apt install genisofs`
-
-- `wine` (**Linux Only**)
-
-  `sudo apt install wine`
-
-  *Many parts of the ISO building process are Windows specific and not able to be cleanly implemented natively on Linux, such as modifying system registry, parsing driver INF files, etc.*
-
-- 86Box (recommended) or another virtual machine capable of installing Windows 9x
-
-- Software to extract files from a hard disk image
-  
-  e.g. 7zip (on Linux: `sudo apt install p7zip-full`)
+- A Hard Disk image (IMG/RAW, VHD, VMDK, VDI) containing a fully set up Windows 9x installation according to the guidelines below.
 
 # The system preparation script (`sysprep.py`) 
 
@@ -162,9 +204,11 @@ There are several provided methods to boot into Windows 98 QuickInstall:
 
     Instructs the script to create an USB key image with the given file name
   
-  * `--osroot <OSROOT>`
+  * `--osroot <Image File> <Display Name>`
 
-    Specifies a Windows 98 / ME system root directory ("*OS Root*") to be used.
+    Specifies a Windows 98 / ME hard disk image as the source.
+    
+    `Display Name` is the name this image will have in the Installer selection (if you build an output image with more than one OS on it)
 
     **This can be specified multiple times, in which case the installation wizard will show a selection menu.**
 
@@ -176,13 +220,15 @@ There are several provided methods to boot into Windows 98 QuickInstall:
 
     **This can be specified multiple times, all the files in all the directories will be added in this case**
 
+    The data will be put into the `extra` folder in the output image
+
   * `--drivers <DRIVERS>`
 
-    Instructs the script to process *slipstream* all drivers in this directory.
+    Instructs the script to process and *slipstream* all drivers in this directory.
 
     *Slipstream* means that these drivers will be installed automatically when the hardware for them is detected at any point of the installation's lifetime, even when the hardware is not yet present at the time of installation.
 
-    Default: `_DRIVER_` in the framework directory. It already contains a curated selection of drivers.
+    Default: `_DRIVER_` in the framework directory. It already contains a curated selection of drivers (from the `win98-driver-lib-base` repository)
 
     **This parameter can only be specified once.**
 
@@ -190,7 +236,7 @@ There are several provided methods to boot into Windows 98 QuickInstall:
 
     Instructs the script to process all drivers in this directory and add them into the extra drivers directory.
 
-    **These drivers are NOT slipstreamed** and thus not automatically installed. They are however made available on the resulting installation media and can be installed by pointing the Windows 98 / ME `Add New Hardware` wizard to the `DRIVER.EX` directory on the media.
+    **These drivers are NOT slipstreamed** and thus not automatically installed. They are however made available on the resulting installation media and can be installed by pointing the Windows 98 / ME `Add New Hardware` wizard to the `DRIVER.EX` directory on the output image.
 
     The reason for this folder's existence is the vast selection of hardware available for the operating systems and the varying compatibility / size of them.
     
@@ -212,11 +258,11 @@ There are several provided methods to boot into Windows 98 QuickInstall:
 
   **This parameter is currently broken, sorry. It's always quiet.**
 
-# Preparing a Windows 98 / ME installation for packaging
+# Preparing a Windows 98 / ME image for use with `sysprep.py`
 
 - Install Windows 98 / ME in a virtual machine or emulator, just as you want it.
   I recommend using 86Box using the following configuration:
-  
+
   - Machine:
     - Machine Type: Slot 1
     - Achine: [i440BX] ABIT BF6
@@ -227,13 +273,13 @@ There are several provided methods to boot into Windows 98 QuickInstall:
   - Network:
     - None, ***VERY IMPORTANT TO MAKE SURE NETWORK DRIVER SETUP STAYS INTACT!!***
   - Hard disks:
-    - IDE (0:0), ***raw image***, big enough to install the operating system.
+    - IDE (0:0), big enough to install the operating system.
 
   It is recommended that you install Windows in APM mode, because ACPI is a buggy mess (`setup /p i`).
 
-  **WARNING:** The operating system ***must*** be installed from the HARD DISK and it must contain a folder containing the Windows 98 CAB files from the CDROM. Otherwise, drivers can not be slipstreamed.
+  **WARNING:** The operating system ***must*** be installed from the HARD DISK and it must contain a folder containing the Windows 98 CAB files from the CDROM.
 
-  **NOTE:** It is recommended that NO extra drivers are installed in this VM.
+  **NOTE:** It is recommended that NO extra drivers are *installed* in this VM. They can be added using the `--driver` parameter
 
 - Configure the Windows 98 / ME installation as you wish. Examples:
   - Machine name
@@ -244,31 +290,18 @@ There are several provided methods to boot into Windows 98 QuickInstall:
   - Utilities
   - Software
 
-- Shut down the virtual machine and **DO NOT TURN IT BACK ON**
+- Shut down the virtual machine and take note of the image file name.
 
-- Use 7zip or an imaging software and extract the entire root of the 
-  partition you installed Windows 98 to.
-  
-  Extract all files into a directory. We will call this the *OS Root*. The default for this is `_OS_ROOT_` in the framework directory.
+**WARNING:** Only *one* Windows directory is allowed, and only *one* Windows setup files CAB directory. If you install using 98Lite, make sure that the 98Lite setup directory is the sole carrier of these CABs.
 
-  On Windows, you can open the image file using the 7zip File Manager or the 7zip context menu. Or WinImage, et cetera.
-  
-  On Linux, you can do this with by using '7z' from the p7zip-full package.
-
-  `7z x -o_OS_ROOT_/ /path/to/image/file`
-  
-  **WARNING:** Only *one* Windows directory is allowed, and only *one* Windows setup files CAB directory. If you install using 98Lite, make sure that the 98Lite setup directory is the sole carrier of these CABs.
-
-  *INFO: The script detects the Windows directory by finding `WIN.COM`*
-  *INFO: The CAB file directory is detected by finding `PRECOPY2.CAB`*
-
-  **This location must be specified when running the script by using the `--osroot` parameter.**
+*INFO: The script detects the Windows directory by finding `WIN.COM`*
+*INFO: The CAB file directory is detected by finding `PRECOPY2.CAB`*
 
 # Preparing & Packaging
 
 - Copy drivers that you want slipstreamed into a directory of your choice. By default this is `_DRIVER_` in the framework directory directory.
 
-  *NOTE: `_DRIVER_` is already filled with a curated selection of drivers. Ycan remove these, if you wish.*
+  *NOTE: `_DRIVER_` is already filled with a curated selection of drivers. You can remove these, if you wish.*
 
   **If you choose a non-default directory for this, you must specify it using the `--drivers` parameter.**
 
@@ -307,7 +340,6 @@ There are several provided methods to boot into Windows 98 QuickInstall:
   e.g. adding `--iso output.iso` to the command line will yield a file named `output.iso` that can be burned to a CD/DVD/Blu-Ray or used in a virtual machine.
 
   Refer to the parameter descriptions above for more information.
-
 
 ## Creating a bootable USB key image
 
@@ -348,22 +380,6 @@ It can be ASCII or UTF8 encoded.
 
 # FAQ
 
-## Q: Windows 98 / ME complains about system file integrity when I create an image after a Daylight Savings Time swap-over
-
-A: This is a weird glitch that happens on Windows hosts where files created after DST are suddenly are offset by one hour.
-
-In the future, the sysprep script will work with Hard Disk image files, which will make this a non-issue.
-
-**Workaround 1:** Re-extract the files from the hard disk image you used as the base to create your image
-
-**Workaround 2:** Create images on Linux
-
-**Workaround 3:** Wait until summer :-)
-
-## Q: Windows 98 / ME complains about missing CAT files when installing a driver from the extra drivers
-
-A: 98Lite deletes the catalog root directory to save installation space. Catalog files can safely be skipped, but if the error annoys you, you can unpack them from the Win98 CAB files to prevent it.
-
 ## Q: I'm getting a python error about non-zero return code in `msdos.exe` right after `Using SHELL32.xxx to reboot!`
 
 Example:
@@ -373,10 +389,6 @@ subprocess.CalledProcessError: Command '['L:\\win98-installer\\__BIN__\\tools\\m
 
 A: This problem happens when running the script on Windows whilst the script directory is in a share hosted by a WSL session (Windows Subsystem for Linux). This causes some incompatibilities. Run the script from the WSL Linux shell instead.
 
-## Q: All the operating system files are un-hidden after installation! Why?
-
-A: You've probably used Linux to do the image creation. Linux has no concept of hidden files, therefore this file property cannot be replicated in the images.
-
 ## Q: I'm getting I/O and read errors, segmentation faults and other weird behavior when installing from CD on an Intel i430 / i440-based system with an Intel 82371SB south bridge (e.g. i440FX)
 
 A: This problem has been verified by Deksor, Rigo and myself, and is a deeply rooted problem that has existed since at least version 2.4.xx. Operating the drives in PIO mode can help.
@@ -384,6 +396,8 @@ A: This problem has been verified by Deksor, Rigo and myself, and is a deeply ro
 A BIOS update may help, the issue is currently under investigation as we found some BIOS versions where this problem does not occur.
 
 For now, you can work around this problem by using a PCI SCSI or IDE adapter card that supports CD-ROM boot or has DOS drivers with the **DOS boot floppy option**.
+
+You can also try disabling DMA when booting the CD/Floppy.
 
 ## Q: I'm trying to install on a VIA MVP3-based motherboard and I'm getting a "General Protection Fault" on the first boot. (Repoted by Rigo)
 
@@ -393,10 +407,4 @@ A: To work around this issue, select the "slow" hardware detection variant in th
 
 A: Your BIOS might have an incomplete/buggy LBA implementation. Partition the drive to use a FAT32 non-LBA partition and try again.
 
-## Q: I'm getting a `While initializing device VCACHE: Windows protection error` when running on my modern PC (Ryzen, Intel 13th gen, etc.)
-
-Install the CREGFIX patch (the reference ISOs contain it in the extras folder):
-
-https://github.com/mintsuki/cregfix
-
-For technical reasons this patch cannot be pre-installed with the ISO and must be applied manually.
+You can also try disabling DMA when booting the CD/Floppy.
