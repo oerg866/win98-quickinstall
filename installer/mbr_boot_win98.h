@@ -241,4 +241,3 @@ static const util_BootSectorModifier __WIN98_FAT32_BOOT_SECTOR_MODIFIERS__[] = {
   { 2,  0,    0x200,  __WIN98__FAT32_BOOT_SECTOR__ + 0x400 }, // rest of the boot sector code
   END_OF_MODIFIER_LIST
 };
-

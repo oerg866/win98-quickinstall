@@ -217,6 +217,56 @@ def registry_add_reg(fs: FAT.Dirtable, windir, reg_file, output_866_file):
     popd()
     delete_recursive(regtmp)
 
+# Write system.ini file injecting CREGFIX device line in the 386enh section
+def write_386enh_cregfix(system_ini_name: str, system_ini_lines: str):
+    found386Enh = False
+
+    with open(system_ini_name, 'w') as outini:
+        for line in system_ini_lines:
+            normalized = line.strip().lower()
+            outini.write(f'{line}\r\n')
+
+            if not found386Enh and normalized == '[386enh]':
+                outini.write('device=cr0wpoff.vxd\r\n')
+                found386Enh = True
+
+        # Especially CB file might not have a 386enh section, so add it
+        if not found386Enh:
+            outini.write('[386Enh]\r\n')
+            outini.write('device=cr0wpoff.vxd')
+            outini.write('\r\n')
+
+# Makes a CREGFIX.866 file that the installer can unpack to install CREGFIX
+# VXD for this was provided by SweetLow <3
+# sysdir is the path to the SYSTEM directory in the source image
+def produce_cregfix_files(fs: FAT.Dirtable, windir: str, sysdir: str, output_866_file: str):
+    output_cregfix_temp = '.cregfixtmp'
+    output_system = os.path.join(output_cregfix_temp, sysdir)
+
+    input_vxd = os.path.join('cregfix', 'cr0wpoff.vxd')
+
+    shutil.rmtree(output_cregfix_temp, ignore_errors=True)
+    mkdir(output_system)
+
+    input_system_ini = case_insensitive_to_sensitive(fs, windir, 'system.ini') # C:\WINDOWS\SYSTEM.INI
+    input_system_cb =  case_insensitive_to_sensitive(fs, windir, 'system.cb')  # C:\WINDOWS\SYSTEM.CB
+
+    output_system_ini = os.path.join(output_cregfix_temp, input_system_ini)
+    output_system_cb  = os.path.join(output_cregfix_temp, input_system_cb)
+
+    system_ini_lines = fs.open(input_system_ini).read().decode().splitlines()
+    system_cb_lines = fs.open(input_system_cb).read().decode().splitlines()
+
+    # Process lines and write output INI files
+    write_386enh_cregfix(output_system_ini, system_ini_lines)
+    write_386enh_cregfix(output_system_cb, system_cb_lines)
+
+    # copy actual VXD file
+    shutil.copy2(input_vxd, output_system)
+
+    # Create 866 file from it
+    mercypak_pack(output_866_file, local_files=output_cregfix_temp)
+
 from drivercopy import driverCopy
 
 # Preprocess the slipstream + extra drivers for this sysprep run
@@ -347,6 +397,8 @@ for osroot, osroot_name in input_osroots:
 
     osroot_windir = get_win_dir(fs)
     osroot_cabdir = get_cab_dir(fs)
+    osroot_infdir = case_insensitive_to_sensitive(fs, osroot_windir, 'inf')
+    osroot_sysdir = case_insensitive_to_sensitive(fs, osroot_windir, 'system')
 
     if osroot_windir is None:
         raise ValueError("Could not find WIN.COM in directory tree")
@@ -366,10 +418,12 @@ for osroot, osroot_name in input_osroots:
     registry_add_reg(fs, osroot_windir, slowpnp_reg, slowpnp_866)
     registry_add_reg(fs, osroot_windir, fastpnp_reg, fastpnp_866)
 
-    # Get a list of all the files in the image
-    osroot_files = get_full_file_list(fs) 
+    # Process CREGFIX
+    cregfix_866 = os.path.join(output_osroot, 'CREGFIX.866')
+    produce_cregfix_files(fs, osroot_windir, osroot_sysdir, cregfix_866)
 
-    osroot_infdir = case_insensitive_to_sensitive(fs, osroot_windir, 'inf')
+    # Get a list of all the files in the image
+    osroot_files = get_full_file_list(fs)
 
     remove_from_file_list_if_present(osroot_files, [osroot_infdir], 'mdm*.inf', ['windows/inf/mdmgen.inf'])
     remove_from_file_list_if_present(osroot_files, [osroot_infdir], 'wdma_*.inf', ['windows/inf/wdma_usb.inf'])
@@ -378,7 +432,11 @@ for osroot, osroot_name in input_osroots:
     remove_from_file_list_if_present(osroot_files, [osroot_windir], 'ndislog.txt')
     remove_from_file_list_if_present(osroot_files, [osroot_windir], '*.log')
     remove_from_file_list_if_present(osroot_files, [osroot_infdir], 'drv*.bin')
-    
+
+    remove_from_file_list_if_present(osroot_files, [osroot_sysdir], 'license.txt')  # UNICOWS artifact
+    remove_from_file_list_if_present(osroot_files, [osroot_sysdir], 'redist.txt')   # UNICOWS artifact
+    remove_from_file_list_if_present(osroot_files, [osroot_sysdir], 'unicows.pdb')  # UNICOWS artifact
+
     remove_from_file_list_if_present(osroot_files, [osroot_windir, 'recent'], '*')
     remove_from_file_list_if_present(osroot_files, [osroot_windir, 'temp'], '*')
     remove_from_file_list_if_present(osroot_files, [osroot_windir, 'applog'], '*')
@@ -406,7 +464,7 @@ for osroot, osroot_name in input_osroots:
 
     # Copy oeminfo
     if os.path.exists(input_oeminfo):
-        tmp_system_dir = os.path.join(output_oemtmp, case_insensitive_to_sensitive(fs, osroot_windir, 'system'))
+        tmp_system_dir = os.path.join(output_oemtmp, osroot_sysdir)
         mkdir(tmp_system_dir)
         shutil.copy2(os.path.join(input_oeminfo, 'oeminfo.ini'), tmp_system_dir)
         shutil.copy2(os.path.join(input_oeminfo, 'oemlogo.bmp'), tmp_system_dir)

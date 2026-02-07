@@ -75,19 +75,6 @@ static inline void msg_cregfixInfoBox(void) {
         "installation un-bootable.\n");
 }
 
-/* Shows warning about CREGFIX if boot sector update wasn't selected*/
-static inline bool msg_askGoBackOnCregfixWithoutBootsector(void) {
-    int action = ad_yesNoBox("Warning", false,
-        "You have selected the CREGFIX patch to be applied,\n"
-        "but not that the boot sector should be updated.\n"
-        "\n"
-        "Since QuickInstall embeds the CREGFIX code in the bootloader,\n"
-        "the patch will not be applied.\n"
-        "\n"
-        "Do you wish to go back to the configuration menu to fix this?");
-    return (action == AD_YESNO_YES);
-}
-
 /* Shows info that partition is mounted and asks if user wants to unmount and proceed */
 static inline bool msg_askUnmountBeforeInstall(util_Partition *part) {
     int action = ad_yesNoBox("Partition Warning", true,
