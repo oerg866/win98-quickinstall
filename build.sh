@@ -105,6 +105,7 @@ cp dosflop/dosflop.img "$CDROOT/"
 
 # Our installer!
 cp supplement/install.txt "$CDROOT/"
+cp supplement/csmwrap.efi "$CDROOT/"
 cp installer/lunmercy "$CDROOT/bin/"
 
 # Copy sysprep tools & base drivers
