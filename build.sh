@@ -117,6 +117,7 @@ cp -r tools "$OUTPUT"
 cp syslinux/bios/mbr/mbr.bin "$OUTPUT/tools/syslinux_mbr.bin"
 objcopy -O binary -j .data syslinux/bios/linux/bootsect_bin.o "$OUTPUT/tools/syslinux_bs.bin"
 cp syslinux/bios/com32/elflink/ldlinux/ldlinux.c32 "$OUTPUT/tools"
+cp syslinux/bios/com32/menu/menu.c32 "$OUTPUT/tools"
 cp syslinux/bios/core/ldlinux.sys "$OUTPUT/tools"
 
 mkdir -p "$OUTPUT/_DRIVER_"
