@@ -415,8 +415,8 @@ static qi_WizardAction qi_mainMenu() {
     switch (menuResult) {
         case 0:             return WIZ_SELECT_PARTITION;
         case 1:             return WIZ_PARTITION;
-        case 2:             return WIZ_REDO_FROM_START;
-        case 3:             return WIZ_EXIT_TO_SHELL;
+        case 2:             return WIZ_EXIT_TO_SHELL;
+        case 3:             return WIZ_REDO_FROM_START;
         case AD_CANCELED:   return WIZ_REDO_FROM_START;
         default:            QI_FATAL(false, "Inconsistent menu state");
                             return WIZ_REDO_FROM_START;
