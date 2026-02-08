@@ -777,8 +777,6 @@ static void qi_installExecuteIfEnabled(qi_OptionIdx index, qi_OptionFunc func, c
         qi_wizData.errorIndex = index;
     }
     ad_clearFooter();
-
-    getchar();
 }
 
 static qi_WizardAction qi_install(void) {
