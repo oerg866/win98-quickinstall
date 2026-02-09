@@ -11,6 +11,7 @@
 #include <malloc.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <ctype.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 
@@ -61,7 +62,32 @@ static util_HardDisk *util_HardDiskArrayAppend(util_HardDiskArray *hda, const ch
     return ret;
 }
 
-static util_Partition *util_HardDiskAddPartition(util_HardDisk *hd, const char *device, uint64_t size, uint32_t sectorSize, util_FileSystem fileSystem, size_t indexOnParent) {
+static size_t util_getPartitionIndexOnParent(util_Partition *part) {
+    // Getting the index reliably is a bit hard
+    // Parse the device string from the end until we find a non-number and then get the number from there
+    char *devStr = part->device;
+    char *parseStart = NULL;
+
+    for (size_t stringIndex = strlen(devStr)-1; stringIndex > 0; stringIndex--) {
+        if (isdigit(devStr[stringIndex])) {
+            parseStart = &devStr[stringIndex];
+        } else {
+            break;
+        }
+
+        if (stringIndex < strlen(part->parent->device)) {
+            // Uh oh, we have not found a non-digit character but are now into the parent device stem.
+            parseStart = NULL;
+            break;
+        }
+    }
+
+    QI_FATAL(parseStart != NULL, "Cannot parse partition device index.");
+
+    return (size_t) atoi(parseStart);;
+}
+
+static util_Partition *util_HardDiskAddPartition(util_HardDisk *hd, const char *device, uint64_t size, uint32_t sectorSize, util_FileSystem fileSystem) {
     QI_ASSERT(hd != NULL);
 
     hd->partitionCount++;
@@ -79,7 +105,7 @@ static util_Partition *util_HardDiskAddPartition(util_HardDisk *hd, const char *
     ret->sectorSize = sectorSize;
     ret->fileSystem = fileSystem;
     ret->parent = hd;
-    ret->indexOnParent = indexOnParent;
+    ret->indexOnParent = util_getPartitionIndexOnParent(ret);
 
     return ret;
 }
@@ -180,8 +206,7 @@ util_HardDiskArray *util_getSystemHardDisks() {
             /* The beginning of the device name must match the parent disk's as a child partition of that disk. */
             QI_ASSERT(util_stringStartsWith(tmpDevice, currentDisk->device) == true);
 
-            size_t index = (size_t) atoi(tmpDevice + strlen(currentDisk->device));   // so for example "/dev/sda1" would have atoi called on the "1" part
-            util_HardDiskAddPartition(currentDisk,tmpDevice, tmpSize, tmpSectorSize, tmpFileSystem, index);
+            util_HardDiskAddPartition(currentDisk,tmpDevice, tmpSize, tmpSectorSize, tmpFileSystem);
         } else {
             /* Tape streamer or other weird thing, not of interest for us... */
             continue;
