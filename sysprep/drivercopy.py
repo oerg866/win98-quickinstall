@@ -360,12 +360,21 @@ def handleInf(filename: str, outInfName: str, cabName: str, filesInDirectory: li
 
     writeSourceDisksNamesAndFiles(inf, knownFiles, cabName)
 
-    inf.Save(outInfName)
+    success = inf.Save(outInfName)
+
+    # Wininfparser saves with \n line endings, which Win98 doesn't really like.
+    # So we replace them by hand with \r\n
+
+    allLines = open(outInfName, 'r').readlines()
+
+    with open(outInfName, 'w') as f:
+        for line in allLines:
+            f.write(f'{line}\r\n')
 
     for newFile in knownFiles:
         addOrUpdateSourceFile(filesInDirectory, newFile.fileName, newFile.sourceDir)
 
-    return True
+    return success
 
 # Checks if a string list contains an item, case insensitively
 def containsCaseInsensitive(where: list[str], toFind: str) -> bool:
