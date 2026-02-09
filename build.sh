@@ -89,8 +89,19 @@ popd
 mkdir -p "$CDROOT/bin"
 cp bzImage.cd "$CDROOT/"
 cp tiny-floppy-bootloader/cdrom.img "$CDROOT/"
-cp util-linux/OUTPUT/bin/* "$CDROOT/bin/"
-cp util-linux/OUTPUT/sbin/* "$CDROOT/bin/"
+
+# Copy some essentials
+cp util-linux/OUTPUT/bin/eject "$CDROOT/bin/"
+cp util-linux/OUTPUT/bin/hexdump "$CDROOT/bin/"
+cp util-linux/OUTPUT/bin/irqtop "$CDROOT/bin/"
+cp util-linux/OUTPUT/bin/isosize "$CDROOT/bin/"
+cp util-linux/OUTPUT/bin/lscpu "$CDROOT/bin/"
+cp util-linux/OUTPUT/bin/lsirq "$CDROOT/bin/"
+cp util-linux/OUTPUT/bin/lsmem "$CDROOT/bin/"
+cp util-linux/OUTPUT/bin/whereis "$CDROOT/bin/"
+cp util-linux/OUTPUT/sbin/addpart "$CDROOT/bin/"
+cp util-linux/OUTPUT/sbin/delpart "$CDROOT/bin/"
+
 cp util-linux/cfdisk "$CDROOT/bin/"
 cp util-linux/lsblk "$CDROOT/bin/"
 cp pciutils/lspci "$CDROOT/bin/"
