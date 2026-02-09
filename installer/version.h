@@ -1,8 +1,8 @@
 #ifndef LUNMERCY_VERSION_H
 #define LUNMERCY_VERSION_H
 
-#define LUNMERCY_VERSION "0.9.6"
-#define LUNMERCY_COPYRIGHT "(C) 2024 E. Voirin (oerg866)"
+#define LUNMERCY_VERSION "1.0.0"
+#define LUNMERCY_COPYRIGHT "(C) 2026 E. Voirin (oerg866)"
 #define LUNMERCY_BACKTITLE "Windows 98 / ME QuickInstall -- v" LUNMERCY_VERSION " " LUNMERCY_COPYRIGHT
 
 #endif 
