@@ -41,7 +41,7 @@ The framework must be built on Linux. It was tested using Ubuntu 20.04 and 22.04
 
 You must install the following packages:
 
-`build-essential tic python3 python-is-python3 gunzip libuuid wine dd nasm uuid-dev mkisofs zip syslinux automake libtool gettext bison autopoint pkg-config flex`
+`build-essential ncurses-bin python3 python3-pip python-is-python3 wine coreutils nasm uuid-dev zip syslinux automake libtool gettext bison autopoint pkg-config flex gzip libtinfo-dev lzop binutils tar`
 
 (this might be incomplete, be warned)
 
@@ -57,7 +57,7 @@ You must install the following packages:
 Many people, but especially:
 
 * TheRetroWeb staff: Rigo (0xCats), Computerguy096, Deksor, evasive, agent_x007, Fouquin
-* linearcannon, Enigma, limsup, einstein95, Retro Wizard Manfred
+* linearcannon, Enigma, limsup, einstein95, Jeff Chen
 
 # License
 
