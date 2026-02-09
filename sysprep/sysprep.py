@@ -103,6 +103,20 @@ def get_full_file_list(fs: FAT.Dirtable) -> list[str]:
             ret.append(full_path)
     return ret
 
+# Delete tree from file list
+def remove_tree_if_present(files, pathList):
+    full_pattern = os.path.join(*pathList).lower()
+
+    new_files = []
+
+    for f in files:
+        if not f.lower().startswith(full_pattern + os.path.sep):
+            new_files.append(f)
+        else:
+            print(f'removing {f}')
+
+    files[:] = new_files
+
 # Delete from file list with pattern
 def remove_from_file_list_if_present(files, subdirs, pattern, exceptions = []):
     if subdirs:
@@ -134,7 +148,7 @@ def get_wine_path(path):
 # Run Windows 98's REGEDIT in 16-bit DOS emulation (bundled, sorry microsoft, don't sue me :C)
 def run_regedit(reg_file):
     regedit_exe = os.path.join(script_base_path, 'registry', 'regedit.exe')
-    msdos_exe = os.path.join(script_base_path, 'tools', 'msdos.exe')
+    msdos_exe = os.path.join(script_base_path, 'registry', 'msdos.exe')
 
     # regedit is called from *within* msdos.exe.
 
@@ -389,7 +403,7 @@ for osroot, osroot_name in input_osroots:
     mkdir(output_osroot)
     
     # Give the OSRoot a name for the installer menu
-    with open(os.path.join(output_osroot, 'wini98qi.inf'), 'w') as labelFile:
+    with open(os.path.join(output_osroot, 'win98qi.inf'), 'w') as labelFile:
         labelFile.write(f'{osroot_name}\n')
 
     root = Volume.vopen(osroot, 'r+b', what='partition0')
@@ -399,6 +413,9 @@ for osroot, osroot_name in input_osroots:
     osroot_cabdir = get_cab_dir(fs)
     osroot_infdir = case_insensitive_to_sensitive(fs, osroot_windir, 'inf')
     osroot_sysdir = case_insensitive_to_sensitive(fs, osroot_windir, 'system')
+    osroot_vmm32dir = case_insensitive_to_sensitive(fs, osroot_sysdir, 'vmm32')
+
+
 
     if osroot_windir is None:
         raise ValueError("Could not find WIN.COM in directory tree")
@@ -428,14 +445,22 @@ for osroot, osroot_name in input_osroots:
     remove_from_file_list_if_present(osroot_files, [osroot_infdir], 'mdm*.inf', ['windows/inf/mdmgen.inf'])
     remove_from_file_list_if_present(osroot_files, [osroot_infdir], 'wdma_*.inf', ['windows/inf/wdma_usb.inf'])
 
+    remove_from_file_list_if_present(osroot_files, [osroot_windir], 'logow.sys')
+    remove_from_file_list_if_present(osroot_files, [osroot_windir], 'wininit.bak')
+    remove_from_file_list_if_present(osroot_files, [osroot_windir], 'hwinfo.dat')
+
     remove_from_file_list_if_present(osroot_files, [osroot_windir], 'win386.swp')
     remove_from_file_list_if_present(osroot_files, [osroot_windir], 'ndislog.txt')
     remove_from_file_list_if_present(osroot_files, [osroot_windir], '*.log')
     remove_from_file_list_if_present(osroot_files, [osroot_infdir], 'drv*.bin')
 
+    remove_from_file_list_if_present(osroot_files, [osroot_vmm32dir], '*.bak')
+
     remove_from_file_list_if_present(osroot_files, [osroot_sysdir], 'license.txt')  # UNICOWS artifact
     remove_from_file_list_if_present(osroot_files, [osroot_sysdir], 'redist.txt')   # UNICOWS artifact
     remove_from_file_list_if_present(osroot_files, [osroot_sysdir], 'unicows.pdb')  # UNICOWS artifact
+
+    remove_from_file_list_if_present(osroot_files, [osroot_sysdir], '*.bak')        # Patch artifacts
 
     remove_from_file_list_if_present(osroot_files, [osroot_windir, 'recent'], '*')
     remove_from_file_list_if_present(osroot_files, [osroot_windir, 'temp'], '*')
@@ -444,6 +469,7 @@ for osroot, osroot_name in input_osroots:
     remove_from_file_list_if_present(osroot_files, [osroot_windir, 'other'], '*')
     remove_from_file_list_if_present(osroot_files, ['recycled'], '*')
     
+    remove_from_file_list_if_present(osroot_files, [], 'logo.sys')
     remove_from_file_list_if_present(osroot_files, [], 'win386.swp')
     remove_from_file_list_if_present(osroot_files, [], 'bootlog.*')
     remove_from_file_list_if_present(osroot_files, [], 'frunlog.txt')
@@ -461,6 +487,9 @@ for osroot, osroot_name in input_osroots:
 
     # No need to pack the registry, it's already included in SLOWPNP and FASTPNP
     remove_from_file_list_if_present(osroot_files, [osroot_windir], 'system.dat')
+
+    remove_tree_if_present(osroot_files, [osroot_windir, 'temporary internet files'])
+    remove_tree_if_present(osroot_files, [osroot_windir, 'history'])
 
     # Copy oeminfo
     if os.path.exists(input_oeminfo):
