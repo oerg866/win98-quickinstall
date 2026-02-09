@@ -108,16 +108,16 @@ cp supplement/install.txt "$CDROOT/"
 cp supplement/csmwrap.efi "$CDROOT/"
 cp installer/lunmercy "$CDROOT/bin/"
 
-# Copy sysprep tools & base drivers
+# Copy sysprep tools
 mkdir -p "$OUTPUT/tools"
 mkdir -p "$OUTPUT/mercypak"
-cp -r tools "$OUTPUT"
 
 # SYSLINUX: Extract mbr and bootsector, as well as ldlinux loader files
 cp syslinux/bios/mbr/mbr.bin "$OUTPUT/tools/syslinux_mbr.bin"
 objcopy -O binary -j .data syslinux/bios/linux/bootsect_bin.o "$OUTPUT/tools/syslinux_bs.bin"
 cp syslinux/bios/com32/elflink/ldlinux/ldlinux.c32 "$OUTPUT/tools"
 cp syslinux/bios/com32/menu/menu.c32 "$OUTPUT/tools"
+cp syslinux/bios/com32/libutil/libutil.c32 "$OUTPUT/tools"
 cp syslinux/bios/core/ldlinux.sys "$OUTPUT/tools"
 
 mkdir -p "$OUTPUT/_DRIVER_"

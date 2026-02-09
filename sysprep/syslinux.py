@@ -4,7 +4,7 @@
 
 import os
 import mmap
-import fs
+from FATtools import Volume
 import struct
 
 # OK Realtalk(TM)
@@ -296,48 +296,50 @@ def patch_syslinux_bootsector(mm: mmap.mmap, partition_offset_sector, ldlinux_sy
 def get_padded_size(size, padding):
     return (size + padding - 1) // padding * padding
 
-def install_syslinux(filename, partition_starting_sector, bytes_per_sector=512):
-    print(f'Installing SYSLINUX bootloader to image "{filename}"')
 
-    protocol_file = f'fat://{fs.path.normpath(os.path.abspath(filename))}?offset={partition_starting_sector * bytes_per_sector}'
+def install_syslinux(filename):    
+    # Open image and copy the files in
+    part = Volume.vopen(filename, 'r+b', 'partition0')
+
+    # Grab partition starting offset for later
+    bytes_per_sector = 512
+    partition_starting_sector = part.offset // bytes_per_sector
+        
+    fs = Volume.openvolume(part)
 
     ldlinux_sys_path = os.path.join(os.curdir, 'tools', 'ldlinux.sys')
     ldlinux_c32_path = os.path.join(os.curdir, 'tools', 'ldlinux.c32')
+    menu_c32_path = os.path.join(os.curdir, 'tools', 'menu.c32')
+    libutil_c32_path = os.path.join(os.curdir, 'tools', 'libutil.c32')
 
-    with fs.open_fs(protocol_file) as filesystem:
-        # I think with PyFilesystem it's faster to write the files manually than using the copy functions? at least that's how it's behaving on my Windows box
+    Volume.copy_in([ldlinux_c32_path, menu_c32_path, libutil_c32_path],fs)
 
-        with filesystem.open('ldlinux.sys', 'wb') as outfile:
-            with open(ldlinux_sys_path, 'rb') as infile:
-                ldlinux_sys_bytes = infile.read()
-                ldlinux_sys_size = len(ldlinux_sys_bytes) # Pad to sector size + 2 sectors for ADV
-            
-            # We need to pad to the next sector size and add 2 sectors to add the "ADV" region whatever the f*** that is
-            ldlinux_sys_write_size = get_padded_size(ldlinux_sys_size + 2 * bytes_per_sector, bytes_per_sector)
-            outfile.write(ldlinux_sys_bytes)
-            outfile.write(bytearray(ldlinux_sys_write_size - ldlinux_sys_size))
-            
+    ldlinux_handle = fs.create('ldlinux.sys')
 
-        with filesystem.open('ldlinux.c32', 'wb') as outfile:
-            with open(ldlinux_c32_path, 'rb') as infile:
-                ldlinux_c32_bytes = infile.read()
-                outfile.write(ldlinux_c32_bytes)
+    with open(ldlinux_sys_path, 'rb') as infile:
+        ldlinux_sys_bytes = infile.read()
+        ldlinux_sys_size = len(ldlinux_sys_bytes) # Pad to sector size + 2 sectors for ADV
+        
+        # We need to pad to the next sector size and add 2 sectors to add the "ADV" region whatever the f*** that is
+        ldlinux_sys_write_size = get_padded_size(ldlinux_sys_size + 2 * bytes_per_sector, bytes_per_sector)
+        ldlinux_handle.write(ldlinux_sys_bytes)
+        ldlinux_handle.write(bytearray(ldlinux_sys_write_size - ldlinux_sys_size))
+        ldlinux_handle.close()
 
-    filesystem.close()
+    Volume.vclose(part)
 
-    # get offset of the ldlinux.sys file we just wrote.
-    # It seems this can be done with "get_cluster" but this is all a bit too complicated for my tiny brain
+    # Now that the files are on, do the stupid syslinux patching bullshit
 
     with open(filename, "r+b") as f:
         mm = mmap.mmap(f.fileno(), 0)
-
         ldlinux_sys_offset = mm.find(ldlinux_sys_bytes)
         ldlinux_sys_sector = ldlinux_sys_offset // bytes_per_sector
 
-        # print(f'LDLINUX.SYS found at {ldlinux_sys_offset} ({hex(ldlinux_sys_offset)}), sector {ldlinux_sys_sector} (hex({hex(ldlinux_sys_sector)}))')
+        print(f'LDLINUX.SYS found at {ldlinux_sys_offset} ({hex(ldlinux_sys_offset)}), sector {ldlinux_sys_sector} (hex({hex(ldlinux_sys_sector)}))')
 
         # Patch boot sector to include the starting sector of syslinux
         patch_syslinux_bootsector(mm, partition_starting_sector, ldlinux_sys_sector)
 
         # Patch all the crap to be patched in LDLINUX.SYS
         patch_ldlinux_sys(mm, partition_starting_sector, ldlinux_sys_offset, ldlinux_sys_size, ldlinux_sys_write_size, bytes_per_sector)
+

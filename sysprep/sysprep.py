@@ -14,10 +14,10 @@ import fnmatch
 import stat
 
 from FATtools import Volume, FAT
-from makeusb import make_usb
 from mercypak import mercypak_pack
 from drivercopy import driverCopy
 from makeiso import makeIso
+from makeusb import makeUsb
 
 # Store the current working directory in a global variable
 cwd_stack = [os.getcwd()]
@@ -498,4 +498,4 @@ if output_image_iso is not None:
     makeIso(output_base, output_image_iso, 'cdrom.img', label)
 
 if output_image_usb is not None:
-    make_usb(output_base, output_image_usb)
+    makeUsb(output_base, output_image_usb)
