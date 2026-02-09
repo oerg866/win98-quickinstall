@@ -55,9 +55,76 @@ bool inst_isInstallationSourcePartition(util_Partition *part) {
     return (util_stringEquals(cdromdev, part->device));
 }
 
-bool inst_formatPartition(util_Partition *part) {
-    char formatCmd[UTIL_MAX_CMD_LENGTH];
-    bool ret = util_getFormatCommand(part, part->fileSystem, formatCmd, UTIL_MAX_CMD_LENGTH);
-    QI_ASSERT(ret && "GetFormatCommand");
-    return (0 == ad_runCommandBox("Formatting partition...", formatCmd));
+const char *inst_getTableTypeString(util_HardDisk *disk) {
+    bool hasTableType = strlen(disk->tableType) > 0;
+    if (hasTableType && util_stringEquals(disk->tableType, "dos")) {
+        // Replace "dos" with "mbr" because that's nicer to look at
+        return "mbr";
+    } else if (hasTableType) {
+        return disk->tableType;
+    } else {
+        return "<?>";
+    }
+}
+
+const char *inst_getPartitionMenuString(util_Partition *part) {
+    static char entry[128];
+    util_HardDisk *disk = part->parent;
+    char sizeString[32];
+    uint64_t sizeMB = part->size / 1024ULL / 1024ULL;
+
+    sizeMB = MIN(99999999ULL, sizeMB); // Sorry, we don't have the technology for disks bigger than 99TB :)
+    snprintf(sizeString, 32, "%llu MB", sizeMB);
+
+    //              *[other Hard Disk Name][nvme99n99p99][Unsupported][11222333 MB]  
+    sprintf(entry, " [                    ][            ][           ][           ] ");
+    
+    // Asterisk on install source
+    entry[0] = inst_isInstallationSourcePartition(part) ? '*' : ' ';
+
+    // HDD names are capped at 20 chars in our display
+    char hddName[20+1] = "";
+    char devName[12+1] = "";    // Now honestly - this may end up wild, but if you have more than 99 nvme disks with more than 99 partitions, you are weird
+    char formatName[11+1] = "";
+    util_getCappedString(hddName, disk->model, 20);
+    util_getCappedString(devName, util_shortDeviceString(part->device), 12);
+    util_getCappedString(formatName, util_utilFilesystemToString(part->fileSystem), 11);
+    util_stringInsert(&entry[1 + 1],                hddName);
+    util_stringInsert(&entry[1 + 22 + 1],           devName);
+    util_stringInsert(&entry[1 + 22 + 14 + 1],      formatName);
+    util_stringInsert(&entry[1 + 22 + 14 + 13 + 1], sizeString);
+
+    return entry;
+}
+
+const char *inst_getDiskMenuString(util_HardDisk *disk) {
+    static char entry[128];
+    char sizeString[32];
+    uint64_t sizeMB = disk->size / 1024ULL / 1024ULL;
+
+    sizeMB = MIN(99999999ULL, sizeMB); // Sorry, we don't have the technology for disks bigger than 99TB :)
+    snprintf(sizeString, 32, "%llu MB", sizeMB);
+
+
+    // *[other Hard Disk Name][nvme99n99   ][mbr        ][11222333 MB]
+   
+    sprintf(entry, 
+      " [                    ][            ][           ][           ] ");
+    
+    // Asterisk on install source
+    entry[0] = inst_isInstallationSourceDisk(disk) ? '*' : ' ';
+
+    // HDD names are capped at 20 chars in our display
+    char hddName[20+1] = "";
+    char devName[12+1] = "";    // Now honestly - this may end up wild, but if you have more than 99 nvme disks with more than 99 partitions, you are weird
+    char tableType[11+1] = "";
+    util_getCappedString(hddName, disk->model, 20);
+    util_getCappedString(devName, util_shortDeviceString(disk->device), 12);
+    util_getCappedString(tableType, inst_getTableTypeString(disk), 11);
+    util_stringInsert(&entry[1 + 1],                hddName);
+    util_stringInsert(&entry[1 + 22 + 1],           devName);
+    util_stringInsert(&entry[1 + 22 + 14 + 1],      tableType);
+    util_stringInsert(&entry[1 + 22 + 14 + 13 + 1], sizeString);
+
+    return entry;
 }

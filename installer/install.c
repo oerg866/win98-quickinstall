@@ -362,7 +362,7 @@ static qi_WizardAction qi_variantSelectAndStartPrebuffering() {
         bool infFileReadOK = util_readFirstLineFromFileIntoBuffer(tmpInfPath, tmpVariantLabel, sizeof(tmpVariantLabel));
         QI_FATAL(infFileReadOK, "Cannot get OS data from source.");
 
-        ad_menuAddItemFormatted(menu, "%zu: %s", variantCount + 1, tmpVariantLabel);
+        ad_menuAddItemFormatted(menu, "%s", tmpVariantLabel);
 
         variantCount++;
     }
@@ -437,7 +437,10 @@ static qi_WizardAction qi_partitionSelect(void) {
         ad_Menu *menu = ad_menuCreate("Installation Destination", 
             "Select the partition you wish to install to.\n"
             "An asterisk (*) means that this is the source media and\n"
-            "cannot be used.", true);
+            "cannot be used.\n\n"
+            // Sorgy, ackident... very messy hack,.
+            "   [Disk Model/Name     ][Partition   ][File System][Size       ] ",
+            true);
 
         QI_ASSERT(menu);
 
@@ -445,16 +448,7 @@ static qi_WizardAction qi_partitionSelect(void) {
             util_HardDisk *harddisk = &qi_wizData.hda->disks[disk];
 
             for (size_t part = 0; part < harddisk->partitionCount; part++) {
-                util_Partition *partition = &harddisk->partitions[part];
-
-                ad_menuAddItemFormatted(menu, "%8s: (%s, %llu MB) on disk %s [%s] %s",
-                    util_shortDeviceString(partition->device),
-                    util_utilFilesystemToString(partition->fileSystem),
-                    partition->size / 1024ULL / 1024ULL,
-                    util_shortDeviceString(harddisk->device),
-                    harddisk->model,
-                    inst_isInstallationSourcePartition(partition) ? "(*)" : ""
-                );
+                ad_menuAddItemFormatted(menu, "%s", inst_getPartitionMenuString(&harddisk->partitions[part]));
             }
         }
 
@@ -506,7 +500,7 @@ static qi_WizardAction qi_partitionSelect(void) {
 
 /* On invalid/unsupported partition table, ask user if he wants to wipe it */
 static void qi_invalidPartTableAskUserAndWipe(util_HardDisk *hdd) {
-    if (msg_askNonMbrWarningWipeMBR(hdd)) {
+    if (msg_askNonMbrWarningWipeMBR(hdd, inst_getTableTypeString(hdd))) {
         if (!util_wipePartitionTable(hdd)) {
             // No return value here since we can't do much and we'll launch cfdisk anyway
             msg_wipeMbrFailed();
@@ -533,23 +527,18 @@ static qi_WizardAction qi_partitioning(void) {
             "An asterisk (*) means that this is the source media and\n"
             "cannot be altered.\n"
             "A question mark <?> means that this drive does not have a\n"
-            "valid/known partition table type.", true);
+            "valid/known partition table type.\n\n"
+            // Hackkkkkkkkkkkkkkkyyyyyy
+            "   [Disk Model/Name     ][Device      ][Table Type ][Size       ] ",
+            true);
 
         QI_ASSERT(menu);
 
         for (size_t i = 0; i < qi_wizData.hda->count; i++) {
-            util_HardDisk *disk = &qi_wizData.hda->disks[i];
-            bool hasPartitionTableType = (strlen(disk->tableType) > 0);
-            ad_menuAddItemFormatted(menu, "%s [%s] (%llu MB) %s %s",
-                disk->device,
-                disk->model,
-                disk->size / 1024ULL / 1024ULL,
-                hasPartitionTableType ? disk->tableType : "<?>",
-                inst_isInstallationSourceDisk(disk) ? "(*)" : ""
-                );
+            ad_menuAddItemFormatted(menu, inst_getDiskMenuString(&qi_wizData.hda->disks[i]));
         }
         
-        ad_menuAddItemFormatted(menu, "[Back]");
+        ad_menuAddItemFormatted(menu, " [Back]");
         int menuResult = ad_menuExecute(menu);
         ad_menuDestroy(menu);
 

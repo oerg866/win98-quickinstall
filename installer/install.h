@@ -71,7 +71,18 @@ bool inst_isInstallationSourceDisk(util_HardDisk *disk);
 /* Checks if given partition is the installation source */
 bool inst_isInstallationSourcePartition(util_Partition *part);
 
-/* Formats partition with UI notice */
-bool inst_formatPartition(util_Partition *part);
+/* Get string for a disk's partition table, the difference between the raw value and
+   what you get here is that "dos" is replaced with the more expressive "mbr"...*/
+const char *inst_getTableTypeString(util_HardDisk *disk);
+
+/* Get a nicely formatted string for the install-destination selector menu
+   This is too hard to do with just printf.
+   And frankly this function is pure garbage but I really wanna get this release finished. */
+const char *inst_getPartitionMenuString(util_Partition *part);
+
+/* Get a nicely formatted string for the disk-to-partition selector menu
+   This is too hard to do with just printf.
+   And frankly this function is pure garbage but I really wanna get this release finished. */
+const char *inst_getDiskMenuString(util_HardDisk *disk);
 
 #endif

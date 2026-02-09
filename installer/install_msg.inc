@@ -89,8 +89,7 @@ static inline bool msg_askUnmountBeforeInstall(util_Partition *part) {
 
 
 /* Shows invalid partition table message and asks user if he wants to wipe it */
-static inline bool msg_askNonMbrWarningWipeMBR(util_HardDisk *hdd) {
-    bool hasTableType = (strlen(hdd->tableType) > 0);
+static inline bool msg_askNonMbrWarningWipeMBR(util_HardDisk *hdd, const char *typeString) {
     int action = ad_yesNoBox("Hard Disk Partition Table Issue", true,
         "Selected disk: '%s'.\n"
         "Current partition table type (may be inacccurate): %s\n\n"
@@ -100,7 +99,7 @@ static inline bool msg_askNonMbrWarningWipeMBR(util_HardDisk *hdd) {
         "create a MBR / DOS style partition table in its place.\n"
         "Would you like to do this? (WARNING: THIS WILL CAUSE DATA LOSS!)",
         hdd->device,
-        hasTableType ? hdd->tableType : "<?>");
+        typeString);
 
     return (action == AD_YESNO_YES);
 }

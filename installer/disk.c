@@ -55,6 +55,8 @@ static util_HardDisk *util_HardDiskArrayAppend(util_HardDiskArray *hda, const ch
     strncpy(ret->model, model, sizeof(ret->model));
     strncpy(ret->tableType, tableType, sizeof(ret->tableType));
 
+    util_stringRTrim(ret->model); // this field as it comes from lsblk often contains a ton of padding
+
     ret->size = size;
     ret->sectorSize = sectorSize;
     ret->optIoSize = optIoSize;
@@ -262,8 +264,8 @@ util_FileSystem util_partitionTypeByteToUtilFilesystem(uint8_t partitionType) {
 }
 
 static const char *UTIL_FS_STRINGS[FS_ENUM_SIZE] = {
-    "NO FILE SYSTEM",
-    "UNSUPPORTED FILESYSTEM",
+    "Unformatted",
+    "Unsupported",
     "FAT16",
     "FAT32"
 };
