@@ -1,20 +1,20 @@
-                    (C) 2012-2024 Eric Voirin (oerg866)
-                   Built using the AnbUI Text UI Library
-                http://github.com/oerg866/win98-quickinstall
----------------------------------[ NOTES ]----------------------------------
-- THIS IS A BETA RELEASE. THERE WILL BE BUGS. (Please report them!)
-- Windows is a registered trademark of Microsoft Corporation.
---------------------------------[ FEATURES ]--------------------------------
-- Installs Windows 9x very quickly
-- Works from 486 to modern systems (Minimum 486SX with 24MB RAM)
-- Customisable with many patches and slipstreamed drivers
-- Extensive Driver Library available
-- Bootable from floppy, CD-ROM, USB, hard disks, ...
-- Can partition hard disks
-- Built using open source software
------------------------------[ SPECIAL THANKS ]-----------------------------
-Banban Yafa, Rigo, computerguy096, ChrisR3tro, kext, linear, firehcf, Deksor
-------------------+--------------[ CONTACT ]-------------+------------------
-                  | Discord: oerg866 | Twitter: @oerg866 |
-------------------+------------------+-------------------+------------------
-           Be sure to also check out http://www.theretroweb.com!
+Windows 98/ME QuickInstall                 (C) 2012-2026 E. Voirin (oerg866)
+http://github.com/oerg866/win98-quickinstall      http://www.theretroweb.com
+http://twitter.com/oerg866                           http://www.pharmercy.eu
+----------------------------------------------------------------------------
+Welcome to Windows 9x/ME QuickInstall!
+THE solution for near-instant installation of these classic versions!
+
+Did you know QuickInstall even works perfectly on 486-class machines?
+
+If you are experiencing freezes / disk issues, consider booting
+QuickInstall with one of the non-DMA modes. You may be able to work around
+buggy hardware or drive firmware this way.
+----------------------------------------------------------------------------
+THIS IS AN EXPERIMENTAL PROJECT. THERE MAY BE BUGS.
+Do NOT report bugs with the Windows 9x Operating System itself.
+I am not Microsoft, I cannot fix them.
+Windows is a registered trademark of Microsoft Corporation.
+
+Special thanks to:
+SweetLow Rigo computerguy096 Fouquin linear Deksor PhilsComputerLab JeffChen
