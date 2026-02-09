@@ -774,7 +774,7 @@ static qi_WizardAction qi_install(void) {
 
     // Make the progress bars
     qi_wizData.progress = ad_progressBoxMultiCreate("Installing...",
-        "Please wait while your OS is being installed:\n",
+        "Please wait while your OS is being installed:\n"
         "%s", qi_wizData.variantName);
 
     QI_FATAL(qi_wizData.progress != NULL, "Cannot allocate progress box UI");
@@ -798,12 +798,12 @@ static qi_WizardAction qi_install(void) {
     // Execute preparation steps
     qi_wizData.preparationProgress = 0;
     qi_installExecuteIfEnabled(o_writeMBRAndSetActive,  qi_installWriteMbrSetActive,    "Writing MBR & Setting Partition Active");
-    qi_installExecuteIfEnabled(o_bootSector,            qi_installWriteBootSector,      "Writing Boot Sector");
     qi_installExecuteIfEnabled(o_formatTargetPartition, qi_installFormat,               "Formatting Target Partition");
+    qi_installExecuteIfEnabled(o_bootSector,            qi_installWriteBootSector,      "Writing Boot Sector");
     qi_installExecuteIfEnabled(o_mount,                 qi_installMountPartition,       "Mounting Target Partition");
-    qi_installExecuteIfEnabled(o_uefi,                  qi_installUefi,                 "Installing UEFI support");
 
     // Execute file copies
+    qi_installExecuteIfEnabled(o_uefi,                  qi_installUefi,                 "Installing UEFI support");
     qi_installExecuteIfEnabled(o_baseOS,                qi_installCopyOSRoot,           "Copying operating system files...");
     qi_installExecuteIfEnabled(o_registry,              qi_installRegistry,             "Copying system registry...");
     qi_installExecuteIfEnabled(o_cregfix,               qi_installCregfix,              "Installing CREGFIX patch...");

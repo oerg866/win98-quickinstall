@@ -14,6 +14,7 @@
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <time.h>
+#include <ctype.h>
 #include <unistd.h>
 #include <linux/msdos_fs.h>
 #include <sys/ioctl.h>
@@ -110,6 +111,30 @@ void util_stringReplaceChar(char *str, char oldChar, char newChar) {
 
 char *util_endOfString(char *str) {
     return strchr(str, '\0');
+}
+
+void util_getCappedString(char *dst, const char* src, size_t maxLen) {
+    memset(dst, 0, maxLen + 1);
+
+    if (strlen(src) > maxLen) {
+        memcpy(dst, src, maxLen - 3);
+        strcat(dst, "...");
+    } else {
+        memcpy(dst, src, maxLen);
+    }
+}
+
+void util_stringInsert(char *dst, char *src) {
+    memcpy(dst, src, strlen(src));
+}
+
+void util_stringRTrim(char *str) {
+    char *cur = &str[strlen(str) - 1];
+
+    while (cur >= str && isspace(*cur)) {
+            *cur = 0x00;
+            cur--;
+    }
 }
 
 void util_hexDump(const uint8_t *buf, size_t offset, size_t length) {
