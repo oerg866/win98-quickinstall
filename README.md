@@ -129,7 +129,7 @@ Support for international versions is not properly tested. It should work and in
 
 **NO versions of Windows 95 are supported due to non-PNP device detection being part of the DOS-based installer stage.**
 
-# QuickInstall ISystem Requirements for Installation
+# QuickInstall System Requirements for Installation
   - i486-class CPU, at least a 486SX (but it will be very slow)
   - 24 MiB of memory
   - An IDE / SATA / SCSI / NVMe controller supported by Linux
