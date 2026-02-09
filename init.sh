@@ -14,8 +14,8 @@ echo "ignore it."
 echo "--------------------------------"
 
 # pre clean so the init script works even when init has been done already
-rm -rf ncurses*
-rm -rf termtypes*
+rm -rf ncurses
+rm -rf termtypes
 
 DOWNLOAD="wget -nc -c"
 
@@ -25,33 +25,30 @@ if [ ! -d "i486-linux-musl-cross" ] && [ ! -f "i486-linux-musl-cross.tgz" ]; the
 	echo Downloading i486-linux-musl-cross.tgz
 	$DOWNLOAD http://musl.cc/i486-linux-musl-cross.tgz
 fi;
-if [ ! -d "i486-linux-musl-cross.tgz" ]; then
-	tar -xvf i486-linux-musl-cross.tgz
-fi;
+
+if [ ! -d "i486-linux-musl-cross" ]; then
+	tar -xf i486-linux-musl-cross.tgz
+fi
 
 # Download & unpack ncurses
 
-if [ ! -d "ncurses" ] && [ ! -f "ncurses-6.3.tar.gz" ]; then
+if [ ! -f "ncurses-6.3.tar.gz" ]; then
 	echo Downloading ncurses
 	$DOWNLOAD https://ftp.gnu.org/pub/gnu/ncurses/ncurses-6.3.tar.gz
 fi;
 if [ ! -d "ncurses" ]; then
-	tar -xvf ncurses-6.3.tar.gz
+	tar -xf ncurses-6.3.tar.gz
 	mv ncurses-6.3 ncurses
 fi;
 
 # Download and build termtype data
 
+if [ ! -f "termtypes.ti" ]; then
+  gunzip termtypes.ti.gz
+fi;
 mkdir -p termtypes
 pushd termtypes
-
-if [ ! -f "termtypes.ti.gz" ]; then
-	echo Downloading termtype data
-	$DOWNLOAD http://catb.org/terminfo/termtypes.ti.gz
-fi;
-
-gunzip termtypes.ti.gz
-tic -o . termtypes.ti
+  tic -o . ../termtypes.ti
 popd
 
 # Build config for linux and busybox
@@ -100,14 +97,14 @@ popd
 
 pushd util-linux
 	./autogen.sh
-	./configure --host=i486-linux-musl --prefix=$PWD/OUTPUT --disable-use-tty-group --disable-bash-completion --disable-shared --enable-static --without-tinfo NCURSESW6_CONFIG=$PREFIX/bin/ncursesw6-config
+	./configure --host=i486-linux-musl --prefix=$PWD/OUTPUT --disable-use-tty-group --disable-bash-completion --disable-shared --enable-static --without-tinfo NCURSESW6_CONFIG=$PREFIX/bin/ncursesw6-config  --disable-pylibmount
 	./build.sh
 popd
 
 pushd dosfstools
-        ./autogen.sh
-        ./configure --host=i486-linux-musl --prefix=$PWD/OUTPUT --bindir=$PWD/OUTPUT/bin --sbindir=$PWD/OUTPUT/sbin
-        ./build.sh
+	./autogen.sh
+	./configure --host=i486-linux-musl --prefix=$PWD/OUTPUT --bindir=$PWD/OUTPUT/bin --sbindir=$PWD/OUTPUT/sbin
+	./build.sh
 popd
 
 echo "Assuming nothing went wrong, this should be ready to go! :)"
