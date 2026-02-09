@@ -315,7 +315,7 @@ def writeSourceDisksNamesAndFiles(inf: WinINF, knownFiles: list[SourceFile], cab
 
     sdnSection = INFsection()
     sdnSection.SetName('SourceDisksNames')
-    sdnSection.AddData('1', f'\"Windows 98 QuickInstall Driver Pack\",{cabNameNoDir}', '-- by Win9xQI DriverCopy --')
+    sdnSection.AddData('1', f'\"Windows 98 QuickInstall Driver Pack\",{cabNameNoDir},,', '-- by Win9xQI DriverCopy --')
 
     sdnSection.AddData('')
 
