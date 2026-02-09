@@ -52,6 +52,8 @@ pushd linux
    	cp arch/x86/boot/bzImage ../bzImage.flp
 	rm -f .config && cp ../buildscripts/linux_config.cd .config && make -j8 bzImage
 	cp arch/x86/boot/bzImage ../bzImage.cd
+	rm -f .config && cp ../buildscripts/linux_config.efi .config && make -j8 bzImage
+   	cp arch/x86/boot/bzImage ../bzImage.efi
 popd
 
 pushd dosfstools
@@ -119,6 +121,9 @@ cp syslinux/bios/com32/elflink/ldlinux/ldlinux.c32 "$OUTPUT/tools"
 cp syslinux/bios/com32/menu/menu.c32 "$OUTPUT/tools"
 cp syslinux/bios/com32/libutil/libutil.c32 "$OUTPUT/tools"
 cp syslinux/bios/core/ldlinux.sys "$OUTPUT/tools"
+
+# Copy EFI kernel into tools folder also
+cp bzImage.efi "$OUTPUT/tools"
 
 mkdir -p "$OUTPUT/_DRIVER_"
 mkdir -p "$OUTPUT/_EXTRA_DRIVER_"
