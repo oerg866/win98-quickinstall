@@ -281,6 +281,21 @@ def produce_cregfix_files(fs: FAT.Dirtable, windir: str, sysdir: str, output_866
     # Create 866 file from it
     mercypak_pack(output_866_file, local_files=output_cregfix_temp)
 
+# Creates a .866 file containing the GPT support driver for this OSRoot
+def produce_gpttsd_files(fs: FAT.Dirtable, iosubsysdir: str, output_866_file: str): 
+    output_gpttsd_temp = '.cregfixtmp'
+    output_iosubsys = os.path.join(output_gpttsd_temp, iosubsysdir)
+
+    input_vxd = os.path.join('gpttsd', 'gpttsdrw.vxd')
+
+    shutil.rmtree(output_gpttsd_temp, ignore_errors=True)
+
+    # Copy actual VXD file
+    shutil.copy2(input_vxd, output_iosubsys)
+    # Create 866 file from it
+    mercypak_pack(output_866_file, local_files=output_gpttsd_temp)
+
+
 from drivercopy import driverCopy
 
 # Preprocess the slipstream + extra drivers for this sysprep run
@@ -414,8 +429,7 @@ for osroot, osroot_name in input_osroots:
     osroot_infdir = case_insensitive_to_sensitive(fs, osroot_windir, 'inf')
     osroot_sysdir = case_insensitive_to_sensitive(fs, osroot_windir, 'system')
     osroot_vmm32dir = case_insensitive_to_sensitive(fs, osroot_sysdir, 'vmm32')
-
-
+    osroot_iosubsysdir = case_insensitive_to_sensitive(fs, osroot_sysdir, 'iosubsys')
 
     if osroot_windir is None:
         raise ValueError("Could not find WIN.COM in directory tree")
@@ -438,6 +452,10 @@ for osroot, osroot_name in input_osroots:
     # Process CREGFIX
     cregfix_866 = os.path.join(output_osroot, 'CREGFIX.866')
     produce_cregfix_files(fs, osroot_windir, osroot_sysdir, cregfix_866)
+
+    # Process GPTTSD Driver
+    gpttsd_866 = os.path.join(output_osroot, 'GPTTSD.866')
+    produce_gpttsd_files(fs, osroot_iosubsysdir, gpttsd_866)
 
     # Get a list of all the files in the image
     osroot_files = get_full_file_list(fs)

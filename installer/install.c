@@ -46,6 +46,7 @@
 
 #define INST_SYSROOT_FILE "FULL.866"
 #define INST_CREGFIX_FILE "CREGFIX.866"
+#define INST_GPTTSD_FILE "GPTTSD.866"
 #define INST_DRIVER_FILE  "DRIVER.866"
 #define INST_SLOWPNP_FILE "SLOWPNP.866"
 #define INST_FASTPNP_FILE "FASTPNP.866"
@@ -649,6 +650,10 @@ static qi_WizardAction qi_config(void) {
     if (QI_OPTION_YES == qi_configGet(o_cregfix)) {
         msg_cregfixInfoBox();
     }
+    
+    if (QI_OPTION_YES == qi_configGet(o_gpttsd)) {
+        msg_gpttsdInfoBox();
+    }
  
     return WIZ_NEXT;
 }
@@ -726,6 +731,10 @@ static bool qi_installUnpackGeneric(size_t progressBarIndex, const char *fileNam
     return success;
 }
 
+static bool qi_installGpttsd(size_t progressBarIndex) {
+    return qi_installUnpackGeneric(progressBarIndex, INST_GPTTSD_FILE);
+}
+
 static bool qi_installCregfix(size_t progressBarIndex) {
     return qi_installUnpackGeneric(progressBarIndex, INST_CREGFIX_FILE);
 }
@@ -786,6 +795,7 @@ static qi_WizardAction qi_install(void) {
     size_t progressBarIndex = 3;
     
     qi_installAddToProgressBoxIfEnabled(&progressBarIndex, o_cregfix,                   "Copy Files (CREGFIX)");
+    qi_installAddToProgressBoxIfEnabled(&progressBarIndex, o_gpttsd,                    "Copy Files (GPT Support)");
     qi_installAddToProgressBoxIfEnabled(&progressBarIndex, o_installDriversBase,        "Copy Files (Base Drivers)");
     qi_installAddToProgressBoxIfEnabled(&progressBarIndex, o_installDriversExtra,       "Copy Files (Extended Drivers)");
     qi_installAddToProgressBoxIfEnabled(&progressBarIndex, o_copyExtras,                "Copy Files (Extras & Tools)");
@@ -807,6 +817,7 @@ static qi_WizardAction qi_install(void) {
     qi_installExecuteIfEnabled(o_baseOS,                qi_installCopyOSRoot,           "Copying operating system files...");
     qi_installExecuteIfEnabled(o_registry,              qi_installRegistry,             "Copying system registry...");
     qi_installExecuteIfEnabled(o_cregfix,               qi_installCregfix,              "Installing CREGFIX patch...");
+    qi_installExecuteIfEnabled(o_gpttsd,                qi_installGpttsd,              "Installing GPT Disk support driver...");
     qi_installExecuteIfEnabled(o_installDriversBase,    qi_installDriversBase,          "Copying base driver library files...");
     qi_installExecuteIfEnabled(o_installDriversExtra,   qi_installDriversExtra,         "Copying extended driver library files...");
     qi_installExecuteIfEnabled(o_copyExtras,            qi_installCopyExtras,           "Copying extras folder (tools, drivers, updates)...");

@@ -49,3 +49,11 @@ REGEDIT4
 "3"=hex:c3,08,06,50
 "4"=hex:83,03,01,01
 "5"=hex:83,03,01,02
+
+; In case user installs GPTTSD
+[HKEY_LOCAL_MACHINE\System\CurrentControlSet\Services\VxD\GPTTSD]
+"LBA64Allowed"=hex:01
+"SmartType"=hex:01
+"MaxPartitionSize"=dword:00000000
+"LargeWriteAllowed"=hex:01
+
