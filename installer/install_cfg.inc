@@ -13,7 +13,7 @@ typedef enum {
     o_installDriversExtra,
     o_copyExtras,
     o_cregfix,
-    o_gpttsd,
+    o_lba64,
     o_uefi,
     QI_OPTIONIDX_MAX,
     o_baseOS, // Base OS copy, this is always enabled and this is just a hack to make the install code a bit nicer
@@ -82,8 +82,8 @@ static qi_Option qi_options[] = {
         QI_OPTION_NO, 0, false
     },
     {
-        o_cregfix,
-        "Add support driver for GPT (GUID Partition Table) disks (by SweetLow)", 2,
+        o_lba64,
+        "Install 64-Bit LBA (> 2 TB) and GPT disk support (By SweetLow)", 2,
         { "[YES]", "[NO ]", },
         QI_OPTION_NO, 0, false
     },

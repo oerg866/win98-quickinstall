@@ -281,19 +281,21 @@ def produce_cregfix_files(fs: FAT.Dirtable, windir: str, sysdir: str, output_866
     # Create 866 file from it
     mercypak_pack(output_866_file, local_files=output_cregfix_temp)
 
-# Creates a .866 file containing the GPT support driver for this OSRoot
-def produce_gpttsd_files(fs: FAT.Dirtable, iosubsysdir: str, output_866_file: str): 
-    output_gpttsd_temp = '.cregfixtmp'
-    output_iosubsys = os.path.join(output_gpttsd_temp, iosubsysdir)
+# Creates a .866 file containing the LBA64/GPT support driver for this OSRoot
+def produce_lba64_files(fs: FAT.Dirtable, iosubsysdir: str, output_866_file: str): 
+    output_lba64_temp = '.lba64tmp'
+    output_iosubsys = os.path.join(output_lba64_temp, iosubsysdir)
 
-    input_vxd = os.path.join('gpttsd', 'gpttsdrw.vxd')
+    input_vxd1 = os.path.join('lba64', 'gpttsdrw.vxd')
+    input_vxd2 = os.path.join('lba64', 'lba64hlp.vxd')
 
-    shutil.rmtree(output_gpttsd_temp, ignore_errors=True)
+    shutil.rmtree(output_lba64_temp, ignore_errors=True)
 
     # Copy actual VXD file
-    shutil.copy2(input_vxd, output_iosubsys)
+    shutil.copy2(input_vxd1, output_iosubsys)
+    shutil.copy2(input_vxd2, output_iosubsys)
     # Create 866 file from it
-    mercypak_pack(output_866_file, local_files=output_gpttsd_temp)
+    mercypak_pack(output_866_file, local_files=output_lba64_temp)
 
 
 from drivercopy import driverCopy
@@ -453,9 +455,9 @@ for osroot, osroot_name in input_osroots:
     cregfix_866 = os.path.join(output_osroot, 'CREGFIX.866')
     produce_cregfix_files(fs, osroot_windir, osroot_sysdir, cregfix_866)
 
-    # Process GPTTSD Driver
-    gpttsd_866 = os.path.join(output_osroot, 'GPTTSD.866')
-    produce_gpttsd_files(fs, osroot_iosubsysdir, gpttsd_866)
+    # Process LBA64/GPT drivers
+    lba64_866 = os.path.join(output_osroot, 'LBA64.866')
+    produce_lba64_files(fs, osroot_iosubsysdir, lba64_866)
 
     # Get a list of all the files in the image
     osroot_files = get_full_file_list(fs)

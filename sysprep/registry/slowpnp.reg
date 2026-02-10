@@ -50,10 +50,17 @@ REGEDIT4
 "4"=hex:83,03,01,01
 "5"=hex:83,03,01,02
 
-; In case user installs GPTTSD
+; In case user installs LBA64 stuff
 [HKEY_LOCAL_MACHINE\System\CurrentControlSet\Services\VxD\GPTTSD]
 "LBA64Allowed"=hex:01
 "SmartType"=hex:01
 "MaxPartitionSize"=dword:00000000
 "LargeWriteAllowed"=hex:01
+
+[HKEY_LOCAL_MACHINE\System\CurrentControlSet\Services\VxD\LBA64HLP]
+"LBA32FullSize"=hex:01
+"WriteAllowed"=hex:01
+"ForceLBAAssisted"=hex:00
+"LBA64CommandsOnLBA32Media"=hex:00
+
 

@@ -75,6 +75,24 @@ static inline void msg_cregfixInfoBox(void) {
         "installation un-bootable.\n");
 }
 
+/* Shows warning about LBA64 */
+static inline void msg_lba64InfoBox(void) {
+    ad_okBox("LBA64 / GPT Information", false,
+        "You have selected the 64-Bit LBA and GPT TSD support drivers to\n"
+        "be installed.\n"
+        "\n"
+        "This is an experimental and potentially DANGEROUS feature,\n"
+        "providing read/write access to disks bigger than two terabytes\n"
+        "and disks using the GUID partition layout, including 4k native sector\n"
+        "size disks, under Windows 9x\n"
+        "\n"
+        "Due to the boundary-breaking nature of these drivers, you must\n"
+        "ensure that your disks, controllers and drivers support writing past\n"
+        "the usual two terabytes barrier.\n"
+        "\n"
+        "YOU ARE RISKING DISK CORRUPTION OHTERWISE.\n");
+}
+
 /* Shows info that partition is mounted and asks if user wants to unmount and proceed */
 static inline bool msg_askUnmountBeforeInstall(util_Partition *part) {
     int action = ad_yesNoBox("Partition Warning", true,
