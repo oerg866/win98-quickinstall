@@ -474,13 +474,14 @@ for osroot, osroot_name in input_osroots:
     remove_from_file_list_if_present(osroot_files, [osroot_windir], '*.log')
     remove_from_file_list_if_present(osroot_files, [osroot_infdir], 'drv*.bin')
 
-    remove_from_file_list_if_present(osroot_files, [osroot_vmm32dir], '*.bak')
-
     remove_from_file_list_if_present(osroot_files, [osroot_sysdir], 'license.txt')  # UNICOWS artifact
     remove_from_file_list_if_present(osroot_files, [osroot_sysdir], 'redist.txt')   # UNICOWS artifact
     remove_from_file_list_if_present(osroot_files, [osroot_sysdir], 'unicows.pdb')  # UNICOWS artifact
 
     remove_from_file_list_if_present(osroot_files, [osroot_sysdir], '*.bak')        # Patch artifacts
+    remove_from_file_list_if_present(osroot_files, [osroot_vmm32dir], '*.bak')
+    remove_from_file_list_if_present(osroot_files, [osroot_iosubsysdir], '*.bak')
+    remove_from_file_list_if_present(osroot_files, [osroot_iosubsysdir], '*.b_k')
 
     remove_from_file_list_if_present(osroot_files, [osroot_windir, 'recent'], '*')
     remove_from_file_list_if_present(osroot_files, [osroot_windir, 'temp'], '*')
