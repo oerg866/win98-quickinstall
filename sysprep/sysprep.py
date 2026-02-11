@@ -282,18 +282,30 @@ def produce_cregfix_files(fs: FAT.Dirtable, windir: str, sysdir: str, output_866
     mercypak_pack(output_866_file, local_files=output_cregfix_temp)
 
 # Creates a .866 file containing the LBA64/GPT support driver for this OSRoot
-def produce_lba64_files(fs: FAT.Dirtable, iosubsysdir: str, output_866_file: str): 
+def produce_lba64_files(fs: FAT.Dirtable, iosubsysdir: str, output_866_file: str, is_me_not_98: bool): 
     output_lba64_temp = '.lba64tmp'
     output_iosubsys = os.path.join(output_lba64_temp, iosubsysdir)
 
     input_vxd1 = os.path.join('lba64', 'gpttsdrw.vxd')
     input_vxd2 = os.path.join('lba64', 'lba64hlp.vxd')
+    output_diskvsd = case_insensitive_to_sensitive(fs, iosubsysdir, 'diskvsd.vxd')
 
     shutil.rmtree(output_lba64_temp, ignore_errors=True)
 
     # Copy actual VXD file
     shutil.copy2(input_vxd1, output_iosubsys)
     shutil.copy2(input_vxd2, output_iosubsys)
+
+    # LBA64HLP and patched versions of DISKVSD are MUTUALLY EXCLUSIVE!!
+    # So we replace them with original 9x versions in this case.
+
+    if is_me_not_98:
+        input_diskvsd = os.path.join('lba64', 'diskvsd.me')
+    else:
+        input_diskvsd = os.path.join('lba64', 'diskvsd.98')
+
+    shutil.copy2(input_diskvsd, output_diskvsd)
+
     # Create 866 file from it
     mercypak_pack(output_866_file, local_files=output_lba64_temp)
 
@@ -442,6 +454,16 @@ for osroot, osroot_name in input_osroots:
     print(f'Windows directory: {osroot_windir}')
     print(f'Windows CAB directory: {osroot_cabdir}')
 
+    # Check OS type
+    if find_recursive_and_get_parent(fs, 'WIN98_OL.CAB') and not find_recursive_and_get_parent(fs, 'WIN_OL.CAB'):
+        print('OS is Windows 98 (SE)')
+        is_win_me = False
+    elif find_recursive_and_get_parent(fs, 'WIN_OL.CAB') and not find_recursive_and_get_parent(fs, 'WIN98_OL.CAB'):
+        print('OS is Windows Millennium Edition (you poor soul)')
+        is_win_me = True
+    else:
+        raise Exception(f'Cannot determine OS type (98 / ME)!')
+    
     # Process registry
     fastpnp_reg = os.path.join(script_dir, 'registry', 'fastpnp.reg')
     fastpnp_866 = os.path.join(output_osroot, 'FASTPNP.866')
@@ -457,7 +479,7 @@ for osroot, osroot_name in input_osroots:
 
     # Process LBA64/GPT drivers
     lba64_866 = os.path.join(output_osroot, 'LBA64.866')
-    produce_lba64_files(fs, osroot_iosubsysdir, lba64_866)
+    produce_lba64_files(fs, osroot_iosubsysdir, lba64_866, is_win_me)
 
     # Get a list of all the files in the image
     osroot_files = get_full_file_list(fs)

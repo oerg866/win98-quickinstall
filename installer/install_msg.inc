@@ -85,12 +85,13 @@ static inline void msg_lba64InfoBox(void) {
         "providing read/write access to disks bigger than two terabytes\n"
         "and disks using the GUID partition layout, including 4k native sector\n"
         "size disks, under Windows 9x\n"
-        "\n"
         "Due to the boundary-breaking nature of these drivers, you must\n"
         "ensure that your disks, controllers and drivers support writing past\n"
         "the usual two terabytes barrier.\n"
+        "YOU ARE RISKING DISK CORRUPTION OHTERWISE.\n"
         "\n"
-        "YOU ARE RISKING DISK CORRUPTION OHTERWISE.\n");
+        "Also, any patched versions of DISKVSD.VXD will be overwritten, as they\n"
+        "are incompatible.");
 }
 
 /* Shows info that partition is mounted and asks if user wants to unmount and proceed */
