@@ -288,9 +288,11 @@ def produce_lba64_files(fs: FAT.Dirtable, iosubsysdir: str, output_866_file: str
 
     input_vxd1 = os.path.join('lba64', 'gpttsdrw.vxd')
     input_vxd2 = os.path.join('lba64', 'lba64hlp.vxd')
-    output_diskvsd = case_insensitive_to_sensitive(fs, iosubsysdir, 'diskvsd.vxd')
+    output_diskvsd_rel = case_insensitive_to_sensitive(fs, iosubsysdir, 'diskvsd.vxd')
+    output_diskvsd = os.path.join(output_lba64_temp, output_diskvsd_rel)
 
     shutil.rmtree(output_lba64_temp, ignore_errors=True)
+    mkdir(output_iosubsys)
 
     # Copy actual VXD file
     shutil.copy2(input_vxd1, output_iosubsys)
