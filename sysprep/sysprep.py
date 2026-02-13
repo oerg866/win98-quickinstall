@@ -80,7 +80,7 @@ def find_recursive_and_get_parent(fs: FAT.Dirtable, to_find):
         for file_name in files:
             if file_name.upper() == to_find.upper():
                 result = root
-    if result.startswith("./"):
+    if result and result.startswith("./"):
         result = result[2:]
     return result
 
