@@ -220,7 +220,7 @@ def add_to_known_files(file_data_list: list, data:bytearray, filename, attribute
 # so we filter it out to make everything else easier
 def fattools_join(root: str, sub: str):
     ret = os.path.join(root, sub)
-    if (ret.startswith('./')):
+    if (ret.startswith("." + os.sep)):
         return ret[2:]
     return ret
 

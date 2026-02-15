@@ -80,7 +80,7 @@ def find_recursive_and_get_parent(fs: FAT.Dirtable, to_find):
         for file_name in files:
             if file_name.upper() == to_find.upper():
                 result = root
-    if result and result.startswith("./"):
+    if result and result.startswith("." + os.sep):
         result = result[2:]
     return result
 
@@ -434,7 +434,7 @@ for osroot, osroot_name in input_osroots:
     mkdir(output_osroot)
     
     # Give the OSRoot a name for the installer menu
-    with open(os.path.join(output_osroot, 'win98qi.inf'), 'w') as labelFile:
+    with open(os.path.join(output_osroot, 'win98qi.inf'), 'w', newline='\n') as labelFile:
         labelFile.write(f'{osroot_name}\n')
 
     root = Volume.vopen(osroot, 'r+b', what='partition0')
@@ -535,6 +535,9 @@ for osroot, osroot_name in input_osroots:
 
     remove_tree_if_present(osroot_files, [osroot_windir, 'temporary internet files'])
     remove_tree_if_present(osroot_files, [osroot_windir, 'history'])
+
+    # in case vhd was mounted in windows
+    remove_tree_if_present(osroot_files, ['system volume information'])
 
     # Copy oeminfo
     if os.path.exists(input_oeminfo):

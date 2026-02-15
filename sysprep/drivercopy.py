@@ -360,16 +360,11 @@ def handleInf(filename: str, outInfName: str, cabName: str, filesInDirectory: li
 
     writeSourceDisksNamesAndFiles(inf, knownFiles, cabName)
 
-    success = inf.Save(outInfName)
+    success = inf.Save(outInfName, codec="cp1252")
 
     # Wininfparser saves with \n line endings, which Win98 doesn't really like.
     # So we replace them by hand with \r\n
 
-    allLines = open(outInfName, 'r').readlines()
-
-    with open(outInfName, 'w') as f:
-        for line in allLines:
-            f.write(f'{line}\r\n')
 
     for newFile in knownFiles:
         addOrUpdateSourceFile(filesInDirectory, newFile.fileName, newFile.sourceDir)
@@ -558,6 +553,3 @@ def driverCopy(inDir: str, outDir: str):
         if os.path.isdir(fullEntry):
             logi(f'Processing directory: {fullEntry}')
             handleDir(fullEntry, outDir, win98files)
-
-
-#driverCopy('/work/win98-quickinstall/win98-driver-lib-base/', '.drvtmp3')
