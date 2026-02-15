@@ -5,7 +5,8 @@ SHSUCDX.COM /D:WIN98QI
 :do_findcd
 call findcd.bat
 
-loadlin %CDROM%\bzImage.cd
+%CDROM%
+install.bat
 
 :fail
 cls

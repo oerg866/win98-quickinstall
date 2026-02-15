@@ -112,14 +112,15 @@ cp supplement/syslinux.cfg "$CDROOT"
 
 # Boot floppies, also copy them to the CDROM root for ~user convenience~
 cp tiny-floppy-bootloader/floppy.img "$OUTPUT/"
-cp tiny-floppy-bootloader/floppy.img "$CDROOT/"
 cp dosflop/dosflop.img "$OUTPUT/"
-cp dosflop/dosflop.img "$CDROOT/"
 
 # Our installer!
 cp supplement/install.txt "$CDROOT/"
 cp supplement/csmwrap.efi "$CDROOT/"
 cp installer/lunmercy "$CDROOT/bin/"
+
+# DOS installation tools (to start the kernel from DOS)
+cp supplement/dosinst/* "$CDROOT/"
 
 # Copy sysprep tools
 mkdir -p "$OUTPUT/tools"
