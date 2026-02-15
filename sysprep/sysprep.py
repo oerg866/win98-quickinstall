@@ -354,7 +354,7 @@ def finalize_drivers_for_osroot(output_base, output_osroot, osroot_cabdir_relati
             shutil.copy(full_path, os.path.join(driver_temp_infdir, file_name))
         elif file_name.lower().endswith('.cab'):
             # Move the file to the CAB directory
-            shutil.move(full_path, os.path.join(driver_temp_cabdir, file_name))
+            shutil.copy(full_path, os.path.join(driver_temp_cabdir, file_name))
 
     mercypak_pack(output_866_file, None, None, output_driver_temp, False)
 
