@@ -98,7 +98,7 @@ def get_full_file_list(fs: FAT.Dirtable) -> list[str]:
     for root, dirs, files in fs.walk():
         for name in files:
             full_path = os.path.join(root, name)            
-            if full_path.startswith("./"):
+            if full_path.startswith("." + os.sep):
                 full_path = full_path[2:]
             ret.append(full_path)
     return ret
