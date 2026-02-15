@@ -7,8 +7,8 @@
 typedef enum {
     o_writeMBRAndSetActive = 0,
     o_formatTargetPartition,
-    o_skipLegacyDetection,
     o_bootSector,
+    o_skipLegacyDetection,
     o_installDriversBase,
     o_installDriversExtra,
     o_copyExtras,
