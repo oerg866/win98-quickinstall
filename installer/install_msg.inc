@@ -213,3 +213,18 @@ static inline void msg_installError(const char *optionLabel) {
         "  '%s' (%d)\n",
         optionLabel, strerror(errno), errno);
 }
+
+static inline void msg_exitToShellInfo(void) {
+    ad_okBox("Exit To Shell", false,
+        "You are about to exit to the Linux shell.\n"
+        "\n"
+        "The shell can be used for diagnostics and file copying.\n"
+        "You can 'mount' file systems, use 'lspci', 'lscpu', 'dd'\n"
+        "and a few other essential utilities.\n"
+        "\n"
+        "Did you know that QuickInstall ships with THE tool to\n"
+        "diagnose faulty 3dfx Voodoo II cards?\n"
+        "\n"
+        "Type 'witchery' to use it! (Thanks to Fagear!)\n"
+        );
+}

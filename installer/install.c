@@ -889,6 +889,7 @@ bool qi_wizard() {
                 QI_FATAL(false, "Failed to initiate reboot!");
                 break;
             case WIZ_EXIT_TO_SHELL:
+                msg_exitToShellInfo();
                 return true;
             case WIZ_EXIT_ERROR:
                 return false;

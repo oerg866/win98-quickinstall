@@ -105,6 +105,7 @@ cp pciutils/lspci "$CDROOT/bin/"
 cp pciutils/setpci "$CDROOT/bin/"
 cp pciutils/pci.ids "$CDROOT/bin/"
 cp dosfstools/OUTPUT/sbin/* "$CDROOT/bin/"
+cp supplement/witchery "$CDROOT/bin"
 cp supplement/syslinux.cfg "$CDROOT"
 
 # Boot floppies, also copy them to the CDROM root for ~user convenience~
