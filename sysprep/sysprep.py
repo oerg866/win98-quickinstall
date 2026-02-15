@@ -554,6 +554,8 @@ for osroot, osroot_name in input_osroots:
 
     finalize_drivers_for_osroot(output_base, output_osroot, osroot_cabdir)
 
+    osroot_idx += 1
+
 # Copy CDROM Root stuff
 print('Copying installation image base files...')
 shutil.copytree(input_cdromroot, output_base, dirs_exist_ok=True)
