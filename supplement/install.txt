@@ -1,20 +1,20 @@
-Windows 98/ME QuickInstall                 (C) 2012-2026 E. Voirin (oerg866)
 http://github.com/oerg866/win98-quickinstall      http://www.theretroweb.com
-http://twitter.com/oerg866                           http://www.pharmercy.eu
-----------------------------------------------------------------------------
-Welcome to Windows 9x/ME QuickInstall!
-THE solution for near-instant installation of these classic versions!
-
-Did you know QuickInstall even works perfectly on 486-class machines?
-
-If you are experiencing freezes / disk issues, consider booting
-QuickInstall with one of the non-DMA modes. You may be able to work around
-buggy hardware or drive firmware this way.
-----------------------------------------------------------------------------
-THIS IS AN EXPERIMENTAL PROJECT. THERE MAY BE BUGS.
-Do NOT report bugs with the Windows 9x Operating System itself.
-I am not Microsoft, I cannot fix them.
+http://twitter.com/oerg866                 (C) 2010-2026 E. Voirin (oerg866)
 Windows is a registered trademark of Microsoft Corporation.
+EXPERIMENTAL PROJECT. PLEASE REPORT BUGS.
+----------------------------------------------------------------------------
+THE solution for near-instant, fully patched Windows 9x/ME installations!
+No Fuss. No Bloat. 486 to Ryzen 9000. 32MB to 32GB RAM. Platters to PCIe.
 
-Special thanks to:
-SweetLow Rigo computerguy096 Fouquin linear Deksor PhilsComputerLab JeffChen
+Now including SweetLow's USB 2.0, USB Mass Storage and NVMe drivers!
+Check out the vast amount of new drivers for modern AND classic hardware!
+
+Ready to partition, install and change your retro computing life forever?
+
+In case of freezing/disk issues, try disabling DMA modes in the new boot-
+loader options, to work around buggy hardware or drive firmware!
+Did you know? QuickInstall now includes 'witchery', Fagear's 3dfx Voodoo 2 
+diagnostics tool! Try it in the included Linux shell!
+----------------------------------------------------------------------------
+Special thanks to: SweetLow, Rigo, computerguy096, Fouquin, linear, Deksor,
+PhilsComputerLab, JeffChen, Fagear, CptKlotz, TmEE and YOU
