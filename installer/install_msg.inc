@@ -1,6 +1,6 @@
 /* Shows disclaimer text */
 static inline void msg_disclaimer(void) {
-    ad_textFileBox("DISCLAIMER", inst_getSourceFilePath(0, "install.txt"));
+    ad_textFileBox("Welcome to Windows 9x/ME QuickInstall!", inst_getSourceFilePath(0, "install.txt"));
 }
 
 /* Tells the user he is trying to partition the install source disk */
@@ -228,3 +228,12 @@ static inline void msg_exitToShellInfo(void) {
         "Type 'witchery' to use it! (Thanks to Fagear!)\n"
         );
 }
+
+static const char msg_mainMenuText[] =
+    "Welcome to the QuickInstall main menu!\n"
+    "\n"
+    "Please make a selection.\n"
+    "Note: It is advised to partition a hard disk for use with\n"
+    "Windows 98 using the '[CFDISK]' option before installation.\n"
+    "\n"
+    "Where do you want to go today(tm)?\n";

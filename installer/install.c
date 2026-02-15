@@ -397,9 +397,10 @@ static qi_WizardAction qi_mainMenu() {
         qi_wizData.disclaimerShown = true;
     }
 
-    ad_Menu *menu = ad_menuCreate("Windows 9x QuickInstall: Main Menu", "Where do you want to go today(tm)?", true);
+    ad_Menu *menu = ad_menuCreate("Windows 9x QuickInstall: Main Menu", 
+        msg_mainMenuText, true);
     QI_ASSERT(menu);
-    ad_menuAddItemFormatted(menu, "[INSTALL] Install selected Operating System variant");
+    ad_menuAddItemFormatted(menu, "[INSTALL] Install %s", qi_wizData.variantName);
     ad_menuAddItemFormatted(menu, " [CFDISK] Partition hard disks");
     ad_menuAddItemFormatted(menu, "  [SHELL] Exit to minmal diagnostic Linux shell");
 
@@ -620,7 +621,10 @@ static const char *qi_configGetLabel(qi_OptionIdx index) {
 
 static qi_WizardAction qi_config(void) {
     ad_MultiSelector *menu = ad_multiSelectorCreate("Configuration", 
-        "Please configure your installation:", true);
+        "Please configure your installation.\n"
+        "\n"
+        "NOTE: Pressing [ENTER] will immediately start the installation!", 
+        true);
 
     QI_ASSERT(menu);
 
