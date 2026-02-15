@@ -180,6 +180,8 @@ There are several provided methods to boot into Windows 9x QuickInstall:
 
 ## Native Floppy Disk Boot (`floppy.img`)
 
+  ![](assets/bootloader.png)
+
   This is a 1.44M floppy disk image that contains a full kernel with USB support.  
   It will find its installation source media automatically, meaning you can use it together with a QuickInstall CD/DVD-ROM, USB flash drive (even if your system does not support booting from either of them), CF-Card or Hard Disk.
 
@@ -188,6 +190,8 @@ There are several provided methods to boot into Windows 9x QuickInstall:
   **Note:** Due to the size constraints, this version does not print diagnostic messages on the screen when starting up.
 
 ## CD / DVD-ROM Boot
+
+  ![](assets/bootloader.png)
 
   The `iso` images can be written to a CD or DVD and then booted. **This is the recommended method on systems that support this.**
   
