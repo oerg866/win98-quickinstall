@@ -381,6 +381,7 @@ static qi_WizardAction qi_variantSelectAndStartPrebuffering() {
 
     ad_menuDestroy(menu);
 
+    qi_wizData.variantCount = variantCount;
     qi_wizData.readahead = util_getProcSafeFreeMemory() * 6 / 10;
     qi_wizData.variantIndex = (size_t) menuResult + 1;
     qi_wizData.osRootFile = inst_openSourceFile(qi_wizData.variantIndex, INST_SYSROOT_FILE, qi_wizData.readahead);
