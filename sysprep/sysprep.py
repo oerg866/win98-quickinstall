@@ -134,7 +134,8 @@ def remove_from_file_list_if_present(files, subdirs, pattern, exceptions = []):
 
         # If it matches the pattern AND is not in the exception list, remove it
         if fnmatch.fnmatch(f_lower, full_pattern):
-            if f_lower not in except_lower:
+            if os.path.basename(f_lower) not in except_lower:
+                print(f'removing {f_lower}')
                 continue
 
         new_files.append(f)
@@ -486,8 +487,8 @@ for osroot, osroot_name in input_osroots:
     # Get a list of all the files in the image
     osroot_files = get_full_file_list(fs)
 
-    remove_from_file_list_if_present(osroot_files, [osroot_infdir], 'mdm*.inf', ['windows/inf/mdmgen.inf'])
-    remove_from_file_list_if_present(osroot_files, [osroot_infdir], 'wdma_*.inf', ['windows/inf/wdma_usb.inf'])
+    remove_from_file_list_if_present(osroot_files, [osroot_infdir], 'mdm*.inf', ['mdmgen.inf'])
+    remove_from_file_list_if_present(osroot_files, [osroot_infdir], 'wdma_*.inf', ['wdma_usb.inf'])
 
     remove_from_file_list_if_present(osroot_files, [osroot_windir], 'logow.sys')
     remove_from_file_list_if_present(osroot_files, [osroot_windir], 'wininit.bak')
