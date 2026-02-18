@@ -229,11 +229,13 @@ def fattools_join(root: str, sub: str):
 # fattools_dirtable: FAT32 image dirtable to get files out of
 # -> Can be omitted, but then fattools_files is ignored
 # fattools_files: list of files in the fat32 image to get
+# fattools_dirs: list of dirs for fat32 image source - can be None, in this case the dirs will be infered from the file system.
 # local_files: optional list of local files to add as well
 def mercypak_pack(
     output_file: str,
     fattools_dirtable: FAT.Dirtable = None, 
     fattools_files: list[str] = None,
+    fattools_dirs: list[str] = None,
     local_files: str = None,
     mercypak_v2: bool = False,
 ):
@@ -248,11 +250,12 @@ def mercypak_pack(
     # IMAGE FILES
     if fattools_dirtable != None:
         for root, dirs, files in fattools_dirtable.walk():
-            for dir_name in dirs:
-                dir_count += 1
-                dir_path = fattools_join(root, dir_name)
-                dir_dos_attr = fattools_dirtable.opendir(dir_path).handle.Entry.chDOSPerms
-                dir_info.append((dir_path.encode(), dir_dos_attr))
+            if not fattools_dirs:
+                for dir_name in dirs:
+                    dir_count += 1
+                    dir_path = fattools_join(root, dir_name)
+                    dir_dos_attr = fattools_dirtable.opendir(dir_path).handle.Entry.chDOSPerms
+                    dir_info.append((dir_path.encode(), dir_dos_attr))
 
 
         for file_name in fattools_files:
@@ -267,6 +270,13 @@ def mercypak_pack(
             f.close()
 
             add_to_known_files(known_file_infos, file_data, file_name.encode(), file_dos_attr, file_dos_date, file_dos_time)
+
+        if fattools_dirs:
+            for dir_name in fattools_dirs:
+                dir_count += 1
+                dir_path = fattools_join('.', dir_name)
+                dir_dos_attr = fattools_dirtable.opendir(dir_path).handle.Entry.chDOSPerms
+                dir_info.append((dir_path.encode(), dir_dos_attr))
 
     ####################################
     # LOCAL FILES

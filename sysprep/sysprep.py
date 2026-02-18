@@ -88,34 +88,59 @@ def find_recursive_and_get_parent(fs: FAT.Dirtable, to_find):
 def get_win_dir(fs: FAT.Dirtable):
     return find_recursive_and_get_parent(fs, 'WIN.COM')
 
+# Get sanitized FAT.Dirtable path string without ./
+def fs_string(instr: str) -> str:
+    if instr.startswith("." + os.sep):
+        return instr[2:]
+    else:
+        return instr
+
 # Find Win9x install CAB directory in an image (recursive)
 def get_cab_dir(fs: FAT.Dirtable):
     return find_recursive_and_get_parent(fs, 'PRECOPY1.CAB')
 
 # Get all files from an image
-def get_full_file_list(fs: FAT.Dirtable) -> list[str]:
-    ret = []
+def get_full_files_and_dirs_list(fs: FAT.Dirtable) -> list[str]:
+    ret_files = []
+    ret_dirs = []
     for root, dirs, files in fs.walk():
+        for name in dirs:
+            full_path = fs_string(os.path.join(root, name))
+            ret_dirs.append(full_path)
+
         for name in files:
-            full_path = os.path.join(root, name)            
-            if full_path.startswith("." + os.sep):
-                full_path = full_path[2:]
-            ret.append(full_path)
-    return ret
+            full_path = fs_string(os.path.join(root, name))
+            ret_files.append(full_path)
+    return ret_files, ret_dirs
 
 # Delete tree from file list
-def remove_tree_if_present(files, pathList):
+# I.e. all files in all subdirectories
+# if dirs is None, it doesnt remove the directories themselves
+def remove_tree_if_present(files, dirs, pathList):
     full_pattern = os.path.join(*pathList).lower()
+    full_pattern_sep = full_pattern + os.path.sep
 
     new_files = []
+    new_dirs = []
 
     for f in files:
-        if not f.lower().startswith(full_pattern + os.path.sep):
+        if not f.lower().startswith(full_pattern_sep):
             new_files.append(f)
         else:
             print(f'removing {f}')
+    
+    if dirs:
+        for d in dirs:
+            d_lower = d.lower()
+
+            if d.lower().startswith(full_pattern_sep) or d.lower() == full_pattern:
+                print(f'removing dir {d}')
+            else:
+                new_dirs.append(d)
+
 
     files[:] = new_files
+    if dirs: dirs[:] = new_dirs
 
 # Delete from file list with pattern
 def remove_from_file_list_if_present(files, subdirs, pattern, exceptions = []):
@@ -357,7 +382,7 @@ def finalize_drivers_for_osroot(output_base, output_osroot, osroot_cabdir_relati
             # Move the file to the CAB directory
             shutil.copy(full_path, os.path.join(driver_temp_cabdir, file_name))
 
-    mercypak_pack(output_866_file, None, None, output_driver_temp, False)
+    mercypak_pack(output_866_file, local_files=output_driver_temp)
 
 #############################################################################
 #
@@ -424,11 +449,13 @@ mkdir(output_regtmp)
 mkdir(output_oemtmp)
 
 # Preprocess drivers
-preprocess_drivers(output_base, input_drivers_base, input_drivers_extra)
+#preprocess_drivers(output_base, input_drivers_base, input_drivers_extra)
 
 # Process all OSroots.
 osroot_idx = 1
+
 for osroot, osroot_name in input_osroots:
+
     osroot = os.path.realpath(osroot)
     print(f'Processing OS Root image file: "{osroot}"')
     output_osroot = os.path.join(output_osroots_base, str(osroot_idx))
@@ -443,6 +470,8 @@ for osroot, osroot_name in input_osroots:
 
     osroot_windir = get_win_dir(fs)
     osroot_cabdir = get_cab_dir(fs)
+
+    print(osroot_windir)
     osroot_infdir = case_insensitive_to_sensitive(fs, osroot_windir, 'inf')
     osroot_sysdir = case_insensitive_to_sensitive(fs, osroot_windir, 'system')
     osroot_vmm32dir = case_insensitive_to_sensitive(fs, osroot_sysdir, 'vmm32')
@@ -485,7 +514,9 @@ for osroot, osroot_name in input_osroots:
     produce_lba64_files(fs, osroot_iosubsysdir, lba64_866, is_win_me)
 
     # Get a list of all the files in the image
-    osroot_files = get_full_file_list(fs)
+    osroot_files, osroot_dirs = get_full_files_and_dirs_list(fs)
+
+    print(osroot_dirs)
 
     remove_from_file_list_if_present(osroot_files, [osroot_infdir], 'mdm*.inf', ['mdmgen.inf'])
     remove_from_file_list_if_present(osroot_files, [osroot_infdir], 'wdma_*.inf', ['wdma_usb.inf'])
@@ -507,13 +538,6 @@ for osroot, osroot_name in input_osroots:
     remove_from_file_list_if_present(osroot_files, [osroot_vmm32dir], '*.bak')
     remove_from_file_list_if_present(osroot_files, [osroot_iosubsysdir], '*.bak')
     remove_from_file_list_if_present(osroot_files, [osroot_iosubsysdir], '*.b_k')
-
-    remove_from_file_list_if_present(osroot_files, [osroot_windir, 'recent'], '*')
-    remove_from_file_list_if_present(osroot_files, [osroot_windir, 'temp'], '*')
-    remove_from_file_list_if_present(osroot_files, [osroot_windir, 'applog'], '*')
-    remove_from_file_list_if_present(osroot_files, [osroot_windir, 'sysbckup'], '*')
-    remove_from_file_list_if_present(osroot_files, [osroot_windir, 'other'], '*')
-    remove_from_file_list_if_present(osroot_files, ['recycled'], '*')
     
     remove_from_file_list_if_present(osroot_files, [], 'logo.sys')
     remove_from_file_list_if_present(osroot_files, [], 'win386.swp')
@@ -534,11 +558,21 @@ for osroot, osroot_name in input_osroots:
     # No need to pack the registry, it's already included in SLOWPNP and FASTPNP
     remove_from_file_list_if_present(osroot_files, [osroot_windir], 'system.dat')
 
-    remove_tree_if_present(osroot_files, [osroot_windir, 'temporary internet files'])
-    remove_tree_if_present(osroot_files, [osroot_windir, 'history'])
 
+    remove_tree_if_present(osroot_files, None, [osroot_windir, 'recent'])
+    remove_tree_if_present(osroot_files, None, [osroot_windir, 'temp'])
+    remove_tree_if_present(osroot_files, None, [osroot_windir, 'applog'])
+    remove_tree_if_present(osroot_files, None, [osroot_windir, 'sysbckup'])
+    remove_tree_if_present(osroot_files, None, [osroot_windir, 'other'])
+
+    remove_tree_if_present(osroot_files, None, ['recycled'])
+
+    remove_tree_if_present(osroot_files, None, [osroot_windir, 'temporary internet files'])
+    remove_tree_if_present(osroot_files, None, [osroot_windir, 'history'])
+    
     # in case vhd was mounted in windows
-    remove_tree_if_present(osroot_files, ['system volume information'])
+    remove_tree_if_present(osroot_files, osroot_dirs, ['system volume information'])
+    remove_tree_if_present(osroot_files, osroot_dirs, ['$recycle.bin'])
 
     # Copy oeminfo
     if os.path.exists(input_oeminfo):
@@ -548,7 +582,7 @@ for osroot, osroot_name in input_osroots:
         shutil.copy2(os.path.join(input_oeminfo, 'oemlogo.bmp'), tmp_system_dir)
        
     output_osroot_full866 = os.path.join(output_osroot, 'FULL.866')
-    mercypak_pack(output_osroot_full866, fs, osroot_files, output_oemtmp, mercypak_v2=True)
+    mercypak_pack(output_osroot_full866, fs, osroot_files, osroot_dirs, local_files=output_oemtmp, mercypak_v2=True)
     
     if not os.path.exists(output_osroot_full866):
         raise Exception('There was an error. The required OSROOT pack file was not created ("FULL.866")')
