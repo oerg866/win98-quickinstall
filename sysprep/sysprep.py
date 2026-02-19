@@ -487,10 +487,10 @@ for osroot, osroot_name in input_osroots:
     print(f'Windows CAB directory: {osroot_cabdir}')
 
     # Check OS type
-    if find_recursive_and_get_parent(fs, 'WIN98_OL.CAB') and not find_recursive_and_get_parent(fs, 'WIN_OL.CAB'):
+    if find_recursive_and_get_parent(fs, 'WIN98_60.CAB') and not find_recursive_and_get_parent(fs, 'WIN_22.CAB'):
         print('OS is Windows 98 (SE)')
         is_win_me = False
-    elif find_recursive_and_get_parent(fs, 'WIN_OL.CAB') and not find_recursive_and_get_parent(fs, 'WIN98_OL.CAB'):
+    elif find_recursive_and_get_parent(fs, 'WIN_22.CAB') and not find_recursive_and_get_parent(fs, 'WIN98_60.CAB'):
         print('OS is Windows Millennium Edition (you poor soul)')
         is_win_me = True
     else:
