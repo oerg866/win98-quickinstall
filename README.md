@@ -71,7 +71,7 @@ QuickInstall uses a Linux-based custom installation environment that quickly wri
 **This also means you can finally install Windows 9x from USB without any fuss!**  
 ...or from a CD/DVD-R. Or boot from a floppy disk and *then* install off of USB.
 
-The truth is, it does not matter how you boot the system or where the QuickInstall data is located, if you manage to boot the kernlel, the installation environment will find its files. This also means that you can install Windows from USB on machines that do not support USB-Boot (using the boot floppy)!
+The truth is, it does not matter how you boot the system or where the QuickInstall data is located, if you manage to boot the kernel, the installation environment will find its files. This also means that you can install Windows from USB on machines that do not support USB-Boot (using the boot floppy)!
 
 And yes, this does mean that the effort for a user to build an ISO is higher than for example nLite, but the degree of customizability is also massively increased.
 
@@ -136,7 +136,7 @@ And not to forget, the ***vast driver libraries***:
 
 * `win98-driver-lib-base`
 
-  These drivers will be processed and packaged alongside the OS data. If selected during installation, these drivers are integrated into windows and will be found during any hardware detection.
+  These drivers will be processed and packaged alongside the OS data. If selected during installation, these drivers are integrated into Windows and will be found during any hardware detection.
 
   This includes many network drivers, common sound and video card drivers, storage drivers, etc.
 
@@ -209,7 +209,7 @@ Navigate to the CD-ROM or Hard Disk drive that contains the Windows 9x QuickInst
 
 This is a 1.44M floppy disk image with FreeDOS and a CD-ROM driver that loads and boots QuickInstall directly off of a CD-ROM or hard disk drive (using `LOADLIN`).
 
-**Recommended** if you have a computer that does not support CD-ROM boot or if you have the QuickInstall files on an ATA/ATAPI media or other device that is exposed using Int 13h that you cannot boot from
+**Recommended** if you have a computer that does not support CD-ROM boot or if you have the QuickInstall files on an ATA/ATAPI media or other device that is exposed using Int 13h that you cannot boot from.
 
 **Note:** If you have a SCSI CD-ROM drive, the image must be modified accordingly.
 
