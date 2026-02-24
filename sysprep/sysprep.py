@@ -294,8 +294,8 @@ def produce_cregfix_files(fs: FAT.Dirtable, windir: str, sysdir: str, output_866
     output_system_ini = os.path.join(output_cregfix_temp, input_system_ini)
     output_system_cb  = os.path.join(output_cregfix_temp, input_system_cb)
 
-    system_ini_lines = fs.open(input_system_ini).read().decode().splitlines()
-    system_cb_lines = fs.open(input_system_cb).read().decode().splitlines()
+    system_ini_lines = fs.open(input_system_ini).read().decode("cp1252").splitlines()
+    system_cb_lines = fs.open(input_system_cb).read().decode("cp1252").splitlines()
 
     # Process lines and write output INI files
     write_386enh_cregfix(output_system_ini, system_ini_lines)
