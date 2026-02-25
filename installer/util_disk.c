@@ -595,7 +595,7 @@ bool util_getFormatCommand(util_Partition *part, util_FileSystem fs, char *buf, 
     if (fs == fs_fat16) {
         snprintf(buf, bufSize, "mkfs.fat -v -S %d -F 16 %s", part->sectorSize, part->device); // no clue what win9x wants to see here tbh...
     } else if (fs == fs_fat32) {
-        snprintf(buf, bufSize, "mkfs.fat -v -S %d -s 8 -R 32 -f 2 -F 32 %s", part->sectorSize, part->device);
+        snprintf(buf, bufSize, "mkfs.fat -v -S %d -R 32 -f 2 -F 32 %s", part->sectorSize, part->device);
     } else {
         QI_ASSERT(false && "Wrong file system");
     }
