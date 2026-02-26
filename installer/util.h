@@ -46,6 +46,7 @@ typedef struct {
     util_FileSystem fileSystem;
     struct util_HardDisk *parent;
     size_t indexOnParent;
+    bool isLogical;
     char *mountPath;
 } util_Partition;
 

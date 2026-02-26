@@ -14,6 +14,8 @@
 #include <ctype.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/ioctl.h>
+#include <linux/fs.h>
 
 #include "qi_assert.h"
 
@@ -431,11 +433,12 @@ static uint8_t *util_readSectorAllocate(char *dev, size_t sector, size_t ioSize)
 static bool util_writeSector(char *dev, size_t sector, size_t ioSize, const uint8_t *buf) {
 
     int disk = open(dev, O_WRONLY);
-    if (!disk) return false;
+    if (disk < 0) return false;
 
     size_t offset = ioSize * sector;
     lseek(disk, offset, SEEK_SET);
     bool result = util_writeToFD(disk, buf, ioSize);
+    fsync(disk);
     close(disk);
     return result;
 }
@@ -521,12 +524,20 @@ bool util_wipePartitionTable(util_HardDisk *hdd) {
 
     memset(dummySector, 0, sizeof(dummySector));
 
+    int fd = open(hdd->device, O_RDWR | O_SYNC);
+
     // Wiping the first 34 sectors is enough to make cf not recognize GPT anymore
     for (size_t sectorIndex = 0; sectorIndex < 34; sectorIndex++) {
-        success &= util_writeSectorToDisk(hdd, sectorIndex, dummySector);
+        success &= (write(fd, dummySector, sizeof(dummySector)) > 0);
     }
 
-    sync();
+    fsync(fd);                              // Nasty hacks to ensure
+    success &= ioctl(fd, BLKFLSBUF) >= 0;   // Stuff gets written out 
+    success &= ioctl(fd, BLKRRPART) >= 0;   // refresh partition table
+    close(fd);
+
+    usleep(300000); // finally, sleep for a bit. 
+                    // that's the only way I seem to be able to get it to recognize we've wiped it...
 
     return success;
 }
