@@ -124,23 +124,6 @@ static inline bool msg_askUnmountBeforeInstall(util_Partition *part) {
     return (action == AD_YESNO_YES);
 }
 
-
-/* Shows invalid partition table message and asks user if he wants to wipe it */
-static inline bool msg_askNonMbrWarningWipeMBR(util_HardDisk *hdd, const char *typeString) {
-    int action = ad_yesNoBox("Hard Disk Partition Table Issue", true,
-        "Selected disk: '%s'.\n"
-        "Current partition table type (may be inacccurate): %s\n\n"
-        "This disk does not contain a MBR / DOS style partition table.\n"
-        "As a result, this disk will not work as an installation target.\n"
-        "The existing partition table can be wiped, so that CFDISK can\n"
-        "create a MBR / DOS style partition table in its place.\n"
-        "Would you like to do this? (WARNING: THIS WILL CAUSE DATA LOSS!)",
-        hdd->device,
-        typeString);
-
-    return (action == AD_YESNO_YES);
-}
-
 /* Show message box informing user that formatting failed. */
 static inline void msg_formatFailed(util_Partition *part) {
     ad_okBox("Error", false,
