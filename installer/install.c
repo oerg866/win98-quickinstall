@@ -576,16 +576,17 @@ static qi_WizardAction qi_config(void) {
         return WIZ_BACK;
     }
 
-    if (QI_OPTION_YES == qi_configGet(o_uefi)) {
-        msg_uefiInfoBox();
+    // Show all the warning dialogs. The user can return to the configurator on all of them.
+    if (QI_OPTION_YES == qi_configGet(o_uefi) && AD_CANCELED == msg_uefiInfoBox()) {
+        return WIZ_DO_NOTHING;
     }
 
-    if (QI_OPTION_YES == qi_configGet(o_cregfix)) {
-        msg_cregfixInfoBox();
+    if (QI_OPTION_YES == qi_configGet(o_cregfix) && AD_CANCELED == msg_cregfixInfoBox()) {
+        return WIZ_DO_NOTHING;
     }
     
-    if (QI_OPTION_YES == qi_configGet(o_lba64)) {
-        msg_lba64InfoBox();
+    if (QI_OPTION_YES == qi_configGet(o_lba64) && AD_CANCELED == msg_lba64InfoBox()) {
+        return WIZ_DO_NOTHING;
     }
  
     return WIZ_NEXT;

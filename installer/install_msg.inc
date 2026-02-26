@@ -55,57 +55,61 @@ static inline void msg_fileOpenError(size_t osRootIndex, const char *filename) {
 }
 
 /* Shows warning about UEFI */
-static inline void msg_uefiInfoBox(void) {
-    ad_okBox("UEFI Information", false,
-        "You have selected UEFI support to be enabled.\n"
-        "This is a highly experimental feature.\n"
+static inline int32_t msg_uefiInfoBox(void) {
+    return ad_okBox("UEFI Information", true,
+        "WARNING: UEFI support is a highly experimental feature!\n"
         "\n"
-        "It is based on CSMWrap (github.com/FlyGoat/csmwrap)\n"
-        "and allows Windows 9x/ME to boot on pure UEFI systems\n"
-        "without the CSM (Compatibility Support Module).\n"
+        "It is based on CSMWrap (github.com/FlyGoat/csmwrap) and allows Windows\n"
+        "9x/ME to boot on pure UEFI systems without the CSM (Compatibility\n"
+        "Support Module).\n"
         "\n"
-        "Due to the non-standard nature of this UEFI boot\n"
-        "method, you may not be able to find the target disk\n"
-        "as a boot option in your UEFI confugration menu.\n"
-        "In this case, try manually adding a reference to this file:\n"
+        "Due to the non-standard nature of this method, you may not be able to\n"
+        "find the target disk as a boot option in your UEFI confugration menu.\n"
+        "In this case, try manually adding a reference to the following file:\n"
         "\n"
         "<TARGET PARTITION>/EFI/BOOT/BOOTIA32.EFI\n"
         "\n"
         "ATTTENTION: Ensure that the following conditions are met:\n"
         "- DISABLE Secure Boot\n"
         "- DISABLE Above 4G Decoding/Resizable BAR/Smart Access Memory\n"
-        "- DISABLE your computer's CSM if available/enabled.\n");
+        "- DISABLE your computer's CSM if available/enabled.\n"
+        "\n"
+        "Press 'OK' to continue or ESCAPE to return to the configuration menu.");
 }
 
 /* Shows warning about CREGFIX */
-static inline void msg_cregfixInfoBox(void) {
-    ad_okBox("CREGFIX Information", false,
+static inline int32_t msg_cregfixInfoBox(void) {
+    return ad_okBox("CREGFIX Information", true,
         "You have selected the CREGFIX patch to be applied.\n"
-        "This is a feature that needs a modern CPU to work,\n"
-        "fixing a bug present in most UEFI CSM implementations.\n"
         "\n"
-        "It uses instructions not supported by older CPUs.\n"
-        "Applying this patch on an older system will render the\n"
-        "installation un-bootable.\n");
+        "This is a patch intended for very modern systems to fix a bug present\n"
+        "in most UEFI CSM implementations.\n"
+        "\n"
+        "The patch for this is universal and should not cause any harm on\n"
+        "unaffected systems, but it is still recommended to only install it\n"
+        "if needed.\n"
+        "\n"
+        "Press 'OK' to continue or ESCAPE to return to the configuration menu.");
 }
 
 /* Shows warning about LBA64 */
-static inline void msg_lba64InfoBox(void) {
-    ad_okBox("LBA64 / GPT Information", false,
-        "You have selected the 64-Bit LBA and GPT TSD support drivers to\n"
-        "be installed.\n"
+static inline int32_t msg_lba64InfoBox(void) {
+    return ad_okBox("LBA64 / GPT Information", true,
+        "The addition of 64-Bit LBA and GPT TSD support drivers is an EXPERIMENTAL\n"
+        "and potentially DANGEROUS feature.\n"
         "\n"
-        "This is an experimental and potentially DANGEROUS feature,\n"
-        "providing read/write access to disks bigger than two terabytes\n"
-        "and disks using the GUID partition layout, including 4k native sector\n"
-        "size disks, under Windows 9x\n"
-        "Due to the boundary-breaking nature of these drivers, you must\n"
-        "ensure that your disks, controllers and drivers support writing past\n"
-        "the usual two terabytes barrier.\n"
+        "It provides read AND write access to disks bigger than 2 TB and/or using\n"
+        "GUID partition table (GPT), including those with a 4KB native sector size.\n"
+        "\n"
+        "Due to the boundary-breaking nature of these, make sure that your disks,\n"
+        "controllers and drivers support writing past these barriers.\n"
+        "\n"
         "YOU ARE RISKING DISK CORRUPTION OHTERWISE.\n"
         "\n"
-        "Also, any patched versions of DISKVSD.VXD will be overwritten, as they\n"
-        "are incompatible.");
+        "Note that any patched versions of DISKVSD.VXD will be overwritten, as they\n"
+        "are incompatible.\n"
+        "\n"
+        "Press 'OK' to continue or ESCAPE to return to the configuration menu.");
 }
 
 /* Shows info that partition is mounted and asks if user wants to unmount and proceed */
