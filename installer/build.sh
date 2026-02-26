@@ -6,7 +6,6 @@ set -e 1
 
 ANBUI_FILES=$(anbui/get_build_files.sh)
 
-$CC -DMAPPEDFILE_MULTITHREAD -Os -s -g0 --static -Wall -Wextra -pedantic -Werror -pthread $ANBUI_FILES disk.c install.c install_util.c util.c mappedfile_mt.c main.c -lpthread -olunmercy
-$CC -DMAPPEDFILE_MULTITHREAD -Os -s -g0 --static -Wall -Wextra -pedantic -Werror $ANBUI_FILES disk.c install.c install_util.c util.c mappedfile.c main.c -olunmercy_singlethread
+$CC -DMAPPEDFILE_MULTITHREAD -Os -s -g0 --static -Wall -Wextra -pedantic -Werror -pthread $ANBUI_FILES install.c install_disk.c install_util.c util.c util_disk.c mappedfile_mt.c main.c -lpthread -olunmercy
 
 ls -l lunmercy*

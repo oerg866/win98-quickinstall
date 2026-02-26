@@ -114,17 +114,15 @@ char *util_endOfString(char *str) {
 }
 
 void util_getCappedString(char *dst, const char* src, size_t maxLen) {
-    memset(dst, 0, maxLen + 1);
-
     if (strlen(src) > maxLen) {
         memcpy(dst, src, maxLen - 3);
-        strcat(dst, "...");
+        memcpy(dst + maxLen - 3, "...", 3);
     } else {
-        memcpy(dst, src, maxLen);
+        memcpy(dst, src, strlen(src));
     }
 }
 
-void util_stringInsert(char *dst, char *src) {
+void util_stringInsert(char *dst, const char *src) {
     memcpy(dst, src, strlen(src));
 }
 

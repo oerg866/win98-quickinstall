@@ -197,7 +197,7 @@ char *util_endOfString(char *str);
 // maxLen is the maximum length EXCLUDING null termiinator, so dst must be maxLen+1 in size!
 void util_getCappedString(char *dst, const char *src, size_t maxLen);
 // Inserts a string at dst without the null terminator
-void util_stringInsert(char *dst, char *src);
+void util_stringInsert(char *dst, const char *src);
 // Trims the whitespace off the end of a string
 void util_stringRTrim(char *str);
 

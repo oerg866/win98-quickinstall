@@ -51,25 +51,7 @@
 #define INST_SLOWPNP_FILE "SLOWPNP.866"
 #define INST_FASTPNP_FILE "FASTPNP.866"
 
-#define QI_VARIANT_NAME_SIZE (70)
-
 typedef bool (*qi_OptionFunc)(size_t progressBarIndex);
-
-// Structure depicting all the static state needed for the wizard / installers
-typedef struct {
-    bool disclaimerShown;                   // Indicates disclaimer was shown
-    MappedFile *osRootFile;                 // The main OS data file, opened early for prebuffering
-    uint64_t readahead;                     // Maximum safe readahead memory size
-    ad_ProgressBox *progress;               // Multi-progress-bar-box ui element
-    util_HardDiskArray *hda;                // Hard Disk Array of all disks in the system
-    util_Partition *destination;            // destiination partition (Child of hda)
-    size_t variantCount;                    // Amount of OS variants in  this image
-    size_t variantIndex;                    // Selected OS variant
-    char variantName[QI_VARIANT_NAME_SIZE]; // Name of selected OS variant
-    bool error;                             // an error occurred in the installation
-    qi_OptionIdx errorIndex;
-    uint32_t preparationProgress;
-} qi_InstallContext;
 
 static qi_InstallContext qi_wizData;
 
@@ -306,18 +288,6 @@ MappedFile_ErrorReaction qi_readErrorHandler(int _errno, MappedFile *mf) {
     return whatToDo == 0 ? MF_RETRY : MF_CANCEL;
 }
 
-// Refreshes the internal hard diisk array.
-static bool qi_refreshDisks() {
-    ad_setFooterText("Obtaining System Hard Disk Information...");
-    if (qi_wizData.hda != NULL) {
-        util_hardDiskArrayDestroy(qi_wizData.hda);
-    }
-    qi_wizData.hda = util_getSystemHardDisks();
-    qi_wizData.destination = NULL;
-    ad_clearFooter();
-    return qi_wizData.hda != NULL;
-}
-
 // Does a cleanup of all dynamic resources in the install context
 static void qi_cleanup() {
     // If OSRoot file is open, close it first.
@@ -350,7 +320,7 @@ static void qi_cleanup() {
 static qi_WizardAction qi_variantSelectAndStartPrebuffering() {
     size_t variantCount = 0;
 
-    ad_Menu *menu = ad_menuCreate("Installation Variant", "Select the operating system variant you wish to install.", false);
+    ad_Menu *menu = ad_menuCreate("Installation Variant", "Select the operating system variant you wish to install.", false, false);
     QI_ASSERT(menu != NULL);
 
     while (true) {
@@ -391,6 +361,24 @@ static qi_WizardAction qi_variantSelectAndStartPrebuffering() {
     return WIZ_NEXT;
 }
 
+#ifdef RAID_TEST
+static void qi_findRaids() {
+    ad_yesNoBox("Find and activate RAID sets", false,
+        "This option is meant for users with 'Fake-RAID' cards, such as"
+        "HighPoint or Promise IDE/SATA RAID cards which can only boot"
+        "from RAID arrays created by them (e.g. FastTrak S150 TX4)."
+        ""
+        "Since this is not well supported by the Linux ecosystem anymore,"
+        "it is recommended that you do not use the RAID features of the"
+        "card and use the raw disks themselves instead."
+        ""
+        "This option is available as a 'last resort' and may not be"
+        "supported in the future."
+        ""
+        "Do you wish to continue?");
+}
+#endif
+
 static qi_WizardAction qi_mainMenu() {
     if (!qi_wizData.disclaimerShown) {
         msg_disclaimer();
@@ -398,10 +386,13 @@ static qi_WizardAction qi_mainMenu() {
     }
 
     ad_Menu *menu = ad_menuCreate("Windows 9x QuickInstall: Main Menu", 
-        msg_mainMenuText, true);
+        msg_mainMenuText, true, false);
     QI_ASSERT(menu);
     ad_menuAddItemFormatted(menu, "[INSTALL] Install %s", qi_wizData.variantName);
-    ad_menuAddItemFormatted(menu, " [CFDISK] Partition hard disks");
+    ad_menuAddItemFormatted(menu, "   [DISK] Manage and partition hard disks");
+#ifdef RAID_TEST
+    ad_menuAddItemFormatted(menu, "   [RAID] Try to find and activate RAID sets");
+#endif
     ad_menuAddItemFormatted(menu, "  [SHELL] Exit to minmal diagnostic Linux shell");
 
     // Show the OS selection option in the menu only if we have more than 1 OS variant in this image.
@@ -417,7 +408,7 @@ static qi_WizardAction qi_mainMenu() {
 
     switch (menuResult) {
         case 0:             return WIZ_SELECT_PARTITION;
-        case 1:             return WIZ_PARTITION;
+        case 1:             return WIZ_DISKMGMT;
         case 2:             return WIZ_EXIT_TO_SHELL;
         case 3:             return WIZ_REDO_FROM_START;
         case AD_CANCELED:   return WIZ_REDO_FROM_START;
@@ -426,24 +417,24 @@ static qi_WizardAction qi_mainMenu() {
     }
 }
 
-static qi_WizardAction qi_partitionSelect(void) {
-    int menuResult;
+static qi_WizardAction qi_destinationSelect(void) {
+    char menuPrompt[512];
+    snprintf(menuPrompt, sizeof(menuPrompt),
+            "Select the partition you wish to install to.\n"
+            "An asterisk (*) means that this is the source media and\n"
+            "cannot be used.\n\n"
+            "%s", inst_getPartitionMenuHeader());
 
-    QI_FATAL(qi_refreshDisks(), "Cannot get hard disk information");
-
-    if (qi_wizData.hda->count == 0) {
+    if (!qi_refreshDisks(&qi_wizData)) {
+        msg_refreshDiskError();
+        return WIZ_MAIN_MENU;
+    } else if (qi_wizData.hda->count == 0) {
         msg_noHardDisksFoundError();
         return WIZ_MAIN_MENU;
     }
 
     while (1) {
-        ad_Menu *menu = ad_menuCreate("Installation Destination", 
-            "Select the partition you wish to install to.\n"
-            "An asterisk (*) means that this is the source media and\n"
-            "cannot be used.\n\n"
-            // Sorgy, ackident... very messy hack,.
-            "   [Disk Model/Name     ][Partition   ][File System][Size       ] ",
-            true);
+        ad_Menu *menu = ad_menuCreate("Installation Destination", menuPrompt,true, false);
 
         QI_ASSERT(menu);
 
@@ -461,7 +452,7 @@ static qi_WizardAction qi_partitionSelect(void) {
             return WIZ_BACK;
         }
 
-        menuResult = ad_menuExecute(menu);
+        int menuResult = ad_menuExecute(menu);
         ad_menuDestroy(menu);
         
         if (menuResult == AD_CANCELED) {
@@ -499,79 +490,6 @@ static qi_WizardAction qi_partitionSelect(void) {
         qi_wizData.destination = partition;
         return WIZ_NEXT;
     }
-}
-
-/* On invalid/unsupported partition table, ask user if he wants to wipe it */
-static void qi_invalidPartTableAskUserAndWipe(util_HardDisk *hdd) {
-    if (msg_askNonMbrWarningWipeMBR(hdd, inst_getTableTypeString(hdd))) {
-        if (!util_wipePartitionTable(hdd)) {
-            // No return value here since we can't do much and we'll launch cfdisk anyway
-            msg_wipeMbrFailed();
-        }
-    }
-}
-
-static qi_WizardAction qi_partitioning(void) {
-    char cfdiskCmd[UTIL_MAX_CMD_LENGTH];
-
-    while (1) {
-        // At the beginning of every loop of the wizard, we need to refresh our disk list
-        // and update the pointer of the caller
-        if (!qi_refreshDisks()) {
-            msg_refreshDiskError();
-            return WIZ_MAIN_MENU;
-        } else if (qi_wizData.hda->count == 0) {
-            msg_noHardDisksFoundError();
-            return WIZ_MAIN_MENU;
-        }
-
-        ad_Menu *menu = ad_menuCreate("Partition Wizard", 
-            "Select the Hard Disk you wish to partition.\n"
-            "An asterisk (*) means that this is the source media and\n"
-            "cannot be altered.\n"
-            "A question mark <?> means that this drive does not have a\n"
-            "valid/known partition table type.\n\n"
-            // Hackkkkkkkkkkkkkkkyyyyyy
-            "   [Disk Model/Name     ][Device      ][Table Type ][Size       ] ",
-            true);
-
-        QI_ASSERT(menu);
-
-        for (size_t i = 0; i < qi_wizData.hda->count; i++) {
-            ad_menuAddItemFormatted(menu, inst_getDiskMenuString(&qi_wizData.hda->disks[i]));
-        }
-        
-        ad_menuAddItemFormatted(menu, " [Back]");
-        int menuResult = ad_menuExecute(menu);
-        ad_menuDestroy(menu);
-
-        // Back / ESC pressed?
-        if (menuResult == AD_CANCELED || menuResult == (int) qi_wizData.hda->count) {
-            break;
-        }
-        
-        util_HardDisk *selectedDisk = &qi_wizData.hda->disks[menuResult];
-            
-        // Check if we're trying to partition the install source disk. If so, warn user and continue looping.
-        if (inst_isInstallationSourceDisk(selectedDisk)) {
-            msg_installationSourceDiskError();
-            continue;
-        }
-
-        if (!util_stringEquals(selectedDisk->tableType, "dos")) {
-            qi_invalidPartTableAskUserAndWipe(selectedDisk);
-        }
-
-        // Invoke cfdisk command for chosen drive.
-        snprintf(cfdiskCmd, UTIL_MAX_CMD_LENGTH, "cfdisk %s", selectedDisk->device);
-
-        system(cfdiskCmd);
-
-        ad_restore();
-    }
-
-    msg_reminderToFormatNewPartition();
-    return WIZ_MAIN_MENU;
 }
 
 qi_Option *qi_configGetItemByOptionIdx(qi_OptionIdx index) {
@@ -876,13 +794,13 @@ bool qi_wizard() {
             case WIZ_MAIN_MENU:
                 result = qi_mainMenu(); break;
             case WIZ_SELECT_PARTITION:
-                result = qi_partitionSelect(); break;
+                result = qi_destinationSelect(); break;
             case WIZ_CONFIGURE:
                 result = qi_config(); break;
             case WIZ_DO_INSTALL:
                 result = qi_install(); break;
-            case WIZ_PARTITION:
-                result = qi_partitioning(); break;
+            case WIZ_DISKMGMT:
+                result = qi_diskMgmtMenu(&qi_wizData); break;
             case WIZ_THE_END:
                 result = qi_thisIsTheEnd(); break;
             case WIZ_REDO_FROM_START:
@@ -904,9 +822,10 @@ bool qi_wizard() {
         
 
         switch (result) {
-            case WIZ_BACK:  state--; break;
-            case WIZ_NEXT:  state++; break;
-            default:        state = result;
+            case WIZ_BACK:          state--; break;
+            case WIZ_NEXT:          state++; break;
+            case WIZ_DO_NOTHING:    break; /* state = state :) */ 
+            default:                state = result;
         }
     }
 }

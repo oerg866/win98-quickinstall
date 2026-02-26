@@ -1,36 +1,5 @@
 #include "util.h"
 
-#define QI_OPTION_YES               (0)
-#define QI_OPTION_NO                (1)
-#define QI_MAX_OPTIONS_PER_CONFIG   (2)
-
-typedef enum {
-    o_writeMBRAndSetActive = 0,
-    o_formatTargetPartition,
-    o_bootSector,
-    o_skipLegacyDetection,
-    o_installDriversBase,
-    o_installDriversExtra,
-    o_copyExtras,
-    o_cregfix,
-    o_lba64,
-    o_uefi,
-    QI_OPTIONIDX_MAX,
-    o_baseOS, // Base OS copy, this is always enabled and this is just a hack to make the install code a bit nicer
-    o_mount, // Mounting partition, ditto
-    o_registry, // copy system registry, ditto
-} qi_OptionIdx;
-
-typedef struct {
-    qi_OptionIdx idx;
-    const char *prompt;
-    size_t optionCount;
-    const char *optionStrings[QI_MAX_OPTIONS_PER_CONFIG];
-    size_t selected;
-    size_t progressBarIdx;
-    bool partOfPreparation;
-} qi_Option;
-
 static qi_Option qi_options[] = {
     {
         o_writeMBRAndSetActive,
