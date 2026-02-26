@@ -19,7 +19,7 @@
 
 #define CMD_SURPRESS_OUTPUT " 2>/dev/null 1>/dev/null"
 
-#define CMD_LSBLK_ALL "lsblk -I 8,3,259 -n -b -p -P -oTYPE,KNAME,PARTTYPE,SIZE,OPT-IO,MODEL,PTTYPE"
+#define CMD_LSBLK_ALL "lsblk -I 8,3,259 -n -b -p -P -oTYPE,KNAME,PARTTYPE,SIZE,OPT-IO,MODEL,PTTYPE,FSTYPE"
 
 // Update parents after a reallocation of a hard disk array
 static inline void util_HardDisksUpdatePartitionParents(util_HardDisk *hdds, size_t diskCount) {
@@ -108,6 +108,7 @@ static util_Partition *util_HardDiskAddPartition(util_HardDisk *hd, const char *
     ret->fileSystem = fileSystem;
     ret->parent = hd;
     ret->indexOnParent = util_getPartitionIndexOnParent(ret);
+    ret->isLogical = ret->indexOnParent > 4;
 
     return ret;
 }
@@ -171,6 +172,8 @@ util_HardDiskArray *util_getSystemHardDisks() {
         char tmpDevice      [UTIL_HDD_DEVICE_STRING_LENGTH];
         char tmpModel       [UTIL_HDD_MODEL_STRING_LENGTH];
         char tmpPtType      [UTIL_TABLE_TYPE_STRING_LENGTH] = "";
+        char tmpFsType      [UTIL_FS_TYPE_STRING_LENGTH];
+        char tmpPartType    [UTIL_FS_TYPE_STRING_LENGTH];
         char tmpNumStr      [64+1] = "";
         bool success = true;
         
@@ -182,12 +185,16 @@ util_HardDiskArray *util_getSystemHardDisks() {
 
         success &= util_getValueFromKey(lsblkOut->lines[i], "PTTYPE", tmpPtType, sizeof(tmpPtType));
         
-        success &= util_getValueFromKey(lsblkOut->lines[i], "PARTTYPE", tmpNumStr, sizeof(tmpNumStr));
-        util_FileSystem tmpFileSystem = util_partitionTypeByteToUtilFilesystem(strtoul(tmpNumStr, NULL, 16));
+        success &= util_getValueFromKey(lsblkOut->lines[i], "PARTTYPE", tmpPartType, sizeof(tmpPartType));
+
+        success &= util_getValueFromKey(lsblkOut->lines[i], "FSTYPE", tmpFsType, sizeof(tmpFsType));
+        bool isGuid = (strlen(tmpPartType) > 4); // 0xFF <- 4 characters, anything bigger should be a guid...
+        util_FileSystem tmpFileSystem = isGuid ? util_guidToUtilFilesystem(tmpPartType, tmpFsType)
+                                               : util_partitionTypeByteToUtilFilesystem(strtoul(tmpPartType, NULL, 16));
 
         success &= util_getValueFromKey(lsblkOut->lines[i], "SIZE", tmpNumStr, sizeof(tmpNumStr));
         uint64_t tmpSize = strtoull(tmpNumStr, NULL, 10);
-        
+
         // This used to read MIN-IO as the sector size - it is NOT. The sector size would be PHY-SEC.
         // But more importantly - Linux treats a sector as 512 bytes *always*, so it's not even relevant here
         // And so does int13h translation, which is the point this relates to in this code.
@@ -226,7 +233,7 @@ void util_hardDiskArrayDestroy(util_HardDiskArray *hdds) {
             for (size_t i = 0; i < hdds->count; i++) {
                 for (size_t p = 0; p < hdds->disks[i].partitionCount; p++) {
                     util_Partition *part = &hdds->disks[i].partitions[p];
-                    // unmount the partition ONLY if we mounted it
+                    // unmount the partition ONLY if WE mounted it
                     if (part->mountPath) {
                         util_unmountPartition(&hdds->disks[i].partitions[p]);
                         free(part->mountPath);
@@ -244,33 +251,63 @@ void util_hardDiskArrayDestroy(util_HardDiskArray *hdds) {
 
 util_FileSystem util_partitionTypeByteToUtilFilesystem(uint8_t partitionType) {
     switch(partitionType) {
-        case 0x00:
-            return fs_none;
-        case 0x04:  // FAT16  < 32MB
-        case 0x06:  // FAT16 >= 32MB 
-        case 0x0E:  // FAT16 >= 32MB LBA
-        case 0x14:  // FAT16  < 32MB        HIDDEN
-        case 0x16:  // FAT16 >= 32MB        HIDDEN
-        case 0x1E:  // FAT16 >= 32MB LBA    HIDDEN
-            return fs_fat16;
-        case 0x0B:  // FAT32
-        case 0x0C:  // FAT32 LBA
-        case 0x1B:  // FAT32        HIDDEN
-        case 0x1C:  // FAT32 LBA    HIDDEN
-            return fs_fat32;
-        default:
-            return fs_unsupported;
+        case 0x00:  return fs_none;
+        case 0x05:  return fs_extended;     // Extended partition
+        case 0x0f:  return fs_extended;     // Extended partition (LBA)
+        case 0x04:  return fs_fat16;        // FAT16  < 32MB
+        case 0x06:  return fs_fat16;        // FAT16 >= 32MB 
+        case 0x0E:  return fs_fat16;        // FAT16 >= 32MB LBA
+        case 0x14:  return fs_fat16;        // FAT16  < 32MB        HIDDEN
+        case 0x16:  return fs_fat16;        // FAT16 >= 32MB        HIDDEN
+        case 0x1E:  return fs_fat16;        // FAT16 >= 32MB LBA    HIDDEN
+        case 0x0B:  return fs_fat32;        // FAT32
+        case 0x0C:  return fs_fat32;        // FAT32 LBA
+        case 0x1B:  return fs_fat32;        // FAT32        HIDDEN
+        case 0x1C:  return fs_fat32;        // FAT32 LBA    HIDDEN
+        case 0x07:  return fs_ntfs;         // NTFS or exFAT
+        case 0x17:  return fs_ntfs;         // NTFS or exFAT        HIDDEN
+        case 0x27:  return fs_ntfs;         // NTFS or exFAT        HIDDEN (sometimes used for recovery partitions)
+        case 0x83:  return fs_linux;        // Linux native filesystem (ext2, ext3, ext4)
+        case 0x82:  return fs_swap;         // Linux swap
+        case 0xEF:  return fs_efi;          // EFI System Partition (FAT32)
+        default:    return fs_unsupported;
     }
 }
 
+util_FileSystem util_guidToUtilFilesystem(const char *guid, const char *fsType) {
+    QI_FATAL(guid != NULL && fsType != NULL, "GUID/FSTYPE invalid.");
+
+    if (util_stringEquals(guid,     "c12a7328-f81f-11d2-ba4b-00a0c93ec93b"))    return fs_efi;
+    if (util_stringEquals(guid,     "21686148-6449-6e6f-744e-656564454649"))    return fs_gpt_boot;
+    if (util_stringEquals(fsType,   "vfat"))                                    return fs_gpt_vfat;
+    if (util_stringEquals(fsType,   "ntfs"))                                    return fs_ntfs;
+    if (util_stringEquals(fsType,   "exfat"))                                   return fs_exfat;
+    if (util_stringEquals(fsType,   "ext2"))                                    return fs_linux;
+    if (util_stringEquals(fsType,   "ext3"))                                    return fs_linux;
+    if (util_stringEquals(fsType,   "ext4"))                                    return fs_linux;
+
+    if (strlen(guid) == 0 && strlen(fsType) == 0)                               return fs_none;
+
+    return fs_unsupported;
+}
+
 static const char *UTIL_FS_STRINGS[FS_ENUM_SIZE] = {
-    "Unformatted",
-    "Unsupported",
+    "---",
+    "?",
+    "Extended",
     "FAT16",
-    "FAT32"
+    "FAT32",
+    "NTFS",
+    "Linux",
+    "Swap",
+    "EFI Boot",
+    "GPT Boot",
+    "FAT16/32",
+    "exfat",
 };
 
 const char *util_utilFilesystemToString(util_FileSystem fs) {
+    if (fs >= FS_ENUM_SIZE) return "?";
     return UTIL_FS_STRINGS[(size_t) fs];
 }
 

@@ -18,14 +18,23 @@
 #define UTIL_HDD_DEVICE_STRING_LENGTH (20+1)
 #define UTIL_HDD_MODEL_STRING_LENGTH (64+1)
 #define UTIL_TABLE_TYPE_STRING_LENGTH (8)
+#define UTIL_FS_TYPE_STRING_LENGTH (64+1)
 #define DISK_MBR_CODE_LENGTH (446)
 
 // this enum shows the file system of a partition
 typedef enum {
     fs_none = 0,
     fs_unsupported,
+    fs_extended, 
     fs_fat16,
     fs_fat32,
+    fs_ntfs,
+    fs_linux,
+    fs_swap,
+    fs_efi,
+    fs_gpt_boot,
+    fs_gpt_vfat,
+    fs_exfat,
     FS_ENUM_SIZE
 } util_FileSystem;
 
@@ -114,8 +123,10 @@ util_HardDiskArray *util_getSystemHardDisks(void);
 // Deallocates a hard disk array including all internal data structures
 void util_hardDiskArrayDestroy(util_HardDiskArray *hdds);
 
-// Converts a MBR patition type byte to an util_FileSystem enum value
+// Converts a MBR patition type byte to a util_FileSystem enum value
 util_FileSystem util_partitionTypeByteToUtilFilesystem(uint8_t partitionType);
+// Converts a GUID + FSTYPE string to a util_FileSystem enum value
+util_FileSystem util_guidToUtilFilesystem(const char *guid, const char *fsType);
 // Converts an util_FileSystem enum value to a string
 const char *util_utilFilesystemToString(util_FileSystem fs);
 // Gets the short version of a device string (after the last /, so /dev/sda1 becomes sda1)

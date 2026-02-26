@@ -14,8 +14,22 @@ static inline void msg_sourcePartitionError(void) {
 }
 
 /* Tells the user he is trying to install to a non-FAT partition */
-static inline void msg_unsupportedFileSystemError(void) {
-    ad_okBox("Attention", false, "The selected partition has an unsupported file system.\nIt cannot be the installation destination.");
+static inline void msg_unsupportedFileSystemError(util_FileSystem fs) {
+    ad_okBox("Attention", false,
+        "The file system of the selected partition is '%s'.\n"
+        "\n"
+        "Windows 9x cannot be installed on a file system of such type.\n"
+        "Repartition your disk or select another partition with the\n"
+        "FAT16 or FAT32 file format.",
+        util_utilFilesystemToString(fs));
+}
+
+static inline void msg_extendedPartitionError(void) {
+    ad_okBox("Attention", false, "The selected partition is an extended partition.\nIt cannot be the installation destination.");
+}
+
+static inline void msg_logicalPartitionError(void) {
+    ad_okBox("Attention", false, "The selected partition is a logical partition.\nIt cannot be the installation destination.");
 }
 
 /* Tells the user he is trying to install to a non-MBR hard drive*/

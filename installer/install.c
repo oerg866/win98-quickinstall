@@ -467,14 +467,24 @@ static qi_WizardAction qi_destinationSelect(void) {
             msg_sourcePartitionError();
             continue;
         }
-
+        // Wrong partition table type? error and show menu again.
         if (!util_stringEquals(partition->parent->tableType, "dos")) {
             msg_destinationInvalidPartitionTable();
             continue;
         }
-
-        if (partition->fileSystem == fs_unsupported || partition->fileSystem == fs_none) {
-            msg_unsupportedFileSystemError();
+        // Is extended partition? error and show menu again.
+        if (partition->fileSystem == fs_extended) {
+            msg_extendedPartitionError();
+            continue;
+        }
+        // Wrong file system? error and show menu again.
+        if (partition->fileSystem != fs_fat16 && partition->fileSystem != fs_fat32) {
+            msg_unsupportedFileSystemError(partition->fileSystem);
+            continue;
+        }
+        // Logical partition? error and show menu again.
+        if (partition->isLogical) {
+            msg_logicalPartitionError();
             continue;
         }
 
