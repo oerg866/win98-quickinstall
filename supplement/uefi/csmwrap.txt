@@ -1,0 +1,5 @@
+CSMWrap is an EFI application designed to be a drop-in solution to enable legacy BIOS booting on modern UEFI-only (class 3) systems. It achieves this by wrapping a Compatibility Support Module (CSM) build of the SeaBIOS project as an out-of-firmware EFI application, effectively creating a compatibility layer for traditional PC BIOS operation.
+
+Created by FlyGoat
+
+https://github.com/FlyGoat/CSMWrap

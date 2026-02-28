@@ -114,7 +114,7 @@ cp dosflop/dosflop.img "$OUTPUT/"
 
 # Our installer!
 cp supplement/install.txt "$CDROOT/"
-cp supplement/csmwrap.efi "$CDROOT/"
+cp supplement/uefi/*.efi "$CDROOT/"
 cp installer/lunmercy "$CDROOT/bin/"
 
 # DOS installation tools (to start the kernel from DOS)

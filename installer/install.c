@@ -648,7 +648,8 @@ static bool qi_installUefi(size_t progressBarIndex) {
     bool success = true;
 
     success &= util_mkDir(inst_getTargetFilePath(qi_wizData.destination, "EFI/BOOT"), 0);
-    success &= util_fileCopy(inst_getSourceFilePath(0, "csmwrap.efi"), inst_getTargetFilePath(qi_wizData.destination, "EFI/BOOT/BOOTIA32.EFI"));
+    success &= util_fileCopy(inst_getSourceFilePath(0, "csmwrapx64.efi"), inst_getTargetFilePath(qi_wizData.destination, "EFI/BOOT/BOOTX64.EFI"));
+    success &= util_fileCopy(inst_getSourceFilePath(0, "csmwrapia32.efi"), inst_getTargetFilePath(qi_wizData.destination, "EFI/BOOT/BOOTIA32.EFI"));
 
     ad_progressBoxMultiUpdate(qi_wizData.progress, progressBarIndex, ++qi_wizData.preparationProgress);
     return success;
