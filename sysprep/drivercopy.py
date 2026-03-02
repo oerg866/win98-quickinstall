@@ -18,6 +18,7 @@
 
 import os
 import shutil
+import argparse
 from struct import unpack
 from cabarchive import CabArchive, CabFile
 from wininfparser import WinINF, INFsection
@@ -408,7 +409,7 @@ def writeSourceDisksNamesAndFiles(inf: WinINF, knownFiles: list[SourceFile], cab
     inf.AddSection(sdfSection)
 
 # Scan an inf file, collect all its associated files, modify it according to what the CAB name will be, and save it to output
-def handleInf(filename: str, outInfName: str, localDir: str, cabName: str, filesInDirectory: list[SourceFile]) -> bool:
+def handleInf(filename: str, outInfName: str, localDir: str, cabName: str, filesInDirectory: list[SourceFile], simulate: bool = False) -> bool:
     inf = WinINF()
     inf.ParseFile(filename)
 
@@ -436,7 +437,10 @@ def handleInf(filename: str, outInfName: str, localDir: str, cabName: str, files
 
     writeSourceDisksNamesAndFiles(inf, knownFiles, cabName)
 
-    success = inf.Save(outInfName, codec="cp1252")
+    if not simulate:
+        success = inf.Save(outInfName, codec="cp1252")
+    else:
+        success = True
 
     # Wininfparser saves with \n line endings, which Win98 doesn't really like.
     # So we replace them by hand with \r\n
@@ -515,7 +519,7 @@ def copyFilesAndWriteCab(filesInDirectory: list[SourceFile], outCab: str) -> boo
     return True
 
 # Scans a sub directory and plugs all its INF files into the INF handler
-def handleDir(localDir: str, outDir: str):
+def handleDir(localDir: str, outDir: str, simulate: bool = False, deleteWin98Files: bool = False):
     infCount = 0
     filesInThisDir = list[SourceFile]()
     
@@ -532,10 +536,21 @@ def handleDir(localDir: str, outDir: str):
         
             logi(f'---------------------------------------------------------------')
             logi(f'Processing inf: {fullPath} outInf: {outInf} outCab: {outCab}')
-            handleInf(fullPath, outInf, localDir, outCab, filesInThisDir)
+            handleInf(fullPath, outInf, localDir, outCab, filesInThisDir, simulate)
             infCount += 1
-        
-    if infCount > 0:
+
+    if deleteWin98Files:
+        for f in filesInThisDir:
+            if f.isFromWin98 and f.localName:
+                loge(f'Deleting {f.localName}')
+                os.remove(f.localName)
+
+    totalSize = 0
+    for f in filesInThisDir:
+        totalSize += len(f.data)
+    logi(f'---> Sum of all file data (uncompressed): {totalSize} bytes')
+
+    if infCount > 0 and not simulate:
         copyFilesAndWriteCab(filesInThisDir, outCab)
         outSize = os.path.getsize(outCab)
         logi(f'---> CAB file written: {outCab} {outSize} Bytes')
@@ -543,27 +558,45 @@ def handleDir(localDir: str, outDir: str):
 # Performs a INF analysis for one level of subdirectories in inDir
 # Collects and compresses all INF's associated files into CABs
 # Writes output into outDir
-def driverCopy(inDir: str, outDir: str):
-    allFiles = []
-
-    # Get a list of all the Win98 supplied setup files
-    win98filesDat = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'win98files.dat')
-
-    with open("win98files.dat", "r") as f:
-        win98files = f.read().splitlines()
-
-    print(f'Starting DriverCopy with {len(win98files)} known Windows 98 files.')
-
+def driverCopy(inDirs: list[str], outDir: str):
     if (os.path.exists(outDir)):
         shutil.rmtree(outDir)
 
     os.makedirs(outDir, exist_ok=True)
 
     # Get all Directories 
-    for entry in os.listdir(inDir):
-        fullEntry = os.path.join(inDir, entry)
+    for dirToProcess in inDirs:
+        for entry in os.listdir(dirToProcess):
+            fullEntry = os.path.join(dirToProcess, entry)
 
-        # if this is a directory, we process it
-        if os.path.isdir(fullEntry):
-            logi(f'Processing directory: {fullEntry}')
-            handleDir(fullEntry, outDir, win98files)
+            # if this is a directory, we process it
+            if os.path.isdir(fullEntry):
+                logi(f'Processing directory: {fullEntry}')
+                handleDir(fullEntry, outDir)
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='Windows 98 QuickInstall Driver Copy Script', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument('--check', type=str, help='Check a directory for missing or mangled files')
+    parser.add_argument('--single', nargs=2, metavar=('SRCDIR', 'OUTDIR'), help='Process a single driver (for testing purposes)')
+    parser.add_argument('--delete-win98-files', type=bool, help='Delete files already supplied by Win98SE when checking', default=False)
+    parser.add_argument('--verbose', help='Verbose debug logging', action='store_true', default=False)
+    parser.add_argument('--decompress_szdd', nargs=2, metavar=('SRC', 'DST'))
+
+    args = parser.parse_args()
+
+    if args.verbose:
+        ENABLE_DEBUG_LOGS = True
+
+    if args.check:
+        handleDir(args.check, '.', simulate=True, deleteWin98Files=args.delete_win98_files)
+
+    if args.single:
+        srcDir, outDir = args.single
+        handleDir(srcDir, outDir)
+
+    if args.decompress_szdd:
+        src, dst = args.decompress_szdd
+        dataCompressed = open(src, 'rb').read()
+        data = msExpandDecompress(dataCompressed)
+        open(dst, 'wb').write(data)
+
