@@ -48,7 +48,7 @@ static void qi_askUserAndWipePartitionTable(util_HardDisk *hdd) {
         "Current partition table type (may be inacccurate): %s\n\n"
         "You have selected this disk to have its partition table wiped.\n"
         "This may be useful in rare cases where buggy/leftover partition\n"
-        "entries cause the Windows 9x bootloaded to malfunction.\n"
+        "entries cause the Windows 9x bootloader to malfunction.\n"
         "\n"
         "This disk must then be partitioned using the partitioning menu.\n"
         "\n"
