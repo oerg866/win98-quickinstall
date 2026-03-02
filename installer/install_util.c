@@ -119,10 +119,12 @@ static void inst_tableSetString(char *out, const inst_UiTableRow *row, size_t co
 // Get a header string for ad_Menu that shows the labels of all the columns.
 static const char *inst_tableGetHeader(const inst_UiTableRow *row) {
     static char rowStr[128+2] = "  "; // +2 because menu items start 2 columns offset.
-    QI_FATAL(inst_tableGetRowWidth(row) < 128, "Row too big!");
+    size_t rowWidth = inst_tableGetRowWidth(row);
+    QI_FATAL(rowWidth < 128, "Row too big!");
     for (size_t i = 0; i < row->colCount; i++) {
         inst_tableSetString(&rowStr[2], row, i, row->cols[i].label);
     }
+    rowStr[2 + rowWidth] = 0x00;
     return rowStr;
 }
 
