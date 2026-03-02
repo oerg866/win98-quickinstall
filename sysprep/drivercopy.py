@@ -19,6 +19,7 @@
 import os
 import shutil
 import argparse
+from datetime import datetime
 from struct import unpack
 from cabarchive import CabArchive, CabFile
 from wininfparser import WinINF, INFsection
@@ -107,6 +108,10 @@ def msExpandDecompress(data: bytes) -> bytes:
 
     return bytes(out)
 
+def getDateTimeFromFile(fileName: str) -> datetime:
+    timestamp = os.path.getmtime(fileName)
+    return datetime.fromtimestamp(timestamp)
+
 class SourceFile:
     _win98files = None
 
@@ -138,9 +143,11 @@ class SourceFile:
         if self.localName:
             # File is available locally, no problem.
             logd(f'Reading data from local file {self.localName}')
+            self.mtime = getDateTimeFromFile(self.localName)
             self.data = open(self.localName, 'rb').read()
         elif self.localCompressed:
             logd(f'Reading data from local MSExpand compressed file {self.localName}')
+            self.mtime = getDateTimeFromFile(self.localCompressed)
             fileDataCompressed = open(self.localCompressed, 'rb').read()
             try:
                 self.data = msExpandDecompress(fileDataCompressed)
@@ -511,7 +518,7 @@ def copyFilesAndWriteCab(filesInDirectory: list[SourceFile], outCab: str) -> boo
     cabArchive = CabArchive()
 
     for sfEntry in filesInDirectory:
-        cabArchive[sfEntry.fileName] = CabFile(sfEntry.data)
+        cabArchive[sfEntry.fileName] = CabFile(sfEntry.data, mtime = sfEntry.mtime)
     
     with open(outCab, 'wb') as outFile:
         outFile.write(cabArchive.save(compress = True))
