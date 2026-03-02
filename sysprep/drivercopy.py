@@ -107,9 +107,68 @@ def msExpandDecompress(data: bytes) -> bytes:
     return bytes(out)
 
 class SourceFile:
-    def __init__(self, fileName: str, sourceDir: str):
+    _win98files = None
+
+    @classmethod
+    def _initialize(cls):
+        if cls._win98files is None:
+            win98filesDat = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'win98files.dat')
+            with open(win98filesDat, "r") as f: cls._win98files = f.read().splitlines()
+            print(f'Initialized SourceFile class with {len(cls._win98files)} known Windows 98 files.')
+
+
+    def __init__(self, fileName: str, localDir: str, sourceDir: str):
+        self.__class__._initialize()
         self.fileName = fileName    # The file name for this entry
         self.sourceDir = sourceDir  # The optional source directory for this entry
+        self.isFromWin98 = containsCaseInsensitive(self._win98files, fileName)
+        self.localName = self.getSourceFileNameSourceDiskDirectoryOrLocal(fileName, sourceDir, localDir)
+        self.data = None
+
+        # Build compressed file name in case it is a SZDD compressed file.
+        base, ext = os.path.splitext(self.fileName)
+        if len(ext) == 4: ext = ext[:3]
+        fileNameCompressed =  base + ext + '_'        
+        self.localCompressed = self.getSourceFileNameSourceDiskDirectoryOrLocal(fileNameCompressed, sourceDir, localDir)
+
+        if self.isFromWin98 and self.localName:
+            logw(f'WARNING: File {self.localName} supplied by Win9x AND driver - potential conflict!!!')
+
+        if self.localName:
+            # File is available locally, no problem.
+            logd(f'Reading data from local file {self.localName}')
+            self.data = open(self.localName, 'rb').read()
+        elif self.localCompressed:
+            logd(f'Reading data from local MSExpand compressed file {self.localName}')
+            fileDataCompressed = open(self.localCompressed, 'rb').read()
+            try:
+                self.data = msExpandDecompress(fileDataCompressed)
+                if len(self.data) == 0: logw(f'Decompressed file {self.localCompressed} empty?!')
+                logd(f'Read {self.localCompressed} (MSExpand Decompressed {len(self.data)} Bytes)')
+            except:
+                loge(f'Error: file decompression failed!')
+
+        if (self.data is None) and self.isFromWin98:
+            logd(f'File {self.fileName} supplied by Win9x!')
+        elif (self.data is None):
+            loge(f'File {self.fileName} is NOT supplied by driver nor Win9x itself!')
+            raise Exception(f'Please fix {self.fileName} before packaging ISO!')
+
+    def getSourceFileNameSourceDiskDirectoryOrLocal(self, fileName: str, sourceDir: str, localDir: str):
+        result = None
+        subDir = findSubPath(localDir, sourceDir)
+
+        logd(f'Subdir {sourceDir} {localDir} {subDir}')
+        
+        if subDir:
+            result = getFilenameCaseInsensitive(subDir, fileName)
+
+        if not result and subDir != localDir:
+            result = getFilenameCaseInsensitive(localDir, fileName)
+            if result:
+                logw(f'Warnnig: file {fileName} was expected to be found in {sourceDir} but was found in {localDir}')
+
+        return result
 
 OK        = '\033[92m'
 WARN      = '\033[93m'
@@ -190,7 +249,7 @@ def appendIfNew(strList: list[str], value: str):
         strList.append(value)
 
 # gets a list of all CopyFiles sections. Direct file references (@<something>) are appended to rawFiles.
-def getCopyFilesSections(inf: WinINF, rawFiles: list[str]):
+def getCopyFilesSections(inf: WinINF, rawFiles: list[str], localDir: str):
     sections = []
 
     for section in inf:
@@ -209,14 +268,14 @@ def getCopyFilesSections(inf: WinINF, rawFiles: list[str]):
             # An individual file can be copied by prefixing the file name with an @ symbol (!!!)
             # Source: http://www-pc.uni-regensburg.de/systemsw/TECHTOOL/w95/doc/INFDOC.HTM#CopyFilesSections
             if cfSec.startswith('@'):
-                addOrUpdateSourceFile(rawFiles, cfSec[1:])
+                addOrUpdateSourceFile(rawFiles, cfSec[1:], localDir)
             else:
                 appendIfNew(sections, cfSec)
 
     return sections
 
 # Get a list of all files referenced by all CopyFiles sections in the INF
-def getAllFilesFromSections(inf: WinINF, sectionNames: list[str], knownFiles: list[SourceFile]):
+def getAllFilesFromSections(inf: WinINF, sectionNames: list[str], knownFiles: list[SourceFile], localDir: str):
     for secName in sectionNames:
         section = getSection(inf, secName)
 
@@ -235,9 +294,11 @@ def getAllFilesFromSections(inf: WinINF, sectionNames: list[str], knownFiles: li
                 else: 
                     fname = fileFields[0]
 
-                addOrUpdateSourceFile(knownFiles, fname.strip())
+                addOrUpdateSourceFile(knownFiles, fname.strip(), localDir)
 
-def addOrUpdateSourceFile(sfList: list[SourceFile], filename: str, sourceDir:str=''):
+# Add or update an entry in a SourceFile list. Local dir = the base dir of the inf
+# sourceDir = the source dir for the file as specified *IN* the inf. Sorry it's a bit confusing
+def addOrUpdateSourceFile(sfList: list[SourceFile], filename: str, localDir: str, sourceDir: str=''):
     for sfEntry in sfList:
         # If we have this entry already AND the INF file matches, update its source dir
         if sfEntry.fileName.lower() == filename.lower():
@@ -249,7 +310,7 @@ def addOrUpdateSourceFile(sfList: list[SourceFile], filename: str, sourceDir:str
             sfEntry.sourceDir = sourceDir
             return
     # Else, add a new one
-    sfList.append(SourceFile(filename, sourceDir))
+    sfList.append(SourceFile(filename, localDir, sourceDir))
 
 # Get the value string out of the SourceDisksNames section for a given source disk index
 def getSourceDiskString(inf: WinINF, sourceDiskIndex: str):
@@ -264,7 +325,7 @@ def getSourceDiskString(inf: WinINF, sourceDiskIndex: str):
     return None
 
 # Get a list of all files referenced by the SourceDisksFiles section of this INF
-def getSourceDisksFiles(inf: WinINF, knownFiles: list[SourceFile]):
+def getSourceDisksFiles(inf: WinINF, knownFiles: list[SourceFile], localDir: str):
     sdfSection = getSection(inf, 'SourceDisksFiles')
 
 
@@ -298,7 +359,7 @@ def getSourceDisksFiles(inf: WinINF, knownFiles: list[SourceFile]):
             else:
                 logw(f'File entry with missing Source Disk {sourceDiskIndex}')
 
-        addOrUpdateSourceFile(knownFiles, key.strip(), sourceDir)
+        addOrUpdateSourceFile(knownFiles, key.strip(), localDir, sourceDir)
 
 # Re-write the SourceDisksNames and SourceDisksFiles sections of the inf file from scratch
 # according to the info we have now after scanning
@@ -347,7 +408,7 @@ def writeSourceDisksNamesAndFiles(inf: WinINF, knownFiles: list[SourceFile], cab
     inf.AddSection(sdfSection)
 
 # Scan an inf file, collect all its associated files, modify it according to what the CAB name will be, and save it to output
-def handleInf(filename: str, outInfName: str, cabName: str, filesInDirectory: list[SourceFile]) -> bool:
+def handleInf(filename: str, outInfName: str, localDir: str, cabName: str, filesInDirectory: list[SourceFile]) -> bool:
     inf = WinINF()
     inf.ParseFile(filename)
 
@@ -367,11 +428,11 @@ def handleInf(filename: str, outInfName: str, cabName: str, filesInDirectory: li
     removeCatFile(versionSection)
 
     # All copyfiles sections must be scanned for drivers
-    copyFilesSections = getCopyFilesSections(inf, knownFiles)
+    copyFilesSections = getCopyFilesSections(inf, knownFiles, localDir)
 
     # Gather all related files from this driver
-    getAllFilesFromSections(inf, copyFilesSections, knownFiles)
-    getSourceDisksFiles(inf, knownFiles)
+    getAllFilesFromSections(inf, copyFilesSections, knownFiles, localDir)
+    getSourceDisksFiles(inf, knownFiles, localDir)
 
     writeSourceDisksNamesAndFiles(inf, knownFiles, cabName)
 
@@ -382,7 +443,7 @@ def handleInf(filename: str, outInfName: str, cabName: str, filesInDirectory: li
 
 
     for newFile in knownFiles:
-        addOrUpdateSourceFile(filesInDirectory, newFile.fileName, newFile.sourceDir)
+        addOrUpdateSourceFile(filesInDirectory, newFile.fileName, localDir, newFile.sourceDir)
 
     return success
 
@@ -441,74 +502,12 @@ def findSubPath(sourceDir: str, subPath: str):
 
     return current
 
-# Gets the correct path for a SourceFile, first checkinig the specified subdirectory, and if that doesn't exist
-# try the given local directory
-def getSourceFileNameSourceDiskDirectoryOrLocal(sf: SourceFile, localDir: str):
-    result = None
-    subDir = findSubPath(localDir, sf.sourceDir)
-    
-    logd(f'Subdir {sf.sourceDir} {localDir} {subDir}')
-    
-    if subDir:
-        result = getFilenameCaseInsensitive(subDir, sf.fileName)
-
-    if not result:
-        result = getFilenameCaseInsensitive(localDir, sf.fileName)
-        if result:
-            logw(f'Warnnig: file {sf.fileName} was expected to be found in {sf.sourceDir} but was found in {localDir}')
-
-    return result
-
 # Takes all known files and compresses them into the CAB file
-def copyFilesAndWriteCab(sourceDir: str, outDir: str, outCab: str, win98files: list[str], filesInDirectory: list[SourceFile]) -> bool:
+def copyFilesAndWriteCab(filesInDirectory: list[SourceFile], outCab: str) -> bool:
     cabArchive = CabArchive()
 
     for sfEntry in filesInDirectory:
-        isFromWin98 = containsCaseInsensitive(win98files, sfEntry.fileName)
-        localName = getSourceFileNameSourceDiskDirectoryOrLocal(sfEntry, sourceDir)
-
-        if isFromWin98 and localName: 
-            logw(f'WARNING: File {localName} supplied by Win9x AND driver - potential conflict!!!')
-
-        if localName:
-            logd(f'Adding {localName} to cabinet')
-
-            # We supplied this file, add it to the cab file
-            fileData = open(localName, 'rb').read()
-
-            # We have the file data, compress and add
-            cabArchive[sfEntry.fileName] = CabFile(fileData)
-        elif isFromWin98:
-            logd(f'File {sfEntry.fileName} supplied by Win9x!')
-        else:
-            # Last attempt: This file may be MS EXPAND/SZDD compressed.
-            # Build a compressed file extension
-            base, ext = os.path.splitext(sfEntry.fileName)
-            if len(ext) == 4:
-                ext = ext[:3]
-            ext += '_'
-            
-            # now plug the extension in the original file and check if it exists
-            # localCompressed = getFilenameCaseInsensitive(sourceDir, base + ext)
-            compressedSourceFile = SourceFile(base + ext, sfEntry.sourceDir)
-            localCompressed = getSourceFileNameSourceDiskDirectoryOrLocal(compressedSourceFile, sourceDir)
-
-            if localCompressed:
-                logd(f'File {sfEntry.fileName} was SZDD compressed, decompressing...')
-
-                fileDataCompressed = open(localCompressed, 'rb').read()
-                fileData = msExpandDecompress(fileDataCompressed)
-
-                if len(fileData) == 0:
-                    logw(f'Decompressed file {localCompressed} empty?!')
-
-                logd(f'Adding {localCompressed} (SZDD Decompressed {len(fileData)} Bytes) to cabinet')
-                # We have the file data, compress and add
-                cabArchive[sfEntry.fileName] = CabFile(fileData)
-            else:
-                loge(f'File {sfEntry.fileName} is NOT supplied by driver nor Win9x itself!')
-                raise Exception(f'Please fix {sfEntry.fileName} before packaging ISO!')
-
+        cabArchive[sfEntry.fileName] = CabFile(sfEntry.data)
     
     with open(outCab, 'wb') as outFile:
         outFile.write(cabArchive.save(compress = True))
@@ -516,12 +515,12 @@ def copyFilesAndWriteCab(sourceDir: str, outDir: str, outCab: str, win98files: l
     return True
 
 # Scans a sub directory and plugs all its INF files into the INF handler
-def handleDir(sourceDir: str, outDir: str, win98files: str):
+def handleDir(localDir: str, outDir: str):
     infCount = 0
-    filesInThisDir = []
+    filesInThisDir = list[SourceFile]()
     
-    for f in os.listdir(sourceDir):
-        fullPath = os.path.join(sourceDir, f)
+    for f in os.listdir(localDir):
+        fullPath = os.path.join(localDir, f)
 
         if os.path.exists(fullPath) and os.path.isfile(fullPath) and fullPath.lower().endswith('.inf'):
             outInf = getUniqueFilename(outDir, f)
@@ -531,13 +530,13 @@ def handleDir(sourceDir: str, outDir: str, win98files: str):
             if infCount == 0:
                 outCab = os.path.splitext(outInf)[0] + '.cab'
         
-            print(f'---------------------------------------------------------------')
-            print(f'Processing inf: {fullPath} outInf: {outInf} outCab: {outCab}')
-            handleInf(fullPath, outInf, outCab, filesInThisDir)
+            logi(f'---------------------------------------------------------------')
+            logi(f'Processing inf: {fullPath} outInf: {outInf} outCab: {outCab}')
+            handleInf(fullPath, outInf, localDir, outCab, filesInThisDir)
             infCount += 1
         
     if infCount > 0:
-        copyFilesAndWriteCab(sourceDir, outDir, outCab, win98files, filesInThisDir)    
+        copyFilesAndWriteCab(filesInThisDir, outCab)
         outSize = os.path.getsize(outCab)
         logi(f'---> CAB file written: {outCab} {outSize} Bytes')
 
