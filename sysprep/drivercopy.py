@@ -418,7 +418,7 @@ def writeSourceDisksNamesAndFiles(inf: WinINF, knownFiles: list[SourceFile], cab
 # Scan an inf file, collect all its associated files, modify it according to what the CAB name will be, and save it to output
 def handleInf(filename: str, outInfName: str, localDir: str, cabName: str, filesInDirectory: list[SourceFile], simulate: bool = False) -> bool:
     inf = WinINF()
-    inf.ParseFile(filename)
+    inf.ParseFile(filename, codec='cp1252')
 
     knownFiles = list[SourceFile]()
 
