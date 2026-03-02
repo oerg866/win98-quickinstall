@@ -24,30 +24,42 @@ from wininfparser import WinINF, INFsection
 
 def msExpandDecompress(data: bytes) -> bytes:
     """
-    Decompress SZDD (MS COMPRESS/EXPAND) data into raw bytes.
+    Decompress Microsoft LZSS compressed data into raw bytes.
 
-    Expected SZDD header layout:
-      0x00: 'SZDD'
-      0x08: mode
-      0x09: missing_char
-      0x0A-0x0D: uncompressed size (uint32 little-endian)
-      0x0E-...: LZSS payload
+    Supports two formats:
+      - SZDD: Standard Microsoft COMPRESS.EXE format with 14-byte header
+               (magic 'SZDD', mode byte, missing char, uncompressed size)
+      - Headerless: Raw LZSS payload without any header, as used by some
+               OEM driver packaging tools from the Windows 3.x/95 era.
 
-    Written by Alpon Sepriando for SATAID (MIT License)
+    Both formats use the same underlying LZSS algorithm with a 4096-byte
+    ring buffer pre-filled with spaces. Each flag byte (LSB first) controls
+    8 items: set bit = literal byte, clear bit = 2-byte backreference
+    encoding a 12-bit offset and 4-bit length (+3).
+
+    SZDD header written by Alpon Sepriando for SATAID (MIT License)
     https://pypi.org/project/sataid/
+    Headerless variant added for OEM driver support.
     """
-    if len(data) < 14 or data[:4] != b"SZDD":
-        raise ValueError("Not an SZDD file (signature 'SZDD' not found).")
-
-    out_len = unpack('I', data[10:14])[0]
-    payload = data[14:]
+    if len(data) >= 14 and data[:4] == b"SZDD":
+        # SZDD format: parse header for uncompressed size, skip 14-byte header
+        out_len = unpack('I', data[10:14])[0]
+        payload = data[14:]
+        # SZDD uses ring position 4096 - 16 = 0xFF0
+        ring_start = 4096 - 16
+    else:
+        # Headerless format: entire file is the LZSS payload
+        out_len = 0
+        payload = data
+        # Headerless variant uses ring position 0xFEE = 4096 - 18
+        ring_start = 0xFEE
 
     # LZSS sliding window (4096 bytes), initialized with spaces
     window = bytearray(4096)
     for i in range(4096):
         window[i] = 0x20  # space character
 
-    pos = 4096 - 16
+    pos = ring_start
     out = bytearray()
 
     p = 0
@@ -67,14 +79,16 @@ def msExpandDecompress(data: bytes) -> bytes:
                 window[pos] = ch
                 pos = (pos + 1) & 0xFFF
             else:
-                # Sequence (offset, length)
+                # Bit clear: backreference (2 bytes -> 12-bit offset + 4-bit length)
                 if p + 1 > len(payload):
                     break
                 matchpos = payload[p]
                 matchlen = payload[p + 1]
                 p += 2
 
+                # High nibble of second byte provides top 4 bits of offset
                 matchpos |= (matchlen & 0xF0) << 4
+                # Low nibble of second byte is length minus 3 (min match = 3)
                 matchlen = (matchlen & 0x0F) + 3
 
                 for _ in range(matchlen):
@@ -86,6 +100,7 @@ def msExpandDecompress(data: bytes) -> bytes:
 
             bit <<= 1
 
+    # SZDD header specifies exact output size; trim if known
     if out_len > 0 and len(out) >= out_len:
         out = out[:out_len]
 
