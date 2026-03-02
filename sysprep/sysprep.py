@@ -237,7 +237,6 @@ def registry_add_reg(fs: FAT.Dirtable, windir, reg_file, output_866_file):
         print('Stock Windows 9x detected.')
     else:
       raise Exception("SHELL32 not found in this filesystem")
-        
 
     print(f'Using {shell32_dll} to reboot!')
 
@@ -353,15 +352,26 @@ def preprocess_drivers(output_base, input_drivers_base, input_drivers_extra):
     print('Preprocessing SLIPSTREAMED drivers...')
     driverCopy(input_drivers_base, '.driver_int')
 
+    input_drivers_ndis2 = os.path.join(input_drivers_base, 'NDIS2')
+    if os.path.exists(input_drivers_ndis2):
+        print('Preprocessing NDIS2 drivers...')
+        driverCopy(input_drivers_ndis2, '.driver_int_ndis2')
+
 # Finalize the slipstream drivers for this sysprep run for a given OSRoot
-def finalize_drivers_for_osroot(output_base, output_osroot, osroot_cabdir_relative):
+def finalize_drivers_for_osroot(output_base, output_osroot, osroot_cabdir_relative, is_win_me):
     print('Finalizing drivers for this OSRoot...')
 
     # The problem is that the cab files need to be in the WinCD cabinet directory so
     # that win98 can find it without prompting, so for each OSRoot we have to copy the files once more
     # infs into INF dir *and* cabs into Win CD dir
 
-    input_driver_temp = '.driver_int'
+    input_directories = list[str]()
+    input_directories.append('.driver_int')
+
+    # NDIS2 drivers get added if the OSROOT is *not* WinME and NDIS2 drivers are present.
+    if not is_win_me and os.path.exists('.driver_int_ndis2'):
+        input_directories.append('.driver_int_ndis2')
+
     output_driver_temp = '.drvtmp_osroot'
     driver_temp_cabdir = os.path.join(output_driver_temp, osroot_cabdir_relative)
     driver_temp_infdir = os.path.join(output_driver_temp, 'DRIVER')
@@ -371,16 +381,18 @@ def finalize_drivers_for_osroot(output_base, output_osroot, osroot_cabdir_relati
     mkdir(driver_temp_cabdir)
     mkdir(driver_temp_infdir)
 
-    # Loop through all files in the input directory
-    for file_name in os.listdir(input_driver_temp):
-        full_path = os.path.join(input_driver_temp, file_name)
-        # Check if the file is an INF or CAB file
-        if file_name.lower().endswith('.inf'):
-            # Move the file to the INF directory
-            shutil.copy(full_path, os.path.join(driver_temp_infdir, file_name))
-        elif file_name.lower().endswith('.cab'):
-            # Move the file to the CAB directory
-            shutil.copy(full_path, os.path.join(driver_temp_cabdir, file_name))
+    # Loop through all input directories (driver_int and the ndis2 one if it exists)
+    for input_dir in input_directories:
+        # Loop through all files in the input directory
+        for file_name in os.listdir(input_dir):
+            full_path = os.path.join(input_dir, file_name)
+            # Check if the file is an INF or CAB file
+            if file_name.lower().endswith('.inf'):
+                # Move the file to the INF directory
+                shutil.copy(full_path, os.path.join(driver_temp_infdir, file_name))
+            elif file_name.lower().endswith('.cab'):
+                # Move the file to the CAB directory
+                shutil.copy(full_path, os.path.join(driver_temp_cabdir, file_name))
 
     mercypak_pack(output_866_file, local_files=output_driver_temp)
 
@@ -587,7 +599,7 @@ for osroot, osroot_name in input_osroots:
     if not os.path.exists(output_osroot_full866):
         raise Exception('There was an error. The required OSROOT pack file was not created ("FULL.866")')
 
-    finalize_drivers_for_osroot(output_base, output_osroot, osroot_cabdir)
+    finalize_drivers_for_osroot(output_base, output_osroot, osroot_cabdir, is_win_me)
 
     osroot_idx += 1
 

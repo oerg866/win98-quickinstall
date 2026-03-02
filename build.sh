@@ -85,6 +85,11 @@ pushd pciutils
 	./build.sh
 popd
 
+# Rebuild NDIS2 driver INFs
+pushd win98-driver-lib-base/NDIS2
+	./build.sh
+popd
+
 # Copy linux kernel & binaries
 mkdir -p "$CDROOT/bin"
 cp bzImage.cd "$CDROOT/"
