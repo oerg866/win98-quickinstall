@@ -588,6 +588,10 @@ static qi_WizardAction qi_config(void) {
     if (QI_OPTION_YES == qi_configGet(o_lba64) && AD_CANCELED == msg_lba64InfoBox()) {
         return WIZ_DO_NOTHING;
     }
+
+    if (inst_doHardwareQuirks() == false) {
+        return WIZ_DO_NOTHING;
+    }
  
     return WIZ_NEXT;
 }
@@ -848,7 +852,7 @@ bool qi_main(int argc, char *argv[]) {
     setlocale(LC_ALL, "CP437");
     // VGA BIOS pattern small square
     ad_progressBoxSetCharAndColor((char) 0xFE, COLOR_WHITE, COLOR_BLACK, COLOR_WHITE, COLOR_GREEN);
-    
+
     // Installer must run as root
     if (!util_runningAsRoot()) {
         msg_notRunningAsRootError();

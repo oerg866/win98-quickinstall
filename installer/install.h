@@ -148,4 +148,12 @@ const char *inst_getDiskMenuHeader(void);
 /* Get a nicely formatted string for the partitioning disk selector menu */
 const char *inst_getDiskMenuString(util_HardDisk *disk);
 
+/************ INSTALL_HWQUIRKS.C ************/
+
+/* Tests the system for all the potential hardware quirks and if one is found,
+   he is asked if he wants to continue. If NOT, the function returns FALSE.
+   Else it returns TRUE, even if the system has quirks but the user wants
+   to continue. */
+bool inst_doHardwareQuirks(void);
+
 #endif
