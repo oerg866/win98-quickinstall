@@ -216,7 +216,6 @@ def registry_add_reg(fs: FAT.Dirtable, windir, reg_file, output_866_file):
     # Prepare directory with SYSTEM.DAT and USER.DAT files
     mkdir(regtmp_windir)
 
-
     system_dat_in = case_insensitive_to_sensitive(fs, windir, 'SYSTEM.DAT')
     system_dat_out = os.path.join(regtmp, system_dat_in)
 
@@ -224,28 +223,14 @@ def registry_add_reg(fs: FAT.Dirtable, windir, reg_file, output_866_file):
     image_copy_out(fs, system_dat_in, system_dat_out)
 
     # Reboot hack, find appropriate shell32 version.
-
-    shell32_dll = 'SHELL32.DLL'
-    system_dir = case_insensitive_to_sensitive(fs, windir, 'SYSTEM')
-    if image_file_exists(fs, system_dir, 'SHELL32.W98'):
-        shell32_dll = 'SHELL32.W98'
-        print('98Lite on Windows 98 detected.')
-    elif image_file_exists(fs, system_dir, 'SHELL32.WME'):
-        shell32_dll = 'SHELL32.WME'
-        print('98Lite on Windows ME detected.')
-    elif image_file_exists(fs, system_dir, 'SHELL32.DLL'):
-        print('Stock Windows 9x detected.')
-    else:
-      raise Exception("SHELL32 not found in this filesystem")
-
-    print(f'Using {shell32_dll} to reboot!')
+    # ^ REMOVED, Since this is now handled by QISETUP.EXE.
 
     # Copy to temporary file and append reboot file to it
     pushd(regtmp_windir)
     tmp_reg_file = os.path.join(regtmp, 'tmp.reg')
     shutil.copy2(reg_file, tmp_reg_file)
     append_line_to_file(tmp_reg_file, f'[HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Windows\\CurrentVersion\\RunOnce]')
-    append_line_to_file(tmp_reg_file, f'"Reboot"="RUNDLL32.EXE {shell32_dll},SHExitWindowsEx 2"\n')
+    append_line_to_file(tmp_reg_file, f'"QiSetup"="C:\\\\QISETUP.EXE"\n') # Post-setup handler
 
     run_regedit(tmp_reg_file)
     
@@ -445,6 +430,7 @@ output_oemtmp = os.path.join(script_dir, '.oemtmp')
 output_extras = os.path.join(output_base, 'extras')
 input_cdromroot = os.path.join(script_dir, 'cdromroot')
 input_oeminfo = os.path.join(script_dir, '_OEMINFO_')
+input_postsetup = os.path.join(script_dir, 'postsetup')
 
 print('Output root directory: ' + str(output_base))
 print('Output image ISO: ' + str(output_image_iso))
@@ -550,6 +536,7 @@ for osroot, osroot_name in input_osroots:
     remove_from_file_list_if_present(osroot_files, [osroot_vmm32dir], '*.bak')
     remove_from_file_list_if_present(osroot_files, [osroot_iosubsysdir], '*.bak')
     remove_from_file_list_if_present(osroot_files, [osroot_iosubsysdir], '*.b_k')
+    remove_from_file_list_if_present(osroot_files, [osroot_iosubsysdir], '*.bk')
     
     remove_from_file_list_if_present(osroot_files, [], 'logo.sys')
     remove_from_file_list_if_present(osroot_files, [], 'win386.swp')
@@ -586,13 +573,17 @@ for osroot, osroot_name in input_osroots:
     remove_tree_if_present(osroot_files, osroot_dirs, ['system volume information'])
     remove_tree_if_present(osroot_files, osroot_dirs, ['$recycle.bin'])
 
+    tmp_system_dir = os.path.join(output_oemtmp, osroot_sysdir)
+    mkdir(tmp_system_dir)
+
     # Copy oeminfo
     if os.path.exists(input_oeminfo):
-        tmp_system_dir = os.path.join(output_oemtmp, osroot_sysdir)
-        mkdir(tmp_system_dir)
         shutil.copy2(os.path.join(input_oeminfo, 'oeminfo.ini'), tmp_system_dir)
         shutil.copy2(os.path.join(input_oeminfo, 'oemlogo.bmp'), tmp_system_dir)
-       
+
+    # Copy post setup handler
+    shutil.copy2(os.path.join(input_postsetup, 'qisetup.exe'), output_oemtmp)
+
     output_osroot_full866 = os.path.join(output_osroot, 'FULL.866')
     mercypak_pack(output_osroot_full866, fs, osroot_files, osroot_dirs, local_files=output_oemtmp, mercypak_v2=True)
     
