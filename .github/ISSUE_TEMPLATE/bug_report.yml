@@ -1,0 +1,78 @@
+name: Bug Report
+description: File a bug report
+title: "Title"
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Thanks for taking the time to fill out this bug report!
+  - type: checkboxes
+    attributes:
+      label: Checklist
+      options:
+        - label: I **have searched** the issue tracker and **was unable** to find an [open](../issues?q=is%3Aissue+is%3Aopen) or [closed](../issues?q=is%3Aissue+is%3Aclosed) issue matching what I'm seeing. 
+          required: true
+        - label: (If the issue occurs AFTER or DURING Windows 9x's hardware detection phase) I **have tried to install with `Skip legacy non-PnP hardware detection phase` to `[OFF}`.**
+          required: true
+  - type: textarea
+    attributes:
+      label: What happened?
+      description: Also tell us, what did you expect to happen?
+      placeholder: Tell us what you see!
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Linux `dmesg` output
+      description: If there is a problem with the installer / linux portion of QuickInstall, please try to obtain a dmesg log and paste it here. (optional)
+    validations:
+      required: false
+  - type: input
+    attributes:
+      label: Target Motherboard, CPU and RAM
+      description: What is the motherboard you tried to install on? (if applicable)
+      placeholder: e.g. Gigabyte GA-5AX, AMD K6-2 550, 128MB PC133
+    validations:
+      required: false
+  - type: input
+    attributes:
+      label: Target GPU and Sound card(s)
+      description: What is the GPU/Sound card combination you tried to install on? (if applicable)
+      placeholder: e.g. nVidia Riva TNT2 M64 32MB, Creative SBLive CT4890
+    validations:
+      required: false
+  - type: input
+    attributes:
+      label: Target Storage Devices
+      description: What are the storage devices tried to install with? (if applicable)
+      placeholder: e.g. Onboard Primary Master IDE LG GDR-8162B DVD-ROM, 128GB INTENSO SSD on SiI3112 PCI Sata Controller
+    validations:
+      required: false
+  - type: dropdown
+    attributes:
+      label: Boot method
+      description: How did you boot QuickInstall?
+      options: 
+        - Floppy disk (`dosflop.img`)
+        - Floppy disk (`floppy.img`)
+        - ISO image
+        - USB key
+        - Hard disk
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    attributes:
+      label: Reference image
+      description: Which reference image did you use? (if applicable)
+      options: 
+        - Windows 98 SE Stock
+        - Windows 98 SE Micro
+        - Windows ME Micro
+    validations:
+      required: false
+  - type: textarea
+    attributes:
+      label: Additional context
+      description: Put any relevant information to the problem here.
