@@ -13,7 +13,7 @@ body:
       options:
         - label: I **have searched** the issue tracker and **was unable** to find an [open](../issues?q=is%3Aissue+is%3Aopen) or [closed](../issues?q=is%3Aissue+is%3Aclosed) issue matching what I'm seeing. 
           required: true
-        - label: (If the issue occurs AFTER or DURING Windows 9x's hardware detection phase) I **have tried to install with `Skip legacy non-PnP hardware detection phase` to `[OFF}`.**
+        - label: (If the issue occurs AFTER or DURING Windows 9x's hardware detection phase) I **have tried to install with `Skip legacy non-PnP hardware detection phase` to `[OFF]` and the issue *still occurs*.**
           required: true
   - type: textarea
     attributes:
@@ -25,7 +25,7 @@ body:
   - type: textarea
     attributes:
       label: Linux `dmesg` output
-      description: If there is a problem with the installer / linux portion of QuickInstall, please try to obtain a dmesg log and paste it here. (optional)
+      description: If there is a problem with the installer / Linux portion of QuickInstall, please try to obtain a dmesg log and paste it here. (optional)
     validations:
       required: false
   - type: input
