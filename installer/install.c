@@ -393,6 +393,7 @@ static qi_WizardAction qi_mainMenu() {
 #ifdef RAID_TEST
     ad_menuAddItemFormatted(menu, "   [RAID] Try to find and activate RAID sets");
 #endif
+    ad_menuAddItemFormatted(menu, "   [HELP] Troubleshooting, known issues & FAQ");
     ad_menuAddItemFormatted(menu, "  [SHELL] Exit to minmal diagnostic Linux shell");
 
     // Show the OS selection option in the menu only if we have more than 1 OS variant in this image.
@@ -409,12 +410,18 @@ static qi_WizardAction qi_mainMenu() {
     switch (menuResult) {
         case 0:             return WIZ_SELECT_PARTITION;
         case 1:             return WIZ_DISKMGMT;
-        case 2:             return WIZ_EXIT_TO_SHELL;
-        case 3:             return WIZ_REDO_FROM_START;
+        case 2:             return WIZ_HELP;
+        case 3:             return WIZ_EXIT_TO_SHELL;
+        case 4:             return WIZ_REDO_FROM_START;
         case AD_CANCELED:   return WIZ_REDO_FROM_START;
         default:            QI_FATAL(false, "Inconsistent menu state");
                             return WIZ_REDO_FROM_START;
     }
+}
+
+static qi_WizardAction qi_help(void) {
+    ad_textFileBox("Troubleshooting / Known issues / FAQ", inst_getSourceFilePath(0, "help.txt"));
+    return WIZ_MAIN_MENU;
 }
 
 static qi_WizardAction qi_destinationSelect(void) {
@@ -809,6 +816,8 @@ bool qi_wizard() {
                 result = qi_variantSelectAndStartPrebuffering(); break;
             case WIZ_MAIN_MENU:
                 result = qi_mainMenu(); break;
+            case WIZ_HELP:
+                result = qi_help(); break;
             case WIZ_SELECT_PARTITION:
                 result = qi_destinationSelect(); break;
             case WIZ_CONFIGURE:

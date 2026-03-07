@@ -1,0 +1,102 @@
+Windows 9x QuickInstall - Known Issues & Frequently Asked Questions
+Visit http://github.com/oerg866/win98-quickinstall for the latest info.
+----------------------------------------------------------------------------
+
+Q: My i865/i875 board freezes during hardware detection and on boot when
+   installing on a SATA drive
+   And it stops freezing when I disable the USB controller
+A: There is an IRQ sharing issue paired with a BIOS bug. You must either
+   disable the USB controller, disable the SATA controller or set the SATA
+   controller to Primary / Secondary IDE mode.
+
+----------------------------------------------------------------------------
+
+Q: The USB 2.0 driver fails to load on my i865/i875 based motherboard.
+A: Disable "Legacy USB support" in the BIOS.
+
+----------------------------------------------------------------------------
+
+Q: My Marvell Yukon / Broadcom gigabit ethernet chip has a large failure
+   rate on any network activity.
+A: The native drivers for these chips are known to be *extremely* eccentric.
+   Please try to use the NDIS2 drivers for these chips, as they are much
+   more stable (but also slower).
+
+----------------------------------------------------------------------------
+
+Q: Why are there less supported network chips on my Windows ME images than
+   on Windows 98 SE?
+A: Because Microsoft removed NDIS2 driver support in ME, which means the
+   industrial DOS drivers for modern Gigabit+-class ethernet chips cannot
+   be used.
+
+----------------------------------------------------------------------------
+
+Q: How big can my hard disks be with this version of Windows 9x?
+A: Theoretically there should be no problem with LBA48 or even LBA64 drives,
+   the IDE drivers and system files are prepared for this, however since the
+   initial boot process is purely DOS/INT13h based, the boot partition
+   MUST be within and MUST NOT exceed the first 137GB.
+   You also CANNOT use a drive formatted to 4kn sector size as your boot
+   drive. (For usage *within* Windows it is okay, though, if the drivers
+   permit it.)
+
+----------------------------------------------------------------------------
+
+Q: Windows refuses to enable virtual memory!
+A: You have installed on a partition larger than or exceeding the first 137
+   GB. Windows has a bug where virtual memory stops working on the C-drive
+   after ~210 GB. Please resize your partition.
+
+----------------------------------------------------------------------------
+
+Q: I am getting read or write errors during installation
+A: Hardware in the 90s and 2000s was eccentric! Especially with regards to
+   faster Multi-Word or Ultra DMA transfer modes on IDE/SATA controllers.
+   The Floppy, CD/DVD and USB images allow you to boot the kernel with
+   disabled DMA modes, which may help work around the problem!
+
+----------------------------------------------------------------------------
+
+Q: Windows freezes when booting after installing from a USB Key
+A: There is some trouble with USB-Handoff with BIOSes that provide "legacy
+   emulation", i.e. access to USB mass storage via Int13h.
+
+   If this problem occurs, please unplug USB mass storage devices when
+   booting. You may plug them again afterwards.
+
+   Note: This problem should be solved in 1.0.1 reference images, but I
+   cannot guarantee 100% success rate.
+
+----------------------------------------------------------------------------
+
+Q: I'm getting I/O and read errors, segmentation faults and other weird
+   behavior when installing from CD on an Intel i430 / i440-based system
+   with an Intel 82371SB south bridge (e.g. i440FX)
+A: This problem has been verified by Deksor, Rigo and myself, and is a
+   deeply rooted problem in the chipset that has existed since at
+   Linux kernel version 2.4.xx, but Windows 9x is also affected.
+   Operating the drives in PIO mode, BIOS update, using a different optical
+   drive or using a separate PCI IDE/SATA controller may help.
+   It is believed to be a timing problem combined with buggy optical drive
+   firmware at this time.
+
+----------------------------------------------------------------------------
+
+Q: On a VIA MVP3 board Windows fails booting with a "General Protection
+   Fault" on the first boot
+A: Switch "Skip legacy non-PnP hardware detection" to OFF.
+
+----------------------------------------------------------------------------
+
+Q: I'm trying to install on my 486 and I'm getting Disk I/O errors!
+A: Your BIOS might have an incomplete/buggy LBA implementation. Partition
+   the drive with CHS and try again.
+
+----------------------------------------------------------------------------
+
+Q: I'm building my own image and I'm getting a python error about non-zero
+   return code in msdos.exe.
+A: This problem happens when running the script on Windows whilst the script
+   directory is in a share hosted by a WSL session.
+   Run the script from the WSL Linux shell instead.

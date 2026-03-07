@@ -8,6 +8,19 @@
 
 Please don't sue. I just like old computers!! :(
 
+## Troubleshooting - READ before filing a bug ticket!<!-- omit from toc -->
+
+**Please consult the [*Known issues / FAQ*](supplement/help.txt) before opening a ticket!**
+
+**The first step when troubleshooting issues during the hardware detection phase is to *disable the skipping of legacy non-PnP detection!***  
+
+![](assets/noskippnp.png)
+
+
+If possible, please also verify that the problem does not occur with the driver library turned OFF.
+
+*I cannot provide personal support via Discord messages, please [open a ticket!](../../issues)*
+
 ## Table of Contents <!-- omit from toc -->
 - [Windows 9x QuickInstall](#windows-9x-quickinstall)
   - [Screenshots](#screenshots)
@@ -29,7 +42,6 @@ Please don't sue. I just like old computers!! :(
   - [Installation](#installation)
 - [The Emergency Linux Shell](#the-emergency-linux-shell)
   - [3dfx Voodoo 2 Diagnostics (`witchery`)](#3dfx-voodoo-2-diagnostics-witchery)
-- [Frequently Asked Questions](#frequently-asked-questions)
   - [Framework Building Guide, Bugs, License, etc.](#framework-building-guide-bugs-license-etc)
   - [Special Thanks](#special-thanks)
 
@@ -367,49 +379,6 @@ To use it, type `witchery` at the shell.
 ![](assets/witchery.png)
 
 More information here: [Voodoo2 diagnostics software (Witchery)](https://www.vogons.org/viewtopic.php?p=1402129)
-
-# Frequently Asked Questions
-
-## Q: I am getting read or write errors during installation <!-- omit from toc -->
-
-A: Hardware in the 90s and 2000s was eccentric! Especially with regards to faster Multi-Word or Ultra DMA transfer modes on IDE/SATA controllers.
-
-The Floppy, CD/DVD and USB images allow you to boot the kernel with disabled DMA modes, which may help work around the problem!
-
-## Q: Windows freezes when booting after installing from a USB Key <!-- omit from toc -->
-
-A: There is some trouble with USB-Handoff with BIOSes that provide "legacy emulation", i.e. access to USB mass storage via Int13h.
-
-If this problem occurs, please unplug USB mass storage devices when booting. You may plug them again afterwards.
-
-## Q: I'm getting a python error about non-zero return code in `msdos.exe` right after `Using SHELL32.xxx to reboot!` <!-- omit from toc -->
-
-Example:
-```
-subprocess.CalledProcessError: Command '['L:\\win98-installer\\__BIN__\\tools\\msdos.exe', 'L:\\win98-installer\\__BIN__\\registry\\regedit.exe', '/L:SYSTEM.DAT', '/R:USER.DAT', 'tmp.reg']' returned non-zero exit status 1.
-```
-
-A: This problem happens when running the script on Windows whilst the script directory is in a share hosted by a WSL session (Windows Subsystem for Linux). This causes some incompatibilities. Run the script from the WSL Linux shell instead.
-
-## Q: I'm getting I/O and read errors, segmentation faults and other weird behavior when installing from CD on an Intel i430 / i440-based system with an Intel 82371SB south bridge (e.g. i440FX) <!-- omit from toc -->
-
-A: This problem has been verified by Deksor, Rigo and myself, and is a deeply rooted problem that has existed since at least version 2.4.xx. Operating the drives in PIO mode can help.
-
-A BIOS update may help, the issue is currently under investigation as we found some BIOS versions where this problem does not occur.
-
-For now, you can work around this problem by using a PCI SCSI or IDE adapter card that supports CD-ROM boot or has DOS drivers with the **DOS boot floppy option**.
-
-You can also try disabling DMA when booting the CD/Floppy.
-
-## Q: I'm trying to install on a VIA MVP3-based motherboard and I'm getting a "General Protection Fault" on the first boot. (Repoted by Rigo) <!-- omit from toc -->
-
-A: To work around this issue, select the "slow" hardware detection variant in the installation wizard. The problem is currently under investigation.
-
-## Q: I'm trying to install on my 486 and I'm getting Disk I/O errors! <!-- omit from toc -->
-
-A: Your BIOS might have an incomplete/buggy LBA implementation. Partition the drive to use a FAT32 non-LBA partition and try again.
-
-You can also try disabling DMA when booting the CD/Floppy.
 
 ## [Framework Building Guide, Bugs, License, etc.](BUILDING.md)
 

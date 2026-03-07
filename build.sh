@@ -112,6 +112,7 @@ cp pciutils/pci.ids "$CDROOT/bin/"
 cp dosfstools/OUTPUT/sbin/* "$CDROOT/bin/"
 cp supplement/witchery "$CDROOT/bin"
 cp supplement/syslinux.cfg "$CDROOT"
+cp supplement/help.txt "$CDROOT"
 
 # Boot floppies, also copy them to the CDROM root for ~user convenience~
 cp tiny-floppy-bootloader/floppy.img "$OUTPUT/"
