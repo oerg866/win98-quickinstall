@@ -1,0 +1,43 @@
+name: Driver Library Addition
+description: File a request to add a driver to one of the libraries.
+title: "Title"
+labels: ["driver-lib"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Thanks for taking the time to make this request!
+  - type: checkboxes
+    attributes:
+      label: Checklist
+      options:
+        - label: I **have searched** the driver library **was unable** to find an already added driver. 
+          required: true
+        - label: I **have searched** and confirm that to my knowledge the device has Windows 9x driver support.
+          required: true
+  - type: input
+    attributes:
+      label: What device would you like to see a driver added for?
+      placeholder: e.g. ATI Rage IIC PCI
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: What class of device is this?
+      placeholder: e.g. Graphics card
+    validations:
+      required: true
+  - type: dropdown
+    attributes:
+      label: Library type preference
+      description: Which driver library would you think this fits best in?
+      options: 
+        - Integrated/Slipstreamed driver library
+        - Extra Driver library (DRIVER.EX)
+        - `extras` folder in the image
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Why is this device important in your opinion?
+      description: Put any relevant information to your cause here.
