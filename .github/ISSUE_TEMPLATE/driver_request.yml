@@ -34,7 +34,7 @@ body:
       options: 
         - Integrated/Slipstreamed driver library
         - Extra Driver library (DRIVER.EX)
-        - `extras` folder in the image
+        - EXTRAS folder in the image (as an archive or executable file)
     validations:
       required: true
   - type: textarea
