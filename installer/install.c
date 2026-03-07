@@ -456,7 +456,7 @@ static qi_WizardAction qi_destinationSelect(void) {
         if (ad_menuGetItemCount(menu) == 0) {
             ad_menuDestroy(menu);
             ad_okBox("Error", false, "No partitions were found! Partition a disk and try again!");
-            return WIZ_BACK;
+            return WIZ_MAIN_MENU;
         }
 
         int menuResult = ad_menuExecute(menu);
