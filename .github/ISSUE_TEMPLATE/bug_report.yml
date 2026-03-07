@@ -15,6 +15,10 @@ body:
           required: true
         - label: (If the issue occurs AFTER or DURING Windows 9x's hardware detection phase) I **have tried to install with `Skip legacy non-PnP hardware detection phase` to `[OFF]` and the issue *still occurs*.**
           required: true
+        - label: (If the issue occurs AFTER or DURING Windows 9x's hardware detection phase) I **have tried to install with the integrated driver library set to `[OFF]` and the issue *still occurs*.**
+          required: true
+        - label: I understand that support is provided voluntarily for free, and that the author is not Microsoft and can/will probably not fix bugs in the operating system code itself. I also understand that it is impossible to support every single hardware combination out there.
+          required: true
   - type: textarea
     attributes:
       label: What happened?
