@@ -40,7 +40,7 @@ pushd filesystem
 	cp -r ../supplement/firmware/* ./lib/firmware
 	ln -s sbin/init init
 	ln -s /install/bin/pci.ids ./usr/local/share/pci.ids
-	ln -s /bin/lsblk.qi /bin/lsblk
+	ln -s /bin/lsblk.qi ./bin/lsblk
 	chmod +x etc/init.d/rc
 	chmod +x ./findcd.sh
 	sudo chown -R root:root .
