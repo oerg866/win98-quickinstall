@@ -5,6 +5,7 @@
  */
 
 #include <stdbool.h>
+#include <stdio.h>
 
 /* This used to be a Linux port of unmercy with lots of stuff but now it's really 
    just a main function that calls the installer. I should rework this sometime */
@@ -14,5 +15,6 @@
 int main(int argc, char *argv[]) {
     bool ret = qi_main(argc, argv);
 
+    printf("Type 'lunmercy' to re-start the installer.\n\n");
     return ret ? 0 : -1;
 }
