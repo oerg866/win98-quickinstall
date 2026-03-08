@@ -8,7 +8,12 @@
 
 Please don't sue. I just like old computers!! :(
 
-## Troubleshooting - READ before filing a bug ticket!<!-- omit from toc -->
+**Warning:**
+QuickInstall is not labeled, approved, or intended for use in the state of California.  
+QuickInstall may contain products that fail to comply with California law [CA AB1043](https://legiscan.com/CA/text/AB1043/id/3269704).  
+Do not use QuickInstall if you are located in or a resident of California.  
+
+## Troubleshooting - READ before filing a bug ticket! <!-- omit from toc -->
 
 **Please consult the [*Known issues / FAQ*](supplement/help.txt) before opening a ticket!**
 
