@@ -123,6 +123,21 @@ static bool setRegString(HKEY base, const char *key, const char *valueName, cons
     logReturn(true, "OK", 0);
 }
 
+static bool setRegBinary(HKEY base, const char *key, const char *valueName, const BYTE *value, size_t valueSize) {
+    HKEY hKey;
+    DWORD ret;
+
+    logEnter();
+    
+    ret = RegOpenKeyExA(base, key, 0, KEY_WRITE, &hKey);
+    closeKeyLogAndReturnIf(ret != ERROR_SUCCESS, false, hKey, "Can't open key (%s)", winError(ret));
+    
+    ret = RegSetValueExA(hKey, valueName, 0, REG_BINARY, value, valueSize);
+    closeKeyLogAndReturnIf(ret != ERROR_SUCCESS, false,  hKey, "Can't set value (%lu)", ret);
+
+    logReturn(true, "OK", 0);
+}
+
 static bool delRegValue(HKEY base, const char *key, const char *valueName) {
     HKEY hKey;
     DWORD ret;
@@ -198,14 +213,17 @@ bool is98Lite() {
 void cleanupRegistry() {
     const char runKey[] = "Software\\Microsoft\\Windows\\CurrentVersion\\Run";
     const char runServicesKey[] = "Software\\Microsoft\\Windows\\CurrentVersion\\RunServices";
+    const char pnpEnum050C[] = "Enum\\Root\\*PNP0C05\\0000";
+    const BYTE pnpEnum050CValue[] = { 0x00 };
     bool ret = true;
 
     logEnter();
 
     if (is98Lite()) {
-        ret &= delRegValue(HKEY_LOCAL_MACHINE, runKey,         "LoadPowerProfile");
-        ret &= delRegValue(HKEY_LOCAL_MACHINE, runKey,         "TaskMonitor");
-        ret &= delRegValue(HKEY_LOCAL_MACHINE, runServicesKey, "LoadPowerProfile");
+        ret &= delRegValue(HKEY_LOCAL_MACHINE,  runKey,         "LoadPowerProfile");
+        ret &= delRegValue(HKEY_LOCAL_MACHINE,  runKey,         "TaskMonitor");
+        ret &= delRegValue(HKEY_LOCAL_MACHINE,  runServicesKey, "LoadPowerProfile");
+        ret &= setRegBinary(HKEY_LOCAL_MACHINE, pnpEnum050C,    "APMMenuSuspend", pnpEnum050CValue, sizeof(pnpEnum050CValue));
     }
 
     logExit("%s", boolStr(ret));
