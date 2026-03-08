@@ -251,6 +251,6 @@ static const char msg_mainMenuText[] =
     "\n"
     "Please make a selection.\n"
     "Note: It is advised to partition a hard disk for use with\n"
-    "Windows 98 using the '[CFDISK]' option before installation.\n"
+    "Windows 9x using the '[DISK]' option before installation.\n"
     "\n"
     "Where do you want to go today(tm)?\n";
