@@ -245,20 +245,19 @@ def registry_add_reg(fs: FAT.Dirtable, windir, reg_file, output_866_file):
 def write_386enh_cregfix(system_ini_name: str, system_ini_lines: str):
     found386Enh = False
 
-    with open(system_ini_name, 'w') as outini:
+    with open(system_ini_name, 'w', encoding='cp1252', newline='\r\n') as outini:
         for line in system_ini_lines:
             normalized = line.strip().lower()
-            outini.write(f'{line}\r\n')
+            outini.write(f'{line}\n')
 
             if not found386Enh and normalized == '[386enh]':
-                outini.write('device=cr0wpoff.vxd\r\n')
+                outini.write('device=cr0wpoff.vxd\n')
                 found386Enh = True
 
         # Especially CB file might not have a 386enh section, so add it
         if not found386Enh:
-            outini.write('[386Enh]\r\n')
-            outini.write('device=cr0wpoff.vxd')
-            outini.write('\r\n')
+            outini.write('[386Enh]\n')
+            outini.write('device=cr0wpoff.vxd\n')
 
 # Makes a CREGFIX.866 file that the installer can unpack to install CREGFIX
 # VXD for this was provided by SweetLow <3
