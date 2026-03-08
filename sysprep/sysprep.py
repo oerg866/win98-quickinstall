@@ -447,7 +447,7 @@ mkdir(output_regtmp)
 mkdir(output_oemtmp)
 
 # Preprocess drivers
-#preprocess_drivers(output_base, input_drivers_base, input_drivers_extra)
+preprocess_drivers(output_base, input_drivers_base, input_drivers_extra)
 
 # Process all OSroots.
 osroot_idx = 1
