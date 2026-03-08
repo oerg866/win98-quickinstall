@@ -112,7 +112,11 @@ int32_t qi_pciDeviceIrq(qi_PciDeviceList *list, uint16_t ven, uint16_t dev) {
 // Check presence of ICH5 SATA controller with USB controller on the same IRQ
 bool quirk_i875Sata(qi_PciDeviceList *list) {
     int32_t sataIrq = qi_pciDeviceIrq(list, 0x8086, 0x24D1);
-    if (sataIrq < 0) return true; // Device Not found -> it's all good
+    // If ICH5 SATA Ctrl isn't found it might be 24DF instead.
+    if (sataIrq < 0) sataIrq = qi_pciDeviceIrq(list, 0x8086, 0x24DF);
+    // Device Not found -> it's all good
+    if (sataIrq < 0) return true;
+    // We have the device, check for shared IRQs...
     return  sataIrq != qi_pciDeviceIrq(list, 0x8086, 0x24D2) &&
             sataIrq != qi_pciDeviceIrq(list, 0x8086, 0x24D4) &&
             sataIrq != qi_pciDeviceIrq(list, 0x8086, 0x24D7) &&
