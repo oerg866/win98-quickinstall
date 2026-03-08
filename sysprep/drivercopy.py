@@ -146,7 +146,7 @@ class SourceFile:
             self.mtime = getDateTimeFromFile(self.localName)
             self.data = open(self.localName, 'rb').read()
         elif self.localCompressed:
-            logd(f'Reading data from local MSExpand compressed file {self.localName}')
+            logd(f'Reading data from local MSExpand compressed file {self.localCompressed}')
             self.mtime = getDateTimeFromFile(self.localCompressed)
             fileDataCompressed = open(self.localCompressed, 'rb').read()
             try:
@@ -282,8 +282,30 @@ def getCopyFilesSections(inf: WinINF, rawFiles: list[str], localDir: str):
 
     return sections
 
+# Get a source dir override from a sourceDisksFiles list for the given filename
+# Returns empty string if not found
+def getSourceDisksFilesDirOverride(fileName: str, sourceDisksFiles: list[tuple[str, str]]) -> str:
+    for sdf in sourceDisksFiles:
+        fname, dir = sdf
+
+        if fname.lower() == fileName.lower() and len(dir) > 0:
+            return dir
+        
+    return ""
+
 # Get a list of all files referenced by all CopyFiles sections in the INF
-def getAllFilesFromSections(inf: WinINF, sectionNames: list[str], knownFiles: list[SourceFile], localDir: str):
+def getAllFilesFromSections(
+        inf: WinINF,
+        sectionNames: list[str],
+        sourceDisksFiles: list[tuple[str,str]],
+        knownFiles: list[SourceFile],
+        localDir: str):
+
+    sectionFiles = []
+    sourceDisksFilesLeftToProcess = []
+
+    # Construct a list of section file names
+
     for secName in sectionNames:
         section = getSection(inf, secName)
 
@@ -302,7 +324,31 @@ def getAllFilesFromSections(inf: WinINF, sectionNames: list[str], knownFiles: li
                 else: 
                     fname = fileFields[0]
 
-                addOrUpdateSourceFile(knownFiles, fname.strip(), localDir)
+                sectionFiles.append(fname.strip())
+
+    # Now construct a list of source disks files that weren't referenced in the sections
+
+    for sdf in sourceDisksFiles:
+        fname, dir = sdf
+        if not containsCaseInsensitive(sectionFiles, fname):
+            # Section files list doesn't contain this source disk file, add it to "process later list"
+            sourceDisksFilesLeftToProcess.append(sdf)
+
+    # Now process all the section files that *are* in the source disks files list
+
+    for secf in sectionFiles:
+        # Get source dir override, if it exists
+        sourceDir = getSourceDisksFilesDirOverride(secf, sourceDisksFiles)
+        # SourceDir will be empty if it's not found in SDF list, which gets handled by this function properly
+        # so no need to distinguish
+        addOrUpdateSourceFile(knownFiles, secf, localDir, sourceDir)
+
+    # Now process all the files that weren't referenced in the sections
+
+    for sdf in sourceDisksFilesLeftToProcess:
+        fname, sourceDir = sdf
+        addOrUpdateSourceFile(knownFiles, fname, localDir, sourceDir)
+
 
 # Add or update an entry in a SourceFile list. Local dir = the base dir of the inf
 # sourceDir = the source dir for the file as specified *IN* the inf. Sorry it's a bit confusing
@@ -332,11 +378,13 @@ def getSourceDiskString(inf: WinINF, sourceDiskIndex: str):
 
     return None
 
-# Get a list of all files referenced by the SourceDisksFiles section of this INF
-def getSourceDisksFiles(inf: WinINF, knownFiles: list[SourceFile], localDir: str):
+# Get a list of all files referenced by the SourceDisksFiles section of this INF.
+# Return value is a list of tuples [filename, sourceDiskDir]
+def getSourceDisksFiles(inf: WinINF) -> list[tuple[str,str]]:
+    ret = []
+    
     sdfSection = getSection(inf, 'SourceDisksFiles')
-
-
+    
     if not sdfSection:
         return
     
@@ -366,8 +414,11 @@ def getSourceDisksFiles(inf: WinINF, knownFiles: list[SourceFile], localDir: str
 
             else:
                 logw(f'File entry with missing Source Disk {sourceDiskIndex}')
+        
+        ret.append([key.strip(), sourceDir])
 
-        addOrUpdateSourceFile(knownFiles, key.strip(), localDir, sourceDir)
+    return ret
+
 
 # Re-write the SourceDisksNames and SourceDisksFiles sections of the inf file from scratch
 # according to the info we have now after scanning
@@ -439,8 +490,11 @@ def handleInf(filename: str, outInfName: str, localDir: str, cabName: str, files
     copyFilesSections = getCopyFilesSections(inf, knownFiles, localDir)
 
     # Gather all related files from this driver
-    getAllFilesFromSections(inf, copyFilesSections, knownFiles, localDir)
-    getSourceDisksFiles(inf, knownFiles, localDir)
+
+    # First of all, get all references in SourceDisksFiles, to know if the source dir is being set
+    sourceDisksFiles = getSourceDisksFiles(inf)
+    getAllFilesFromSections(inf, copyFilesSections, sourceDisksFiles, knownFiles, localDir)
+
 
     writeSourceDisksNamesAndFiles(inf, knownFiles, cabName)
 
@@ -518,7 +572,8 @@ def copyFilesAndWriteCab(filesInDirectory: list[SourceFile], outCab: str) -> boo
     cabArchive = CabArchive()
 
     for sfEntry in filesInDirectory:
-        cabArchive[sfEntry.fileName] = CabFile(sfEntry.data, mtime = sfEntry.mtime)
+        if sfEntry.data:
+            cabArchive[sfEntry.fileName] = CabFile(sfEntry.data, mtime = sfEntry.mtime)
     
     with open(outCab, 'wb') as outFile:
         outFile.write(cabArchive.save(compress = True))
@@ -554,7 +609,7 @@ def handleDir(localDir: str, outDir: str, simulate: bool = False, deleteWin98Fil
 
     totalSize = 0
     for f in filesInThisDir:
-        totalSize += len(f.data)
+        if f.data: totalSize += len(f.data)
     logi(f'---> Sum of all file data (uncompressed): {totalSize} bytes')
 
     if infCount > 0 and not simulate:
@@ -565,21 +620,20 @@ def handleDir(localDir: str, outDir: str, simulate: bool = False, deleteWin98Fil
 # Performs a INF analysis for one level of subdirectories in inDir
 # Collects and compresses all INF's associated files into CABs
 # Writes output into outDir
-def driverCopy(inDirs: list[str], outDir: str):
+def driverCopy(inDir: str, outDir: str):
     if (os.path.exists(outDir)):
         shutil.rmtree(outDir)
 
     os.makedirs(outDir, exist_ok=True)
 
     # Get all Directories 
-    for dirToProcess in inDirs:
-        for entry in os.listdir(dirToProcess):
-            fullEntry = os.path.join(dirToProcess, entry)
+    for entry in os.listdir(inDir):
+        fullEntry = os.path.join(inDir, entry)
 
-            # if this is a directory, we process it
-            if os.path.isdir(fullEntry):
-                logi(f'Processing directory: {fullEntry}')
-                handleDir(fullEntry, outDir)
+        # if this is a directory, we process it
+        if os.path.isdir(fullEntry):
+            logi(f'Processing directory: {fullEntry}')
+            handleDir(fullEntry, outDir)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Windows 98 QuickInstall Driver Copy Script', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
