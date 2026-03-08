@@ -27,32 +27,33 @@ IF ERRORLEVEL 3 GOTO OPTION_C
 IF ERRORLEVEL 2 GOTO OPTION_B
 IF ERRORLEVEL 1 GOTO OPTION_A
 
+GOTO END
+
 :OPTION_A 
 ECHO Starting QuickInstall normally...
-set CMDLINE=tsc=unstable noapic acpi=off
+loadlin bzimage.cd tsc=unstable noapic acpi=off
 GOTO END
 
 :OPTION_B
 ECHO Disabling all PATA and SATA DMA...
-set CMDLINE=tsc=unstable noapic acpi=off libata.dma=0
+loadlin bzimage.cd tsc=unstable noapic acpi=off libata.dma=0
 GOTO END
 
 :OPTION_C
 ECHO Enabling PATA and SATA disk DMA only...
-set CMDLINE=tsc=unstable noapic acpi=off libata.dma=1
+loadlin bzimage.cd tsc=unstable noapic acpi=off libata.dma=1
 GOTO END
 
 :OPTION_D
 ECHO Enabling ATAPI (CDROM) DMA only...
-set CMDLINE=tsc=unstable noapic acpi=off libata.dma=2
+loadlin bzimage.cd tsc=unstable noapic acpi=off libata.dma=2
 GOTO END
 
 :OPTION_D
 ECHO Enabling CF-Card DMA only...
-set CMDLINE=tsc=unstable noapic acpi=off libata.dma=4
+loadlin bzimage.cd tsc=unstable noapic acpi=off libata.dma=4
 GOTO END
 
 :END
-ECHO QuickInstall Command Line: %CMDLINE%
-
-LOADLIN BZIMAGE.CD %CMDLINE%
+ECHO It seems that we were unable to launch the QuickInstall kernel.
+ECHO Are you in the correct directory? (Switch to the install media's root!)
