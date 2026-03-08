@@ -494,7 +494,14 @@ static qi_WizardAction qi_destinationSelect(void) {
             msg_logicalPartitionError();
             continue;
         }
-
+        uint64_t partEnd = partition->start + partition->size;
+        // Partition too big or exceeds boundary?
+        if (partition->size >= (128 __GB) || partEnd > (128 __GB) ) {
+            if (!msg_askOversizePartitionWarning(partition)) {
+                continue;
+            }
+        }
+ 
         if (util_isPartitionMounted(partition)) {
             if (!msg_askUnmountBeforeInstall(partition)) {
                 // Partition is mounted but user does not wish to unmount -- continue looping

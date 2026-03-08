@@ -40,6 +40,7 @@ pushd filesystem
 	cp -r ../supplement/firmware/* ./lib/firmware
 	ln -s sbin/init init
 	ln -s /install/bin/pci.ids ./usr/local/share/pci.ids
+	ln -s /bin/lsblk.qi /bin/lsblk
 	chmod +x etc/init.d/rc
 	chmod +x ./findcd.sh
 	sudo chown -R root:root .
@@ -105,7 +106,7 @@ cp util-linux/OUTPUT/bin/lsmem "$CDROOT/bin/"
 cp util-linux/OUTPUT/bin/whereis "$CDROOT/bin/"
 
 cp util-linux/cfdisk "$CDROOT/bin/"
-cp util-linux/lsblk "$CDROOT/bin/"
+cp util-linux/lsblk "$CDROOT/bin/lsblk.qi"
 cp pciutils/lspci "$CDROOT/bin/"
 cp pciutils/setpci "$CDROOT/bin/"
 cp pciutils/pci.ids "$CDROOT/bin/"

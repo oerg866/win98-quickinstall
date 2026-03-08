@@ -112,6 +112,22 @@ static inline int32_t msg_lba64InfoBox(void) {
         "Press 'OK' to continue or ESCAPE to return to the configuration menu.");
 }
 
+static inline bool msg_askOversizePartitionWarning(util_Partition *part) {
+    int action = ad_yesNoBox("Partition Warning", true,
+        "Selected partition: '%s'.\n"
+        "\n"
+        "The partition you selected exceeds the 128GiB (137GB) boundary.\n"
+        "Since Windows 9x relies on DOS/INT13h for its boot process,\n"
+        "it is STRONGLY recommended that the boot partition fits inside\n"
+        "the first 128GB on the disk to prevent problems with booting,\n"
+        "virtual memory errors, and DATA CORRUPTION when using the disk\n"
+        "in DOS mode.\n"
+        "\n"
+        "Would you like to ignore this and continue at your own risk?",
+        part->device);
+    return (action == AD_YESNO_YES);
+}
+
 /* Shows info that partition is mounted and asks if user wants to unmount and proceed */
 static inline bool msg_askUnmountBeforeInstall(util_Partition *part) {
     int action = ad_yesNoBox("Partition Warning", true,

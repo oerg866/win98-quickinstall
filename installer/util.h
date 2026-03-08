@@ -21,6 +21,11 @@
 #define UTIL_FS_TYPE_STRING_LENGTH (64+1)
 #define DISK_MBR_CODE_LENGTH (446)
 
+#define __KB * 1024ULL
+#define __MB * 1024ULL __KB
+#define __GB * 1024ULL __MB
+#define __TB * 1024ULL __GB
+
 // this enum shows the file system of a partition
 typedef enum {
     fs_none = 0,
@@ -41,6 +46,7 @@ typedef enum {
 // this struct models a partition on a hard drive
 typedef struct {
     char device[UTIL_HDD_DEVICE_STRING_LENGTH];
+    uint64_t start;
     uint64_t size;
     uint32_t sectorSize;
     util_FileSystem fileSystem;

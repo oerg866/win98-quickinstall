@@ -21,8 +21,6 @@
 
 #define CMD_SURPRESS_OUTPUT " 2>/dev/null 1>/dev/null"
 
-#define CMD_LSBLK_ALL "lsblk -I 8,3,259 -n -b -p -P -oTYPE,KNAME,PARTTYPE,SIZE,OPT-IO,MODEL,PTTYPE,FSTYPE"
-
 // Update parents after a reallocation of a hard disk array
 static inline void util_HardDisksUpdatePartitionParents(util_HardDisk *hdds, size_t diskCount) {
     if (hdds != NULL) {
@@ -91,7 +89,7 @@ static size_t util_getPartitionIndexOnParent(util_Partition *part) {
     return (size_t) atoi(parseStart);;
 }
 
-static util_Partition *util_HardDiskAddPartition(util_HardDisk *hd, const char *device, uint64_t size, uint32_t sectorSize, util_FileSystem fileSystem) {
+static util_Partition *util_HardDiskAddPartition(util_HardDisk *hd, const char *device, uint64_t start, uint64_t size, uint32_t sectorSize, util_FileSystem fileSystem) {
     QI_ASSERT(hd != NULL);
 
     hd->partitionCount++;
@@ -105,6 +103,7 @@ static util_Partition *util_HardDiskAddPartition(util_HardDisk *hd, const char *
 
     strncpy(ret->device, device, sizeof(ret->device));
 
+    ret->start = start;
     ret->size = size;
     ret->sectorSize = sectorSize;
     ret->fileSystem = fileSystem;
@@ -157,8 +156,20 @@ util_HardDiskArray *util_getSystemHardDisks() {
 
     QI_ASSERT(ret != NULL);
 
+    // Problem: If we run outside of QuickInstall linux environment, lsblk may not have the START column.
+    #define LSBLK_PARAMS " -I 8,3,259 -n -b -p -P -oTYPE,KNAME,PARTTYPE,SIZE,OPT-IO,MODEL,PTTYPE,FSTYPE"
+
+    const char *lsblkCommand = NULL;
+
+    // Try lsblk.qi
+    if (util_fileExists("/bin/lsblk.qi")) {
+        lsblkCommand = "lsblk.qi " LSBLK_PARAMS ",START";
+    } else {
+        lsblkCommand = "lsblk " LSBLK_PARAMS;
+    }
+
     // Get disk models
-    util_CommandOutput *lsblkOut = util_commandOutputCapture(CMD_LSBLK_ALL);
+    util_CommandOutput *lsblkOut = util_commandOutputCapture(lsblkCommand);
 
     QI_ASSERT(lsblkOut != NULL);
 
@@ -197,6 +208,13 @@ util_HardDiskArray *util_getSystemHardDisks() {
         success &= util_getValueFromKey(lsblkOut->lines[i], "SIZE", tmpNumStr, sizeof(tmpNumStr));
         uint64_t tmpSize = strtoull(tmpNumStr, NULL, 10);
 
+        // START might not be present due to it not being available in lsblk pre-2.37
+        uint64_t tmpStart = 0;
+        // If available, override this value
+        if (util_getValueFromKey(lsblkOut->lines[i], "START", tmpNumStr, sizeof(tmpNumStr))) {
+            tmpStart = strtoull(tmpNumStr, NULL, 10);
+        }
+
         // This used to read MIN-IO as the sector size - it is NOT. The sector size would be PHY-SEC.
         // But more importantly - Linux treats a sector as 512 bytes *always*, so it's not even relevant here
         // And so does int13h translation, which is the point this relates to in this code.
@@ -217,7 +235,7 @@ util_HardDiskArray *util_getSystemHardDisks() {
             /* The beginning of the device name must match the parent disk's as a child partition of that disk. */
             QI_ASSERT(util_stringStartsWith(tmpDevice, currentDisk->device) == true);
 
-            util_HardDiskAddPartition(currentDisk,tmpDevice, tmpSize, tmpSectorSize, tmpFileSystem);
+            util_HardDiskAddPartition(currentDisk,tmpDevice, tmpStart, tmpSize, tmpSectorSize, tmpFileSystem);
         } else {
             /* Tape streamer or other weird thing, not of interest for us... */
             continue;
