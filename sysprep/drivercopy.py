@@ -386,7 +386,7 @@ def getSourceDisksFiles(inf: WinINF) -> list[tuple[str,str]]:
     sdfSection = getSection(inf, 'SourceDisksFiles')
     
     if not sdfSection:
-        return
+        return ret
     
     for key, value, comment in sdfSection:
         if not key: 
