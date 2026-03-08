@@ -386,15 +386,15 @@ Refer to [BUILDING.md](BUILDING.md)
 
 ## Special Thanks
 
-* [TheRetroWeb](http://theretroweb.com) Cool community with cool people
 * [SweetLow / LordOfMice](https://github.com/LordOfMice) for his invaluable help by contributing drivers and patch sets
+* agent_x007 for providing input and moral support for 10 consecutive hours in Discord while making the 1.0.0 release :D
 * [Jeff Chen](https://x.com/jeffqchen) for helping to debug boot sector problem
 * [Fouquin](https://www.techpowerup.com/contact/) for testing and contributing drivers
 * Deksor for being French
 * [PhilsComputerLab](http://philscomputerlab.com) for spreading the word
 * [goshhhy / linear cannon](https://github.com/goshhhy) for Linux kernel config & systems programming help
 * [Rudolph R. Loew](http://lonecrusader.x10host.com/rloew/rloew.html) for a decade of amazing patches and drivers (rest in peace 😢)
-* More testing done by: computerguy096, Rigo (0xCats), agent_x007, Enigma, CptKlotz, matcarfer, viti95
+* More testing done by: Rigo (0xCats), Enigma, CptKlotz, matcarfer, viti95
 
 ---
 

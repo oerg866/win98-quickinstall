@@ -52,13 +52,6 @@ You must install the following packages:
 - run build.sh
 - The `__BIN__` folder will contain the built sysprep environment.
 
-# Special thanks
-
-Many people, but especially:
-
-* TheRetroWeb staff: Rigo (0xCats), Computerguy096, Deksor, evasive, agent_x007, Fouquin
-* linearcannon, Enigma, limsup, einstein95, Jeff Chen
-
 # License
 
 The `mercypak` and `installer` components have the CC-BY-NC 4.0 license.

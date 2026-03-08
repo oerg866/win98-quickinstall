@@ -1,5 +1,5 @@
-http://github.com/oerg866/win98-quickinstall      http://www.theretroweb.com
-http://twitter.com/oerg866                 (C) 2010-2026 E. Voirin (oerg866)
+http://github.com/oerg866/win98-quickinstall      http://twitter.com/oerg866
+                                           (C) 2010-2026 E. Voirin (oerg866)
 Windows is a registered trademark of Microsoft Corporation.
 EXPERIMENTAL PROJECT. PLEASE REPORT BUGS.
 ----------------------------------------------------------------------------
@@ -16,5 +16,5 @@ loader options, to work around buggy hardware or drive firmware!
 Did you know? QuickInstall now includes 'witchery', Fagear's 3dfx Voodoo 2 
 diagnostics tool! Try it in the included Linux shell!
 ----------------------------------------------------------------------------
-Special thanks to: SweetLow, Rigo, computerguy096, Fouquin, linear, Deksor,
-PhilsComputerLab, JeffChen, Fagear, CptKlotz, TmEE and YOU
+Special thanks to: SweetLow, Rigo, Fouquin, linear, Deksor, agent_x007, TmEE
+PhilsComputerLab, JeffChen, Fagear, CptKlotz and YOU
