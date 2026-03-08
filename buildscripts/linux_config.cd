@@ -996,6 +996,7 @@ CONFIG_PATA_WINBOND_VLB=y
 #
 # Generic fallback / legacy drivers
 #
+CONFIG_PATA_ACPI=y
 CONFIG_ATA_GENERIC=y
 CONFIG_PATA_LEGACY=y
 CONFIG_MD=y
