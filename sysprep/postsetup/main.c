@@ -24,6 +24,7 @@
 #include <string.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <strings.h>
 
 HANDLE __logFile = NULL;
 
@@ -33,8 +34,8 @@ HANDLE __logFile = NULL;
 #endif
 
 #define LOGGING
-//#define LOGGING_FILE "C:\\QI_LOG.TXT"
-#define LOGGING_FILE "QI_LOG.TXT"
+#define LOGGING_FILE "C:\\QI_LOG.TXT"
+//#define LOGGING_FILE "QI_LOG.TXT"
 
 
 const char *winError(DWORD err)
@@ -79,6 +80,9 @@ void log(const char *fmt, ...) {
 }
 
 #define logEnter()                  do { log("+" __func__); __ind++; } while (0)
+#define logEnter1(fmt, p1)          do { log("+" __func__ " (" fmt ")", p1); __ind++; } while (0)
+#define logEnter2(fmt, p1, p2)      do { log("+" __func__ " (" fmt ")", p1, p2); __ind++; } while (0)
+#define logEnter3(fmt, p1, p2, p3)  do { log("+" __func__ " (" fmt ")", p1, p2, p3); __ind++; } while (0)
 #define logExit(msg, val)           do { __ind--; log("-" __func__ " (" msg ")", val); } while (0)
 #define logReturn(ret, msg, val)    do { logExit(msg, val); return ret; } while (0);
 #define boolStr(b)                  ((b) ? "true" : "false")
@@ -87,13 +91,85 @@ void log(const char *fmt, ...) {
         if (condition) { RegCloseKey(key); logReturn(ret, msg, val); } \
     } while (0)
 
+#define logAndReturnIf(condition, ret, msg, val) do { \
+        if (condition) { logReturn(ret, msg, val); } \
+    } while (0)
+
+typedef bool (*KeyEnumerateFunc)(HKEY base, const char *key);
+
+static bool regDoForEachSubkey(HKEY base, const char *key, bool returnAfterTrue,KeyEnumerateFunc func) {
+    DWORD ret;
+    DWORD index = 0;
+    HKEY hKey;
+
+    logEnter();
+
+    ret = RegOpenKeyExA(base, key, 0, KEY_ENUMERATE_SUB_KEYS, &hKey);
+    closeKeyLogAndReturnIf(ret != ERROR_SUCCESS, false, hKey, "Can't open key (%s)", winError(ret));
+
+    while (1)
+    {
+        char subkey[256];
+        DWORD subkeySize = sizeof(subkey);
+        bool success = true;
+
+        ret = RegEnumKeyExA(hKey, index, subkey, &subkeySize, NULL, NULL, NULL, NULL);
+
+        closeKeyLogAndReturnIf(ret == ERROR_NO_MORE_ITEMS,  true,   hKey, "Successfully processed %u subkeys", index);
+        closeKeyLogAndReturnIf(ret != ERROR_SUCCESS,        false,  hKey, "Failed to Enumerate key (%s)", winError(ret));
+        log("Processing subkey %u: '%s'", index, subkey);
+
+        index++;
+        
+        success = func(hKey, subkey);
+
+        // True = "subkey was handled". Return after true means return after one successful handling.
+        if (success && returnAfterTrue) break;
+
+    }
+
+    RegCloseKey(hKey);
+    logReturn(true, "Processed %lu subkeys", index);
+}
+
+// Returns <key>\<subKey> - don't call this again until after you're done using the return of this one!
+static const char *regSubKey(const char *key, const char *subKey) {
+    static char skBuf[512] = "";
+    snprintf(skBuf, sizeof(skBuf), "%s\\%s", key, subKey);
+    return skBuf;
+}
+
+static bool createRegKey(HKEY base, const char *key) {
+    HKEY hKey;
+    DWORD ret;
+
+    logEnter1("%s", key);
+    ret = RegCreateKeyExA(base, key, 0, NULL, REG_OPTION_NON_VOLATILE, KEY_ALL_ACCESS,NULL, &hKey, NULL);
+    closeKeyLogAndReturnIf(ret != ERROR_SUCCESS, false, hKey, "Can't create key (%s)", winError(ret));
+    RegCloseKey(hKey);
+    logReturn(true, "Created key '%s'", key);
+}
+
+static bool delRegKey(HKEY base, const char *key) {
+    HKEY hKey;
+    DWORD ret;
+
+    logEnter1("%s", key);
+    
+    ret = RegDeleteKeyA(base, key);
+    closeKeyLogAndReturnIf(ret != ERROR_SUCCESS && ret != ERROR_FILE_NOT_FOUND, false, hKey, "Can't delete key (%s)", winError(ret));
+
+    RegCloseKey(hKey);
+    logReturn(true, "Deleted key '%s'", key);
+}
+
 static bool getRegString(HKEY base, const char *key, const char *valueName, char *targetBuf, size_t bufSize) {
     HKEY hKey;
     DWORD ret;
     DWORD keyType;
     DWORD keySize = bufSize - 1;
     
-    logEnter();
+    logEnter2("%s\\%s", key, valueName);
 
     ret = RegOpenKeyExA(base, key, 0, KEY_READ, &hKey);
     closeKeyLogAndReturnIf(ret != ERROR_SUCCESS, false, hKey, "Can't open key (%s)", winError(ret));
@@ -105,14 +181,14 @@ static bool getRegString(HKEY base, const char *key, const char *valueName, char
     targetBuf[bufSize - 1] = 0x00;
 
     RegCloseKey(hKey);
-    logReturn(true, "OK", 0);
+    logReturn(true, "%s", targetBuf);
 }
 
 static bool setRegString(HKEY base, const char *key, const char *valueName, const char *value) {
     HKEY hKey;
     DWORD ret;
 
-    logEnter();
+    logEnter3("%s\\%s = %s", key, valueName, value);
     
     ret = RegOpenKeyExA(base, key, 0, KEY_WRITE, &hKey);
     closeKeyLogAndReturnIf(ret != ERROR_SUCCESS, false, hKey, "Can't open key (%s)", winError(ret));
@@ -127,7 +203,7 @@ static bool setRegBinary(HKEY base, const char *key, const char *valueName, cons
     HKEY hKey;
     DWORD ret;
 
-    logEnter();
+    logEnter3("%s\\%s (%lu bytes)", key, valueName, valueSize);
     
     ret = RegOpenKeyExA(base, key, 0, KEY_WRITE, &hKey);
     closeKeyLogAndReturnIf(ret != ERROR_SUCCESS, false, hKey, "Can't open key (%s)", winError(ret));
@@ -142,13 +218,13 @@ static bool delRegValue(HKEY base, const char *key, const char *valueName) {
     HKEY hKey;
     DWORD ret;
 
-    logEnter();
+    logEnter2("%s\\%s", key, valueName);
 
     ret = RegOpenKeyExA(base, key, 0, KEY_WRITE, &hKey);
     closeKeyLogAndReturnIf(ret != ERROR_SUCCESS, false, hKey, "Can't open key (%s)", winError(ret));
 
     ret = RegDeleteValueA(hKey, valueName);
-    closeKeyLogAndReturnIf(ret != ERROR_SUCCESS, false, hKey, "Can't delete value (%s)", winError(ret));
+    closeKeyLogAndReturnIf(ret != ERROR_SUCCESS && ret != ERROR_FILE_NOT_FOUND, false, hKey, "Can't delete value (%s)", winError(ret));
 
     logReturn(true, "OK", 0);
 }
@@ -192,7 +268,7 @@ static bool fileExists(const char *root, const char *filename) {
     char concat[MAX_PATH*2+1];
     DWORD attrib;
     bool ret;
-    logEnter();
+    logEnter2("%s\\%s", root, filename);
     snprintf(concat, sizeof(concat), "%s\\%s", root, filename);
     log("%s", concat);
     attrib = GetFileAttributesA(concat);
@@ -229,6 +305,80 @@ void cleanupRegistry() {
     logExit("%s", boolStr(ret));
 }
 
+bool ifVredirUnsetDefault(HKEY base, const char *subkey) {
+    char tmp[128];
+    bool ret = true;
+
+    logEnter1("%s", subkey);
+
+    // If DeviceVXDs value isn't found, we skip it
+    logAndReturnIf(false == getRegString(base, subkey, "DeviceVxDs", tmp, sizeof(tmp)), false, "Not VREDIR, skipping...", 0);
+    // If this isn't vredir, we skip it too
+    logAndReturnIf(0 != strcasecmp(tmp, "VREDIR.VXD"), false, "Not VREDIR, skipping...", 0);
+    // Try to delete the Default key's VALUE
+    logAndReturnIf(false == delRegValue(base, regSubKey(subkey, "Ndi\\Default"), ""), false, "Failed to delete 'Default' value", 0);
+    // Try to delete the Default key altogether
+    logAndReturnIf(false == delRegKey(base, regSubKey(subkey, "Ndi\\Default")), false, "Failed to delete 'Default' key", 0);
+
+    logReturn(true, "Handled VREDIR!", 0);
+}
+
+bool setNetworkConfigFlags(HKEY base, const char *subkey, DWORD flags) {
+    BYTE tmp[4] = { 0, 0, 0, 0 };
+    memcpy(tmp, &flags, sizeof(tmp));
+
+    logEnter2("%s = %08lx", subkey, flags);
+
+    log("Setting ConfigFlags of '%s' to %08lx", subkey, flags);
+
+    logAndReturnIf(false == setRegBinary(base, subkey, "ConfigFlags", tmp, sizeof(tmp)), false, "Failed to set ConfigFlags", 0);
+
+    logReturn(true, "Set config flags", 0);
+}
+
+bool networkConfigFlagsDisable(HKEY base, const char *subkey) {
+    return setNetworkConfigFlags(base, subkey, 0x00000000);
+}
+
+bool networkConfigFlagsEnable(HKEY base, const char *subkey) {
+    return setNetworkConfigFlags(base, subkey, 0x00000010);
+}
+
+// Set Logon provider to Windows Logon so that the login happens automagically
+void setWindowsLogon() {
+    bool ret = true;
+    const char realModeNet[] = "Software\\Microsoft\\Windows\\CurrentVersion\\Network\\Real Mode Net";
+    const char netClient[] = "System\\CurrentControlSet\\Services\\Class\\NetClient";
+    const char enumNetworkFamily[] = "Enum\\Network\\FAMILY";
+    const char enumNetworkVredir[] = "Enum\\Network\\VREDIR";
+    const char networkLogon[] = "Network\\Logon";
+    const char securityProvider[] = "Security\\Provider";
+
+    BYTE zero[4] = { 0, 0, 0, 0 };
+
+    logEnter();
+
+    // Set preferred redirector for real mode net from VREDIR to... well... nothing
+    ret &= setRegString(HKEY_LOCAL_MACHINE, realModeNet, "preferredredir", "");
+
+    // In netClient section we need to find the one that is VREDIR.VXD and then set it to DEFAULT.
+    ret &= regDoForEachSubkey(HKEY_LOCAL_MACHINE, netClient, true, ifVredirUnsetDefault);
+
+    // Set ConfigFlags to Enable for Microsoft Family Logon
+    ret &= regDoForEachSubkey(HKEY_LOCAL_MACHINE, enumNetworkFamily, false, networkConfigFlagsEnable);
+
+    // Set ConfigFlags to Disable for Client for Microsoft Networks
+    ret &= regDoForEachSubkey(HKEY_LOCAL_MACHINE, enumNetworkVredir, false, networkConfigFlagsDisable);
+
+    // Set primary login provider
+    ret &= setRegString(HKEY_LOCAL_MACHINE, networkLogon, "PrimaryProvider", "");
+
+    // Delete security provider platform type (dunno why)
+    ret &= setRegBinary(HKEY_LOCAL_MACHINE, securityProvider, "Platform_Type", zero, sizeof(zero));
+
+    logExit("%s", boolStr(ret));
+}
+
 void doReboot() {
     bool ret;
     logEnter();
@@ -246,6 +396,7 @@ int PASCAL WinMain( HINSTANCE currinst, HINSTANCE previnst, LPSTR cmdline, int c
     log("----------------------------------------------");
 
     setComputerName();
+    setWindowsLogon();
     cleanupRegistry();
     doReboot();
 
