@@ -37,6 +37,66 @@ HANDLE __logFile = NULL;
 #define LOGGING_FILE "C:\\QI_LOG.TXT"
 //#define LOGGING_FILE "QI_LOG.TXT"
 
+unsigned char __BLANK_PWL[] = {
+  0xe3, 0x82, 0x85, 0x96, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+  0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+  0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+  0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+  0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+  0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+  0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+  0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+  0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+  0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+  0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+  0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+  0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+  0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+  0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+  0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+  0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+  0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+  0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+  0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+  0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+  0xff, 0xff, 0xff, 0xff, 0x52, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x93, 0x17, 0x10, 0xcb, 0xf4, 0x52,
+  0x95, 0x6d, 0x45, 0x42, 0xa9, 0x1a, 0xeb, 0x90, 0x65, 0x0c, 0xca, 0xc5,
+  0xca, 0xb0, 0x61, 0xa9, 0xf2, 0x23, 0x14, 0xba, 0x7f, 0x97, 0xa1, 0x55,
+  0xb1, 0xab, 0x7f, 0x57, 0x63, 0x8d, 0xf2, 0x7b, 0x0c, 0xe0, 0x6d, 0xed,
+  0x4c, 0x2a, 0x64, 0x53, 0x2f, 0x6c, 0x18, 0x4f, 0x01, 0xa4, 0x0d, 0xfc,
+  0x62, 0x4f, 0x6d, 0xe5, 0xed, 0xe4, 0xec, 0xff, 0x7f, 0xd4, 0xe0, 0xe3,
+  0x5d, 0xee, 0x05, 0xc8, 0x69, 0xd4, 0xfe, 0xd5, 0x6e, 0x64, 0x54, 0x35,
+  0x6c, 0x3c, 0x5f, 0x21, 0xff, 0xd6, 0x1a, 0x42, 0xba, 0x6c, 0xb8, 0x30,
+  0xc3, 0x9c, 0x99, 0x56
+};
 
 const char *winError(DWORD err)
 {
@@ -97,12 +157,12 @@ void log(const char *fmt, ...) {
 
 typedef bool (*KeyEnumerateFunc)(HKEY base, const char *key);
 
-static bool regDoForEachSubkey(HKEY base, const char *key, bool returnAfterTrue,KeyEnumerateFunc func) {
+static bool regDoForEachSubkey(HKEY base, const char *key, bool returnAfterTrue, KeyEnumerateFunc func) {
     DWORD ret;
     DWORD index = 0;
     HKEY hKey;
 
-    logEnter();
+    logEnter2("%s - returnAfterTrue: %s", key, returnAfterTrue ? "yes" : "no");
 
     ret = RegOpenKeyExA(base, key, 0, KEY_ENUMERATE_SUB_KEYS, &hKey);
     closeKeyLogAndReturnIf(ret != ERROR_SUCCESS, false, hKey, "Can't open key (%s)", winError(ret));
@@ -137,6 +197,14 @@ static const char *regSubKey(const char *key, const char *subKey) {
     static char skBuf[512] = "";
     snprintf(skBuf, sizeof(skBuf), "%s\\%s", key, subKey);
     return skBuf;
+}
+
+static bool regKeyExists(HKEY base, const char *key) {
+    HKEY hKey;
+    DWORD ret = RegOpenKeyExA(base, key, 0, KEY_READ, &hKey);
+    logEnter1("%s", key);
+    closeKeyLogAndReturnIf(ret != ERROR_SUCCESS, false, hKey, "-> no", 0);
+    logReturn(true, "-> yes", 0);
 }
 
 static bool createRegKey(HKEY base, const char *key) {
@@ -229,7 +297,7 @@ static bool delRegValue(HKEY base, const char *key, const char *valueName) {
     logReturn(true, "OK", 0);
 }
 
-void setComputerName() {
+static void setComputerName() {
     const char nameKey1[] = "System\\CurrentControlSet\\Control\\ComputerName\\ComputerName";
     const char nameKey2[] = "System\\CurrentControlSet\\Services\\VxD\\VNETSUP";
     const char nameValueName[] = "ComputerName";
@@ -276,7 +344,7 @@ static bool fileExists(const char *root, const char *filename) {
     logReturn(ret, "%s", ret ? "exists" : "missing");
 }
 
-bool is98Lite() {
+static bool is98Lite() {
     char sysDir[MAX_PATH];
     bool ret;
     logEnter();
@@ -286,7 +354,7 @@ bool is98Lite() {
     logReturn(ret, "System type: %s", ret ? "98Lite" : "stock");
 }
 
-void cleanupRegistry() {
+static void cleanupRegistry() {
     const char runKey[] = "Software\\Microsoft\\Windows\\CurrentVersion\\Run";
     const char runServicesKey[] = "Software\\Microsoft\\Windows\\CurrentVersion\\RunServices";
     const char pnpEnum050C[] = "Enum\\Root\\*PNP0C05\\0000";
@@ -305,7 +373,7 @@ void cleanupRegistry() {
     logExit("%s", boolStr(ret));
 }
 
-bool ifVredirUnsetDefault(HKEY base, const char *subkey) {
+static bool ifVredirUnsetDefault(HKEY base, const char *subkey) {
     char tmp[128];
     bool ret = true;
 
@@ -323,7 +391,7 @@ bool ifVredirUnsetDefault(HKEY base, const char *subkey) {
     logReturn(true, "Handled VREDIR!", 0);
 }
 
-bool setNetworkConfigFlags(HKEY base, const char *subkey, DWORD flags) {
+static bool setNetworkConfigFlags(HKEY base, const char *subkey, DWORD flags) {
     BYTE tmp[4] = { 0, 0, 0, 0 };
     memcpy(tmp, &flags, sizeof(tmp));
 
@@ -336,23 +404,133 @@ bool setNetworkConfigFlags(HKEY base, const char *subkey, DWORD flags) {
     logReturn(true, "Set config flags", 0);
 }
 
-bool networkConfigFlagsDisable(HKEY base, const char *subkey) {
+static bool networkConfigFlagsDisable(HKEY base, const char *subkey) {
     return setNetworkConfigFlags(base, subkey, 0x00000000);
 }
 
-bool networkConfigFlagsEnable(HKEY base, const char *subkey) {
+static bool networkConfigFlagsEnable(HKEY base, const char *subkey) {
     return setNetworkConfigFlags(base, subkey, 0x00000010);
+}
+
+static bool stringStartsWith(const char *s1, const char *s2) {
+    return strncasecmp(s2, s1, strlen(s2)) == 0;
+}
+
+static bool assignPwlFileInSystemIni(const char *uppercaseName, const char *pwlFileName) {
+    char sini[512];
+    char sbak[512];
+    char line[1024];
+    FILE *in = NULL;
+    FILE *out = NULL;
+    DWORD ret;
+    bool success = true;
+    bool inPasswordListsSection;
+
+    logEnter2("User '%s' PWL File '%s'", uppercaseName, pwlFileName);
+  
+    sprintf(sini, "%s\\%s", getenv("WINDIR"), "SYSTEM.INI");
+    sprintf(sbak, "%s\\%s", getenv("WINDIR"), "SYSTEM.BAK");
+
+    logAndReturnIf(MoveFileA(sini, sbak) != true, false, "Failed to backup SYSTEM.INI", 0);
+
+    in = fopen(sbak, "r");
+    out = fopen(sini, "w");
+
+    if (in == NULL || out == NULL) {
+        fclose(in);
+        fclose(out);
+        logReturn(false, "File open error", 0);
+    }
+    
+    // Write everything in system.ini BEFORE password lists section
+    while (fgets(line, sizeof(line), in) != NULL) {
+        success &= 0 < fwrite(line, 1, strlen(line), out);
+        if (stringStartsWith(line, "[Password Lists]")) {
+            inPasswordListsSection = true;
+            break;
+        }
+    }
+
+    if (inPasswordListsSection) {
+        // Write all lines in the password lists section
+        while (fgets(line, sizeof(line), in) != NULL) {
+            if (stringStartsWith(line, uppercaseName)) {
+                // This name is already handled, override the PWL file
+                success &= 0 < fprintf(out, "%s=%s\n", uppercaseName, pwlFileName);
+            } else {
+                // Some other bloke, we don't care
+                success &= 0 < fwrite(line, 1, strlen(line), out);
+            }
+        }
+    } else {
+        // We're not in the pasword lists section so we have to create/fill it by hand
+        success &= 0 < fprintf(out, "\n[Password Lists]\n");
+        success &= 0 < fprintf(out, "%s=%s\n", uppercaseName, pwlFileName);
+    }
+
+    // Write the rest of the SYSTEM.INI lines
+    while (fgets(line, sizeof(line), in) != NULL) {
+        success &= 0 < fwrite(line, 1, strlen(line), out);
+    }
+
+    fprintf(out, "\n");
+    fclose(in);
+    fclose(out);
+
+    logReturn(false, "%s", success ? "OK" : "Error");
+}
+
+static bool setDefaultUser(const char *user) {
+    char pwlName[32];
+    char userUpper[32];
+    char buf[512];
+    size_t written;
+    FILE *f = NULL;
+    logEnter1("User '%s'", user);
+
+    logAndReturnIf(strlen(user) > 28, false, "Name is too long", 0);
+
+    // Create blank PWL file
+    if (strlen(user) > 8) {
+        memcpy(pwlName, user, 8);
+        sprintf(&pwlName[8], ".PWL");
+    } else {
+        strcpy(pwlName, user);
+        strcat(pwlName, ".PWL");
+    }
+
+    sprintf(buf, "%s\\%s", getenv("WINDIR"), pwlName);
+    log("Creating blank pwl file '%s'", buf);
+
+    f = fopen(buf, "wb");
+    written = fwrite(__BLANK_PWL, 1, sizeof(__BLANK_PWL), f);
+    fclose(f);
+
+    logAndReturnIf(written == 0, false, "Error writing PWL file", 0);
+
+    // create uppercase version.
+    strcpy(userUpper, user);
+    CharUpperBuffA(userUpper, strlen(userUpper));
+
+    // Try finding
+    assignPwlFileInSystemIni(userUpper, buf);
+    
+    logReturn(true, "wrote %lu bytes", (unsigned long) written);
 }
 
 // Set Logon provider to Windows Logon so that the login happens automagically
 void setWindowsLogon() {
     bool ret = true;
-    const char realModeNet[] = "Software\\Microsoft\\Windows\\CurrentVersion\\Network\\Real Mode Net";
-    const char netClient[] = "System\\CurrentControlSet\\Services\\Class\\NetClient";
-    const char enumNetworkFamily[] = "Enum\\Network\\FAMILY";
-    const char enumNetworkVredir[] = "Enum\\Network\\VREDIR";
-    const char networkLogon[] = "Network\\Logon";
-    const char securityProvider[] = "Security\\Provider";
+    static const char realModeNet[] = "Software\\Microsoft\\Windows\\CurrentVersion\\Network\\Real Mode Net";
+    static const char netClient[] = "System\\CurrentControlSet\\Services\\Class\\NetClient";
+    static const char enumNetworkFamily[] = "Enum\\Network\\FAMILY";
+    static const char enumNetworkVredir[] = "Enum\\Network\\VREDIR";
+    static const char networkLogon[] = "Network\\Logon";
+    static const char securityProvider[] = "Security\\Provider";
+    static const char control[] = "System\\CurrentcontrolSet\\Control";
+    static const char winLogon[] = "Software\\Microsoft\\Windows\\CurrentVersion\\Winlogon";
+  
+    char currentUser[32] = "";
 
     BYTE zero[4] = { 0, 0, 0, 0 };
 
@@ -364,17 +542,36 @@ void setWindowsLogon() {
     // In netClient section we need to find the one that is VREDIR.VXD and then set it to DEFAULT.
     ret &= regDoForEachSubkey(HKEY_LOCAL_MACHINE, netClient, true, ifVredirUnsetDefault);
 
-    // Set ConfigFlags to Enable for Microsoft Family Logon
-    ret &= regDoForEachSubkey(HKEY_LOCAL_MACHINE, enumNetworkFamily, false, networkConfigFlagsEnable);
+    if (regKeyExists(HKEY_LOCAL_MACHINE, enumNetworkFamily)) {
+        // Set ConfigFlags to Enable for Microsoft Family Logon
+        ret &= regDoForEachSubkey(HKEY_LOCAL_MACHINE, enumNetworkFamily, false, networkConfigFlagsEnable);
 
-    // Set ConfigFlags to Disable for Client for Microsoft Networks
-    ret &= regDoForEachSubkey(HKEY_LOCAL_MACHINE, enumNetworkVredir, false, networkConfigFlagsDisable);
+        // Set ConfigFlags to Disable for Client for Microsoft Networks
+        ret &= regDoForEachSubkey(HKEY_LOCAL_MACHINE, enumNetworkVredir, false, networkConfigFlagsDisable);
+    } else {
+        // Set ConfigFlags to Enable for Client for Microsoft Networks
+        ret &= regDoForEachSubkey(HKEY_LOCAL_MACHINE, enumNetworkVredir, false, networkConfigFlagsEnable);
+    }
 
     // Set primary login provider
-    ret &= setRegString(HKEY_LOCAL_MACHINE, networkLogon, "PrimaryProvider", "");
+    ret &= setRegString(HKEY_LOCAL_MACHINE, networkLogon, "PrimaryProvider", "Windows Logon");
 
     // Delete security provider platform type (dunno why)
+    ret &= createRegKey(HKEY_LOCAL_MACHINE, securityProvider);
     ret &= setRegBinary(HKEY_LOCAL_MACHINE, securityProvider, "Platform_Type", zero, sizeof(zero));
+
+    // Set auto admin logon. First get current user
+    if (!getRegString(HKEY_LOCAL_MACHINE, control, "Current User", currentUser, sizeof(currentUser))) {
+        ret &= getRegString(HKEY_LOCAL_MACHINE, networkLogon, "username", currentUser, sizeof(currentUser));
+        ret &= setRegString(HKEY_LOCAL_MACHINE, control, "Current User", currentUser);
+    }
+
+    ret &= createRegKey(HKEY_LOCAL_MACHINE, winLogon);
+    ret &= setRegString(HKEY_LOCAL_MACHINE, winLogon, "AutoAdminLogon", "1");
+    ret &= setRegString(HKEY_LOCAL_MACHINE, winLogon, "DefaultUserName", currentUser);
+    ret &= setRegString(HKEY_LOCAL_MACHINE, winLogon, "DefaultPassword", "");
+
+    ret &= setDefaultUser(currentUser);
 
     logExit("%s", boolStr(ret));
 }
@@ -385,7 +582,6 @@ void doReboot() {
     ret = ExitWindowsEx(EWX_REBOOT, 0);
     logExit("ExitWindowsEx: %u", (unsigned) ret);
 }
-
 
 int PASCAL WinMain( HINSTANCE currinst, HINSTANCE previnst, LPSTR cmdline, int cmdshow ) {
 #ifdef LOGGING
