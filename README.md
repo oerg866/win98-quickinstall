@@ -44,6 +44,7 @@ If possible, please also verify that the problem does not occur with the driver 
 - [The QuickInstall Installer](#the-quickinstall-installer)
   - [Main Menu](#main-menu)
   - [Hard Disk Partitioning Tool](#hard-disk-partitioning-tool)
+    - [Wiping the partition table of a disk](#wiping-the-partition-table-of-a-disk)
   - [Installation](#installation)
 - [The Emergency Linux Shell](#the-emergency-linux-shell)
   - [3dfx Voodoo 2 Diagnostics (`witchery`)](#3dfx-voodoo-2-diagnostics-witchery)
@@ -307,6 +308,14 @@ The version of `cfdisk` shipped with QuickInstall is *slightly modified* to bett
 
 The default for partition creation is `W95 FAT32 (LBA)`.  
 However, on very old systems, you may need to choose the non-LBA version instead.
+
+### Wiping the partition table of a disk
+
+In some cases you may wish to wipe the partition table of a disk, in case there are faulty entries in it that cause the Windows 9x bootloader to trip up.
+
+To do this, you may press `F9`. **NOTE: This will cause data loss, be very careful with this feature!** 
+
+![](assets/wipetable.png)
 
 ## Installation
 
