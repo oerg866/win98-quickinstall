@@ -55,7 +55,7 @@ echo "Install media / CD-ROM found and mounted at $CD"
 # Copy some files to memory for faster execution
 cp $CD/bin/lunmercy /bin
 cp $CD/bin/cfdisk /bin
-cp $CD/bin/lsblk /bin
+cp $CD/bin/lsblk.qi /bin
 cp $CD/bin/mkfs.fat /bin
 cp $CD/install.txt /
 
