@@ -174,16 +174,15 @@ def get_wine_path(path):
 # Run Windows 98's REGEDIT in 16-bit DOS emulation (bundled, sorry microsoft, don't sue me :C)
 def run_regedit(reg_file):
     regedit_exe = os.path.join(script_base_path, 'registry', 'regedit.exe')
-    msdos_exe = os.path.join(script_base_path, 'registry', 'msdos.exe')
-
-    # regedit is called from *within* msdos.exe.
 
     if platform.system() == 'Windows':
-        subprocess.run([msdos_exe, regedit_exe, '/L:SYSTEM.DAT', '/R:SYSTEM.DAT', reg_file], check=True, stdout=global_stdout)
+        # regedit is called from *within* msdos.exe.
+        msdos_exe = os.path.join(script_base_path, 'registry', 'msdos.exe')
+        subprocess.run([msdos_exe, '-e', regedit_exe, '/L:SYSTEM.DAT', '/R:SYSTEM.DAT', reg_file], check=True, stdout=global_stdout)
     else:
         reg_file = get_wine_path(reg_file)
         regedit_exe = get_wine_path(regedit_exe)
-        subprocess.run(['wine', msdos_exe, regedit_exe, '/L:SYSTEM.DAT', '/R:SYSTEM.DAT', reg_file], check=True, stdout=global_stdout)
+        subprocess.run(['wine', regedit_exe, '/L:SYSTEM.DAT', '/R:SYSTEM.DAT', reg_file], check=True, stdout=global_stdout)
 
 # Copy a file out of a FAT image, does not preserve attributes and datetime
 def image_copy_out(fs: FAT.Dirtable, filename, output):
