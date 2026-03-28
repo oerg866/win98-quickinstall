@@ -4,14 +4,14 @@
 
 ### (C) 2012 - 2026 E.Voirin (oerg866) <!-- omit from toc -->
 ### **Windows is a trademark of Microsoft Corporation.** <!-- omit from toc -->
-### **This project has NO ENDORSEMENT WHATSOEVER from Microsoft Corporation.** <!-- omit from toc -->
+### **This project is NOT in any way endorsed by Microsoft Corporation.** <!-- omit from toc -->
 
 Please don't sue. I just like old computers!! :(
 
-**Warning:**
-QuickInstall is not labeled, approved, or intended for use in the state of California.  
+**WARNING:**
+**QuickInstall is not labeled, approved, or intended for use in the state of California.**  
 QuickInstall may contain products that fail to comply with California law [CA AB1043](https://legiscan.com/CA/text/AB1043/id/3269704).  
-Do not use QuickInstall if you are located in or a resident of California.  
+**DO NOT ACCESS OR USE QUICKINSTALL IF YOU ARE LOCATED IN, OR ARE A RESIDENT OF THE STATE OF CALIFORNIA.**
 
 ## Troubleshooting - READ before filing a bug ticket! <!-- omit from toc -->
 
@@ -398,7 +398,7 @@ More information here: [Voodoo2 diagnostics software (Witchery)](https://www.vog
 
 Refer to [BUILDING.md](BUILDING.md)
 
-## Special Thanks
+## Special Thanks to:
 
 * [SweetLow / LordOfMice](https://github.com/LordOfMice) for his invaluable help by contributing drivers and patch sets
 * agent_x007 for providing input and moral support for 10 consecutive hours in Discord while making the 1.0.0 release :D
