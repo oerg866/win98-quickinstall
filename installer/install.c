@@ -319,7 +319,7 @@ static void qi_cleanup() {
 static qi_WizardAction qi_variantSelectAndStartPrebuffering() {
     size_t variantCount = 0;
 
-    ad_Menu *menu = ad_menuCreate("Installation Variant", "Select the operating system variant you wish to install.", false, false);
+    ad_Menu *menu = ad_menuCreate("Installation Variant", false, false, "Select the operating system variant you wish to install.");
     QI_ASSERT(menu != NULL);
 
     while (true) {
@@ -384,8 +384,7 @@ static qi_WizardAction qi_mainMenu() {
         qi_wizData.disclaimerShown = true;
     }
 
-    ad_Menu *menu = ad_menuCreate("Windows 9x QuickInstall: Main Menu", 
-        msg_mainMenuText, true, false);
+    ad_Menu *menu = ad_menuCreate("Windows 9x QuickInstall: Main Menu", true, false, msg_mainMenuText);
     QI_ASSERT(menu);
     ad_menuAddItemFormatted(menu, "[INSTALL] Install %s", qi_wizData.variantName);
     ad_menuAddItemFormatted(menu, "   [DISK] Manage and partition hard disks");
@@ -424,13 +423,6 @@ static qi_WizardAction qi_help(void) {
 }
 
 static qi_WizardAction qi_destinationSelect(void) {
-    char menuPrompt[512];
-    snprintf(menuPrompt, sizeof(menuPrompt),
-            "Select the partition you wish to install to.\n"
-            "An asterisk (*) means that this is the source media and\n"
-            "cannot be used.\n\n"
-            "%s", inst_getPartitionMenuHeader());
-
     if (!qi_refreshDisks(&qi_wizData)) {
         msg_refreshDiskError();
         return WIZ_MAIN_MENU;
@@ -440,7 +432,11 @@ static qi_WizardAction qi_destinationSelect(void) {
     }
 
     while (1) {
-        ad_Menu *menu = ad_menuCreate("Installation Destination", menuPrompt,true, false);
+        ad_Menu *menu = ad_menuCreate("Installation Destination", true, false, 
+            "Select the partition you wish to install to.\n"
+            "An asterisk (*) means that this is the source media and\n"
+            "cannot be used.\n\n"
+            "%s", inst_getPartitionMenuHeader());
 
         QI_ASSERT(menu);
 

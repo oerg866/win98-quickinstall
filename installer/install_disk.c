@@ -117,9 +117,12 @@ qi_WizardAction qi_diskMgmtMenu(qi_InstallContext *ctx) {
         }
 
         ad_Menu *menu = ad_menuCreate(
-            "Partition Wizard - Select the Hard Disk you wish to partition.",
-            menuPrompt,
-            true, true);
+            "Partition Wizard - Select the Hard Disk you wish to partition.", true, true,
+            "An asterisk (*) identifies the installation source. It cannot be altered.\n"
+            "A question mark <?> depicts an invalid/unknown partition table type.\n"
+            "\n"
+            "Additional options: F9 - Wipe partition table (DANGER)\n\n"
+            "%s", inst_getDiskMenuHeader());
 
         QI_ASSERT(menu);
 
