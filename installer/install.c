@@ -304,7 +304,6 @@ static void qi_cleanup() {
 
     if (qi_wizData.hda != NULL) {
         util_hardDiskArrayDestroy(qi_wizData.hda);
-        qi_wizData.destination = NULL;
         qi_wizData.hda = NULL;
     }
 
