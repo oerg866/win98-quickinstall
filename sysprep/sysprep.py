@@ -339,7 +339,10 @@ def preprocess_drivers(output_base, input_drivers_base, input_drivers_extra):
     input_drivers_ndis2 = os.path.join(input_drivers_base, 'NDIS2')
     if os.path.exists(input_drivers_ndis2):
         print('Preprocessing NDIS2 drivers...')
-        driverCopy(input_drivers_ndis2, '.driver_int_ndis2')
+        # Use existing drivers as a base and add NDIS2 drivers to it
+        os.makedirs('.driver_int_ndis2', exist_ok = True)
+        shutil.copytree('.driver_int', '.driver_int_ndis2', dirs_exist_ok=True)
+        driverCopy(input_drivers_ndis2, '.driver_int_ndis2', deleteExisting=False)
 
 # Finalize the slipstream drivers for this sysprep run for a given OSRoot
 def finalize_drivers_for_osroot(output_base, output_osroot, osroot_cabdir_relative, is_win_me):
@@ -350,11 +353,13 @@ def finalize_drivers_for_osroot(output_base, output_osroot, osroot_cabdir_relati
     # infs into INF dir *and* cabs into Win CD dir
 
     input_directories = list[str]()
-    input_directories.append('.driver_int')
 
     # NDIS2 drivers get added if the OSROOT is *not* WinME and NDIS2 drivers are present.
     if not is_win_me and os.path.exists('.driver_int_ndis2'):
         input_directories.append('.driver_int_ndis2')
+    else:
+        input_directories.append('.driver_int')
+
 
     output_driver_temp = '.drvtmp_osroot'
     driver_temp_cabdir = os.path.join(output_driver_temp, osroot_cabdir_relative)

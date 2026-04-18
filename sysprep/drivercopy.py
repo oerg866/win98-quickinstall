@@ -623,8 +623,9 @@ def handleDir(localDir: str, outDir: str, simulate: bool = False, deleteWin98Fil
 # Performs a INF analysis for one level of subdirectories in inDir
 # Collects and compresses all INF's associated files into CABs
 # Writes output into outDir
-def driverCopy(inDir: str, outDir: str):
-    if (os.path.exists(outDir)):
+# Deletes existing files in outDir if deleteExisting is True
+def driverCopy(inDir: str, outDir: str, deleteExisting: str = True):
+    if (deleteExisting and os.path.exists(outDir)):
         shutil.rmtree(outDir)
 
     os.makedirs(outDir, exist_ok=True)
