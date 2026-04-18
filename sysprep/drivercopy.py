@@ -12,6 +12,7 @@
 # along with the modified INF file.
 
 # History:
+# 2026-04-18: Fix cab file name conflict eating up some drivers' files
 # 2026-02-03: Python rewrite, remove all CatalogFile references to prevent missing file popups during HW detection
 # 2025-02-19: Fix CatalogFile entries with nonexistant files causing CAB file creation to fail (fixes ArtX)
 # 2024-10-21: Fix problems with non-unique INF file names causing CAB files to be overwritten and thus missing driver files.
@@ -592,9 +593,11 @@ def handleDir(localDir: str, outDir: str, simulate: bool = False, deleteWin98Fil
             outInf = getUniqueFilename(outDir, f)
 
             # If this is the first INF file in this directory, we decide the CAB name
-            # Which is the unique output name - .inf + .cab
+            # Which is usually the unique output name - .inf + .cab
+            # but that file name might already exist from another driver, so make sure it's unique in the same way
             if infCount == 0:
-                outCab = os.path.splitext(outInf)[0] + '.cab'
+                tmpCab = os.path.splitext(f)[0] + '.cab'
+                outCab = getUniqueFilename(outDir, tmpCab)
         
             logi(f'---------------------------------------------------------------')
             logi(f'Processing inf: {fullPath} outInf: {outInf} outCab: {outCab}')
