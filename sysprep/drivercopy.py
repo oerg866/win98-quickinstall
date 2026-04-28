@@ -584,6 +584,8 @@ def copyFilesAndWriteCab(filesInDirectory: list[SourceFile], outCab: str) -> boo
 # Scans a sub directory and plugs all its INF files into the INF handler
 def handleDir(localDir: str, outDir: str, simulate: bool = False, deleteWin98Files: bool = False):
     infCount = 0
+    infFiles = []
+
     filesInThisDir = list[SourceFile]()
     
     for f in os.listdir(localDir):
@@ -603,12 +605,27 @@ def handleDir(localDir: str, outDir: str, simulate: bool = False, deleteWin98Fil
             logi(f'Processing inf: {fullPath} outInf: {outInf} outCab: {outCab}')
             handleInf(fullPath, outInf, localDir, outCab, filesInThisDir, simulate)
             infCount += 1
+            infFiles.append(f)
 
     if deleteWin98Files:
         for f in filesInThisDir:
             if f.isFromWin98 and f.localName:
                 loge(f'Deleting {f.localName}')
                 os.remove(f.localName)
+
+    # Work around an inherent quirk:
+    # A lot of drivers actually install INFs as part of their file set.
+    # If we modified these INFs (which is extremely likely), we need to
+    # update the file data for them
+    for f in filesInThisDir:
+        if not containsCaseInsensitive(infFiles, f.fileName): continue
+        # This might be one ouf our INFs, make sure
+        updatedInfName = getFilenameCaseInsensitive(outDir, f.fileName)
+        if not updatedInfName: continue
+        # Inf found in the output dir.
+        logd(f'Updating {f.fileName} with new data from: {updatedInfName}')
+        # Update the data for it
+        f.data = open(updatedInfName, 'rb').read()
 
     totalSize = 0
     for f in filesInThisDir:
