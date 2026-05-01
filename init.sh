@@ -44,6 +44,8 @@ fi;
 # Download and build termtype data
 
 if [ ! -f "termtypes.ti" ]; then
+  echo Downloading termtype data
+  $DOWNLOAD http://catb.org/terminfo/termtypes.ti.gz
   gunzip termtypes.ti.gz
 fi;
 mkdir -p termtypes
