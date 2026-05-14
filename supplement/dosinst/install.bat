@@ -19,7 +19,7 @@ REM /C defines valid keys
 REM /N hides the [A,B,C,D,E]? prompt
 REM /T:A,5 makes ENTER or timeout (5 sec) default to A (optional)
 
-CHOICE /C:ABCD /N /T:A,5 "Select option: "
+CHOICE /C:ABCDE /N /T:A,5 "Select option: "
 
 IF ERRORLEVEL 5 GOTO OPTION_E
 IF ERRORLEVEL 4 GOTO OPTION_D
@@ -49,7 +49,7 @@ ECHO Enabling ATAPI (CDROM) DMA only...
 loadlin bzimage.cd tsc=unstable noapic acpi=off libata.dma=2
 GOTO END
 
-:OPTION_D
+:OPTION_E
 ECHO Enabling CF-Card DMA only...
 loadlin bzimage.cd tsc=unstable noapic acpi=off libata.dma=4
 GOTO END
