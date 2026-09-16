@@ -55,9 +55,9 @@ def makeUsb(baseDir, outputUsb):
     bootDir = efiDir.mkdir('BOOT')
 
     with open(os.path.join('tools', 'bzImage.efi'), 'rb') as f:
-        bootia32 = bootDir.create('BOOTIA32.EFI')
-        bootia32.write(f.read())
-        bootia32.close()
+        bootx64 = bootDir.create('BOOTX64.EFI')
+        bootx64.write(f.read())
+        bootx64.close()
 
     Volume.vclose(part)
 
