@@ -47,6 +47,7 @@
 #define INST_SYSROOT_FILE "FULL.866"
 #define INST_CREGFIX_FILE "CREGFIX.866"
 #define INST_LBA64_FILE   "LBA64.866"
+#define INST_NTFS_FILE    "NTFS.866"
 #define INST_DRIVER_FILE  "DRIVER.866"
 #define INST_SLOWPNP_FILE "SLOWPNP.866"
 #define INST_FASTPNP_FILE "FASTPNP.866"
@@ -598,6 +599,10 @@ static qi_WizardAction qi_config(void) {
         return WIZ_DO_NOTHING;
     }
 
+    if (QI_OPTION_YES == qi_configGet(o_ntfs) && AD_CANCELED == msg_ntfsInfoBox()) {
+        return WIZ_DO_NOTHING;
+    }
+
     if (inst_doHardwareQuirks() == false) {
         return WIZ_DO_NOTHING;
     }
@@ -687,6 +692,10 @@ static bool qi_installCregfix(size_t progressBarIndex) {
     return qi_installUnpackGeneric(progressBarIndex, INST_CREGFIX_FILE);
 }
 
+static bool qi_installNtfs(size_t progressBarIndex) {
+    return qi_installUnpackGeneric(progressBarIndex, INST_NTFS_FILE);
+}
+
 static bool qi_installDriversBase(size_t progressBarIndex) {
     return qi_installUnpackGeneric(progressBarIndex, INST_DRIVER_FILE);
 }
@@ -744,6 +753,7 @@ static qi_WizardAction qi_install(void) {
     
     qi_installAddToProgressBoxIfEnabled(&progressBarIndex, o_cregfix,                   "Copy Files (CREGFIX)");
     qi_installAddToProgressBoxIfEnabled(&progressBarIndex, o_lba64,                     "Copy Files (LBA64/GPT Support)");
+    qi_installAddToProgressBoxIfEnabled(&progressBarIndex, o_ntfs,                      "Copy Files (NTFS Support)");
     qi_installAddToProgressBoxIfEnabled(&progressBarIndex, o_installDriversBase,        "Copy Files (Base Drivers)");
     qi_installAddToProgressBoxIfEnabled(&progressBarIndex, o_installDriversExtra,       "Copy Files (Extended Drivers)");
     qi_installAddToProgressBoxIfEnabled(&progressBarIndex, o_copyExtras,                "Copy Files (Extras & Tools)");
@@ -766,6 +776,7 @@ static qi_WizardAction qi_install(void) {
     qi_installExecuteIfEnabled(o_registry,              qi_installRegistry,             "Copying system registry...");
     qi_installExecuteIfEnabled(o_cregfix,               qi_installCregfix,              "Installing CREGFIX patch...");
     qi_installExecuteIfEnabled(o_lba64,                 qi_installLba64,                "Installing LBA64/GPT Disk support driver...");
+    qi_installExecuteIfEnabled(o_ntfs,                  qi_installNtfs,                 "Installing SweetLow/Paragon NTFS driver...");
     qi_installExecuteIfEnabled(o_installDriversBase,    qi_installDriversBase,          "Copying base driver library files...");
     qi_installExecuteIfEnabled(o_installDriversExtra,   qi_installDriversExtra,         "Copying extended driver library files...");
     qi_installExecuteIfEnabled(o_copyExtras,            qi_installCopyExtras,           "Copying extras folder (tools, drivers, updates)...");

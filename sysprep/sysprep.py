@@ -320,6 +320,23 @@ def produce_lba64_files(fs: FAT.Dirtable, iosubsysdir: str, output_866_file: str
     # Create 866 file from it
     mercypak_pack(output_866_file, local_files=output_lba64_temp)
 
+# Creates a .866 file containing the patched Paragon NTFS driver (UFSD) and its helper VXD (PNTFSHLP) for this OSRoot
+def produce_ntfs_files(iosubsysdir: str, output_866_file: str):
+    output_ntfs_temp = '.ntfstmp'
+    output_iosubsys = os.path.join(output_ntfs_temp, iosubsysdir)
+    input_dir = 'ntfs'
+
+    shutil.rmtree(output_ntfs_temp, ignore_errors=True)
+    mkdir(output_iosubsys)
+
+    # Copy all VXD files, the READMEs stay behind
+    for f in os.listdir(input_dir):
+        if fnmatch.fnmatch(f.lower(), '*.vxd'):
+            shutil.copy2(os.path.join(input_dir, f), output_iosubsys)
+
+    # Create 866 file from it
+    mercypak_pack(output_866_file, local_files=output_ntfs_temp)
+
 
 from drivercopy import driverCopy
 
@@ -514,6 +531,10 @@ for osroot, osroot_name in input_osroots:
     # Process LBA64/GPT drivers
     lba64_866 = os.path.join(output_osroot, 'LBA64.866')
     produce_lba64_files(fs, osroot_iosubsysdir, lba64_866, is_win_me)
+
+    # Process Paragon NTFS drivers
+    ntfs_866 = os.path.join(output_osroot, 'NTFS.866')
+    produce_ntfs_files(osroot_iosubsysdir, ntfs_866)
 
     # Get a list of all the files in the image
     osroot_files, osroot_dirs = get_full_files_and_dirs_list(fs)

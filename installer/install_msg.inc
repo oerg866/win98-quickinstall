@@ -112,6 +112,19 @@ static inline int32_t msg_lba64InfoBox(void) {
         "Press 'OK' to continue or ESCAPE to return to the configuration menu.");
 }
 
+/* Shows information about the Paragon NTFS driver */
+static inline int32_t msg_ntfsInfoBox(void) {
+    return ad_okBox("SweetLow NTFS Information", true,
+        "This installs a patched version of the Paragon NTFS driver (UFSD.VXD)\n"
+        "together with the PNTFSHLP.VXD helper driver into SYSTEM\\IOSUBSYS.\n"
+        "\n"
+        "It provides access to NTFS volumes from within Windows 9x. By default,\n"
+        "NTFS volumes on fixed disks are mounted READ-ONLY, this can be changed\n"
+        "via the registry, see the documentation for PNTFSHLP.\n"
+        "\n"
+        "Press 'OK' to continue or ESCAPE to return to the configuration menu.");
+}
+
 static inline bool msg_askOversizePartitionWarning(util_Partition *part) {
     int action = ad_yesNoBox("Partition Warning", true,
         "Selected partition: '%s'.\n"

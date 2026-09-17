@@ -150,6 +150,13 @@ These patches and fixes do not need to be integrated into the Windows image befo
 
   By [**SweetLow / LordOfMice**](http://github.com/LordOfMice)
 
+* **NTFS driver (patched UFSD.VXD) + PNTFSHLP.VXD helper driver**  
+  Provides NTFS volume access from within Windows 9x. The UFSD driver contains fixes for volume label / Volume ID handling and resource leaks on unmount.
+
+  See `sysprep/ntfs/README.UFSD.TXT` and `sysprep/ntfs/README.PNTFSHLP.TXT` for details and registry settings.
+  
+  By [**SweetLow / LordOfMice**](http://github.com/LordOfMice)
+
 And not to forget, the ***vast driver libraries***:
 
 * `win98-driver-lib-base`

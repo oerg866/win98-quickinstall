@@ -57,6 +57,12 @@ static qi_Option qi_options[] = {
         QI_OPTION_NO, 0, false
     },
     {
+        o_ntfs,
+        "Install NTFS support (UFSD + PNTFSHLP by SweetLow)", 2,
+        { "[YES]", "[NO ]", },
+        QI_OPTION_NO, 0, false
+    },
+    {
         o_uefi,
         "Install UEFI support (*extremely* experimental)", 2,
         { "[YES]", "[NO ]", },
