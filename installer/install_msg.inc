@@ -67,7 +67,7 @@ static inline int32_t msg_uefiInfoBox(void) {
         "find the target disk as a boot option in your UEFI confugration menu.\n"
         "In this case, try manually adding a reference to the following file:\n"
         "\n"
-        "<TARGET PARTITION>/EFI/BOOT/BOOTIA32.EFI\n"
+        "<TARGET PARTITION>/EFI/BOOT/BOOTX64.EFI\n"
         "\n"
         "ATTTENTION: Ensure that the following conditions are met:\n"
         "- DISABLE Secure Boot\n"
