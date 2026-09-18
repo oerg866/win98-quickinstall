@@ -55,6 +55,21 @@ A: Hardware in the 90s and 2000s was eccentric! Especially with regards to
    faster Multi-Word or Ultra DMA transfer modes on IDE/SATA controllers.
    The Floppy, CD/DVD and USB images allow you to boot the kernel with
    disabled DMA modes, which may help work around the problem!
+   On the Floppy and CD/DVD boot prompt, press a digit from 0 to 7 to set
+   the DMA mask (0 = no DMA at all), on the USB image select the 'NO ATA
+   DMA' menu entry.
+
+----------------------------------------------------------------------------
+
+Q: QuickInstall hangs during startup or does not find my disks on a
+   newer machine
+A: The CD/DVD boot loader disables ACPI and APIC support by default, since
+   many older machines have broken implementations of them.
+   Newer machines (Pentium 4 / Athlon 64 era and later) may need it.
+   Press 'A' on the boot prompt to enable ACPI/APIC before pressing ENTER.
+   The USB image enables ACPI/APIC by default, it has separate boot menu
+   entries to disable it in case of problems on older hardware.
+   (Note:The native Floppy boot image does not support ACPI/APIC at all.)
 
 ----------------------------------------------------------------------------
 

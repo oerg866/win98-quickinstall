@@ -3,16 +3,16 @@ http://github.com/oerg866/win98-quickinstall      http://twitter.com/oerg866
 Windows is a registered trademark of Microsoft Corporation.
 EXPERIMENTAL PROJECT. PLEASE REPORT BUGS.
 ----------------------------------------------------------------------------
-THE solution for near-instant, fully patched Windows 9x/ME installations!
-No Fuss. No Bloat. 486 to Ryzen 9000. 32MB to 32GB RAM. Platters to PCIe.
+Welcome to the Windows 9x QuickInstall reference image!
+A one-stop solution for classic and modern machines alike.
 
-Now including SweetLow's USB 2.0, USB Mass Storage and NVMe drivers!
-Check out the vast amount of new drivers for modern AND classic hardware!
+Featuring SweetLow's AHCI, USB 2.0, USB Mass Storage, NTFS and NVMe drivers,
+official updates, unofficial patches, Quality-of-Life fixes,
+and a huge driver library for old and modern(-ish) hardware!
 
-Ready to partition, install and change your retro computing life forever?
+Freezing or disk issues? Try disabling DMA (keys 0-7) at the boot prompt.
+Modern machine? Press 'A' at the boot prompt to enable ACPI/APIC support!
 
-In case of freezing/disk issues, try disabling DMA modes in the new boot-
-loader options, to work around buggy hardware or drive firmware!
 Did you know? QuickInstall now includes 'witchery', Fagear's 3dfx Voodoo 2 
 diagnostics tool! Try it in the included Linux shell!
 ----------------------------------------------------------------------------

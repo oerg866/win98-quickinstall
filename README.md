@@ -39,6 +39,7 @@ If possible, please also verify that the problem does not occur with the driver 
   - [QuickInstall System Requirements for Installation](#quickinstall-system-requirements-for-installation)
   - [Native Floppy Disk Boot (`floppy.img`)](#native-floppy-disk-boot-floppyimg)
   - [CD / DVD-ROM Boot](#cd--dvd-rom-boot)
+    - [Boot Loader Options](#boot-loader-options)
   - [DOS-Based Booting of QuickInstall](#dos-based-booting-of-quickinstall)
   - [USB Flash Drives, SD/CF cards, also on UEFI systems](#usb-flash-drives-sdcf-cards-also-on-uefi-systems)
 - [The QuickInstall Installer](#the-quickinstall-installer)
@@ -172,7 +173,7 @@ And not to forget, the ***vast driver libraries***:
 
   These drivers will be processed and packaged in a subdirectory of the installation media, but they are not injected into Windows' automatic hardware detection. This can have several reasons:
   - The driver is very big
-  - The driver is part of a hardware family where no single driver is guaranteed to be optimal
+  - The driver is part of a hardware family where no single driver is guaranteed to be optimal (or the community doesn't agree which is the best version :P)
   - The driver is for a chip, but may lack card vendor-specific functionality
   - The driver is known to cause problems
 
@@ -213,6 +214,8 @@ There are several provided methods to boot into Windows 9x QuickInstall:
   **Note:** Due to the strong compression used in this version, the system will take a long time to start up on 486SX/DX-class machines. I recommend using `dosflop.img` instead.
 
   **Note:** Due to the size constraints, this version does not print diagnostic messages on the screen when starting up.
+  
+  See `Boot Loader Options` below for details on the debug option keys.
 
 ## CD / DVD-ROM Boot
 
@@ -221,6 +224,32 @@ There are several provided methods to boot into Windows 9x QuickInstall:
   The `iso` images can be written to a CD or DVD and then booted. **This is the recommended method on systems that support this.**
   
   Since this uses the classic *floppy emulation* boot method it should work very well even on the earliest BIOSes that provide CD-ROM boot support.
+
+### Boot Loader Options
+
+  The second line is the command line that QuickInstall will forward to the kernel. Every change made with the keys below is reflected there immediately.
+
+  | Key             | Function                                                    |
+  |-----------------|-------------------------------------------------------------|
+  | **ENTER**       | Start QuickInstall with the displayed command line          |
+  | **0** - **7**   | Set the ATA DMA mask (`libata.dma=`):                       |
+  | **0**           | Disable ALL ATA DMA (everything runs in PIO mode)           |
+  | **1**           | DMA for ATA hard disks only                                 |
+  | **2**           | DMA for ATAPI devices (CD/DVD) only                         |
+  | **3**           | DMA for ATA hard disks and ATAPI devices (CD/DVD)           |
+  | **4**           | DMA for CompactFlash cards only                             |
+  | **5**           | DMA for ATA hard disks and CompactFlash cards               |
+  | **6**           | DMA for ATAPI devices (CD/DVD) and CompactFlash cards       |
+  | **7**           | Enable ALL ATA DMA (HDD, CD/DVD, CF, etc.)                  |
+  | **A**           | Toggle ACPI and APIC support on or off (`noapic acpi=off`).<br>**Only available on CD/DVD, not on Floppy!**  |
+
+  If no key is pressed within 4 seconds, the prompt is skipped and the system boots from the first bootable hard disk instead, so you can leave the medium inserted.
+
+  **Note:** By default, ACPI/APIC are *disabled* on CD/DVD boot, since this image targets old machines where these may be broken/incomplete.
+
+  **If you are installing on a newer machine, press `A` to enable ACPI/APIC before starting.** Without it, such systems may fail to detect their disk controllers or hang during startup.
+
+  Try using the **0-7** keys if you experience disk read, write or freezing errors during installation. This can work around buggy hardware, BIOSes or drive firmware.
 
 ## DOS-Based Booting of QuickInstall
 
@@ -247,6 +276,8 @@ You can also use the *Native Floppy Disk Boot* method to execute QuickInstall of
 An example sequence could look like this:
 
 ![](assets/usbboot1.png)![](assets/usbboot2.png)
+
+**Note:** Unlike the CD/DVD bootloader, the boot menu of the USB image starts QuickInstall *with* ACPI/APIC support by default, since USB booting is mostly done on newer machines that support it properly. The menu offers separate entries to boot without APIC/ACPI and/or without ATA DMA for problematic hardware.
 
 
 ### Writing the bootable USB image to a USB flash drive, SD or CF card <!-- omit from toc -->
