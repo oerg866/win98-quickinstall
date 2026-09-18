@@ -357,6 +357,7 @@ def preprocess_drivers(output_base, input_drivers_base, input_drivers_extra):
     if os.path.exists(input_drivers_ndis2):
         print('Preprocessing NDIS2 drivers...')
         # Use existing drivers as a base and add NDIS2 drivers to it
+        delete_recursive('.driver_int_ndis2')
         os.makedirs('.driver_int_ndis2', exist_ok = True)
         shutil.copytree('.driver_int', '.driver_int_ndis2', dirs_exist_ok=True)
         driverCopy(input_drivers_ndis2, '.driver_int_ndis2', deleteExisting=False)
