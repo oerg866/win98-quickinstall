@@ -247,7 +247,7 @@ There are several provided methods to boot into Windows 9x QuickInstall:
 
   **Note:** By default, ACPI/APIC are *disabled* on CD/DVD boot, since this image targets old machines where these may be broken/incomplete.
 
-  **If you are installing on a newer machine, press `A` to enable ACPI/APIC before starting.** Without it, such systems may fail to detect their disk controllers or hang during startup.
+  **If you are installing on a newer machine, press `A` to enable ACPI/APIC before starting.** Without it, such systems may hang during startup or experience other issues due to IRQ sharing.
 
   Try using the **0-7** keys if you experience disk read, write or freezing errors during installation. This can work around buggy hardware, BIOSes or drive firmware.
 
