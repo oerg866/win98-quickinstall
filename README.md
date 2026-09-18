@@ -73,7 +73,8 @@ If you answered *"yes"* to any of the above, you may want to keep reading...
 |--------------------------|--------------------------|--------------------------|
 | ![](assets/install1.png) | ![](assets/install2.png) | ![](assets/install3.png) |
 | ![](assets/install4.png) | ![](assets/install5.png) | ![](assets/install6.png) |
-| ![](assets/windows1.png) | ![](assets/windows2.png) |                          |
+| ![](assets/install7.png) | ![](assets/ntfs.png)     | ![](assets/voodoo.png)   |
+| ![](assets/windows1.png) | ![](assets/windows2.png) | ![](assets/nvme.png)     |
 
 ## What is QuickInstall?
 
