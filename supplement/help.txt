@@ -104,6 +104,12 @@ A: Switch "Skip legacy non-PnP hardware detection" to OFF.
 
 ----------------------------------------------------------------------------
 
+Q: On an ASUS TP4X-E, I'm getting random hangs / IRQ stalls
+A: The research on this bug is not 100% conclusive, but toggling the
+   "Delay Transaction" setting in the BIOS often fixes it.
+
+----------------------------------------------------------------------------
+
 Q: I'm trying to install on my 486 and I'm getting Disk I/O errors!
 A: Your BIOS might have an incomplete/buggy LBA implementation. Partition
    the drive with CHS and try again.
