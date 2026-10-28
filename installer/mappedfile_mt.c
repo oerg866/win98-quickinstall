@@ -148,6 +148,13 @@ static __INLINE__ bool mappedFile_readAhead1Block(MappedFile *mf) {
 
     if (toRead == 0) return true;
     mappedFile_MemBlock *block = malloc(sizeof(mappedFile_MemBlock));
+
+    // Running out of memory is reported like a read error, so the user can retry or cancel
+    if (block == NULL) {
+        errno = ENOMEM;
+        return false;
+    }
+
     block->next = NULL;
 
     // Catch read errors
