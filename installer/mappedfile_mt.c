@@ -243,7 +243,8 @@ MappedFile *mappedFile_open(const char *filename, size_t readahead, MappedFile_E
     lseek(file->fd, 0, SEEK_SET);
     
     file->size = fileSize;
-    file->maxBlocks = readahead / MEM_BLOCK_SIZE;
+    // At least one block, otherwise the reader thread would never read anything
+    file->maxBlocks = MAX(readahead / MEM_BLOCK_SIZE, 1);
     file->errorCallback = errorCallback;
 
     assert (0 == pthread_mutex_init(&file->lock, NULL));
