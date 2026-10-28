@@ -282,6 +282,11 @@ bool mappedFile_read(MappedFile *file, void *dst, size_t len) {
         size_t maxIterationSize = MIN(leftInFile, leftInBlock);
         size_t toCopy = MIN(len, maxIterationSize);
 
+        // Asked for more data than the file has left (truncated or corrupt file)
+        if (toCopy == 0) {
+            return false;
+        }
+
         mappedFile_MemBlock *currentBlock = mappedFile_waitForValidBlockAndGet(file);
 
         // This means the read error was handed with the "cancel" action
@@ -315,6 +320,11 @@ bool mappedFile_copyToFiles(MappedFile *file, size_t fileCount, int *outfds, siz
         size_t leftInBlock = MEM_BLOCK_SIZE - positionInBlock;
         size_t maxIterationSize = MIN(leftInFile, leftInBlock);
         size_t toCopy = MIN(len, maxIterationSize);
+
+        // Asked for more data than the file has left (truncated or corrupt file)
+        if (toCopy == 0) {
+            return false;
+        }
 
         mappedFile_MemBlock *currentBlock = mappedFile_waitForValidBlockAndGet(file);
 
