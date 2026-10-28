@@ -296,6 +296,8 @@ bool mappedFile_read(MappedFile *file, void *dst, size_t len) {
 
         memcpy(dst, currentBlock->mem + positionInBlock, toCopy);
 
+        // Reads can span blocks, the next part goes after this one
+        dst = (uint8_t *) dst + toCopy;
         leftInBlock -= toCopy;
         len -= toCopy;
         file->pos += toCopy;
