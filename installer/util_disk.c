@@ -20,6 +20,7 @@
 #include "qi_assert.h"
 
 #define CMD_SURPRESS_OUTPUT " 2>/dev/null 1>/dev/null"
+#define CMD_ONLY_OUTPUT_ERRORS " 2>&1 1>/dev/null"
 
 // Update parents after a reallocation of a hard disk array
 static inline void util_HardDisksUpdatePartitionParents(util_HardDisk *hdds, size_t diskCount) {
@@ -659,9 +660,9 @@ bool util_getFormatCommand(util_Partition *part, util_FileSystem fs, char *buf, 
     QI_ASSERT(part);
 
     if (fs == fs_fat16) {
-        snprintf(buf, bufSize, "mkfs.fat -v -S %d -F 16 %s", part->sectorSize, part->device); // no clue what win9x wants to see here tbh...
+        snprintf(buf, bufSize, "mkfs.fat -v -S %d -F 16 %s" CMD_ONLY_OUTPUT_ERRORS, part->sectorSize, part->device); // no clue what win9x wants to see here tbh...
     } else if (fs == fs_fat32) {
-        snprintf(buf, bufSize, "mkfs.fat -v -S %d -R 32 -f 2 -F 32 %s", part->sectorSize, part->device);
+        snprintf(buf, bufSize, "mkfs.fat -v -S %d -R 32 -f 2 -F 32 %s" CMD_ONLY_OUTPUT_ERRORS, part->sectorSize, part->device);
     } else {
         QI_ASSERT(false && "Wrong file system");
     }
