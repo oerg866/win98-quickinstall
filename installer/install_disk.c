@@ -121,8 +121,8 @@ qi_WizardAction qi_diskMgmtMenu(qi_InstallContext *ctx) {
         // This menu is created with F keys enabled, so we will get an F key return code in this case.
 
         for (size_t i = 0; i < ctx->hda->count; i++) {
-            ad_menuAddItemFormatted(menu, inst_getDiskMenuString(&ctx->hda->disks[i]));
-        }        
+            ad_menuAddItemFormatted(menu, "%s", inst_getDiskMenuString(&ctx->hda->disks[i]));
+        }
         ad_menuAddItemFormatted(menu, " [Back]");
 
         int menuResult = qi_diskMgmtMenuExecute(menu);
