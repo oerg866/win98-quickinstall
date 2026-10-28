@@ -159,8 +159,10 @@ static __INLINE__ bool mappedFile_readAhead1Block(MappedFile *mf) {
 
     // Catch read errors
     if (!mappedFile_readInternal(mf->fd, block->mem, toRead)) {
-        // No memleaks please
+        // No memleaks please (and keep the errno of the failed read)
+        int readErrno = errno;
         free(block);
+        errno = readErrno;
         return false;
     }
 
