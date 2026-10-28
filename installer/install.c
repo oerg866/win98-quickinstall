@@ -653,7 +653,13 @@ static bool qi_installFormat(size_t progressBarIndex) {
     QI_FATAL(cmd, "Failed to obtain format command output");
     int result = cmd->returnCode;
     if (result != 0) {
-        msg_formatFailed(qi_wizData.destination);
+        // mkfs runs in a child process so errno means nothing here, its last error message is the reason it failed
+        const char *reason = "(no error message)";
+        if (cmd->lineCount > 0) {
+            util_stringRTrim(cmd->lines[cmd->lineCount - 1]);
+            reason = cmd->lines[cmd->lineCount - 1];
+        }
+        msg_formatFailed(qi_wizData.destination, result, reason);
     }
     util_commandOutputDestroy(cmd);
     ad_progressBoxMultiUpdate(qi_wizData.progress, progressBarIndex, ++qi_wizData.preparationProgress);

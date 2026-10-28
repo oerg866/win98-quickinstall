@@ -162,15 +162,14 @@ static inline void msg_unmountFailed(util_Partition *part) {
 }
 
 /* Show message box informing user that formatting failed. */
-static inline void msg_formatFailed(util_Partition *part) {
+static inline void msg_formatFailed(util_Partition *part, int exitCode, const char *reason) {
     ad_okBox("Error", false,
         "The partition %s could not be formatted.\n"
-        "The last recorded error was:\n"
-        "'%s' (%d).\n"
+        "mkfs.fat failed (exit code %d):\n"
+        "'%s'\n"
         "There may be a disk problem.\n"
-        "Try re-partitioning the disk or using another partition.\n"
-        "Returning to the partition selector.",
-        part->device, strerror(errno), errno);
+        "Try re-partitioning the disk or using another partition.",
+        part->device, exitCode, reason);
 }
 
 /* Show message box informing user that mount failed*/
