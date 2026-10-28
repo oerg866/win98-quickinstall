@@ -141,6 +141,12 @@ qi_WizardAction qi_diskMgmtMenu(qi_InstallContext *ctx) {
 
         util_HardDisk *selectedDisk = &ctx->hda->disks[selectedItem];
 
+        // Check if we're trying to partition or wipe the install source disk. If so, warn user and continue looping.
+        if (inst_isInstallationSourceDisk(selectedDisk)) {
+            msg_installationSourceDiskError();
+            continue;
+        }
+
         // Wipe partition table?
         if (menuResult == QI_DISKMGMT_WIPE_PARTITIONS) {
             qi_askUserAndWipePartitionTable(selectedDisk);
@@ -148,12 +154,6 @@ qi_WizardAction qi_diskMgmtMenu(qi_InstallContext *ctx) {
         }
 
         // If we are here, the user actually selected a disk with ENTER.
-            
-        // Check if we're trying to partition the install source disk. If so, warn user and continue looping.
-        if (inst_isInstallationSourceDisk(selectedDisk)) {
-            msg_installationSourceDiskError();
-            continue;
-        }
 
         if (!util_stringEquals(selectedDisk->tableType, "dos")) {
             qi_invalidPartTableAskUserAndWipe(selectedDisk);
