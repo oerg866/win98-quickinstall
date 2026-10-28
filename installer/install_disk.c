@@ -93,14 +93,6 @@ static int32_t qi_diskMgmtMenuExecute(ad_Menu *menu) {
 }
 
 qi_WizardAction qi_diskMgmtMenu(qi_InstallContext *ctx) {
-    char menuPrompt[512];
-    snprintf(menuPrompt, sizeof(menuPrompt),
-            "An asterisk (*) identifies the installation source. It cannot be altered.\n"
-            "A question mark <?> depicts an invalid/unknown partition table type.\n"
-            "\n"
-            "Additional options: F9 - Wipe partition table (DANGER)\n\n"
-            "%s", inst_getDiskMenuHeader());
-
     char cfdiskCmd[UTIL_MAX_CMD_LENGTH];
 
     QI_FATAL(ctx != NULL, "InstallContext invalid");
