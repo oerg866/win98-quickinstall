@@ -153,6 +153,14 @@ static inline bool msg_askUnmountBeforeInstall(util_Partition *part) {
     return (action == AD_YESNO_YES);
 }
 
+/* Show message box informing user that unmounting the destination failed. */
+static inline void msg_unmountFailed(util_Partition *part) {
+    ad_okBox("Error", false,
+        "The partition %s could not be unmounted.\n"
+        "It cannot be the installation destination.",
+        part->device);
+}
+
 /* Show message box informing user that formatting failed. */
 static inline void msg_formatFailed(util_Partition *part) {
     ad_okBox("Error", false,

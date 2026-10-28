@@ -504,7 +504,11 @@ static qi_WizardAction qi_destinationSelect(void) {
                 continue;
             }
 
-            util_unmountPartition(partition);
+            // mkfs.fat would refuse a partition that is still mounted, so don't even try
+            if (!util_unmountPartition(partition)) {
+                msg_unmountFailed(partition);
+                continue;
+            }
         }
 
         qi_wizData.destination = partition;
