@@ -134,6 +134,11 @@ qi_WizardAction qi_diskMgmtMenu(qi_InstallContext *ctx) {
             break;
         }
 
+        // F9 pressed on the [Back] entry? There is no disk to work on.
+        if (selectedItem >= ctx->hda->count) {
+            continue;
+        }
+
         util_HardDisk *selectedDisk = &ctx->hda->disks[selectedItem];
 
         // Wipe partition table?
