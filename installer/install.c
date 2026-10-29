@@ -371,24 +371,6 @@ static qi_WizardAction qi_variantSelectAndStartPrebuffering() {
     return WIZ_NEXT;
 }
 
-#ifdef RAID_TEST
-static void qi_findRaids() {
-    ad_yesNoBox("Find and activate RAID sets", false,
-        "This option is meant for users with 'Fake-RAID' cards, such as"
-        "HighPoint or Promise IDE/SATA RAID cards which can only boot"
-        "from RAID arrays created by them (e.g. FastTrak S150 TX4)."
-        ""
-        "Since this is not well supported by the Linux ecosystem anymore,"
-        "it is recommended that you do not use the RAID features of the"
-        "card and use the raw disks themselves instead."
-        ""
-        "This option is available as a 'last resort' and may not be"
-        "supported in the future."
-        ""
-        "Do you wish to continue?");
-}
-#endif
-
 static qi_WizardAction qi_mainMenu() {
     if (!qi_wizData.disclaimerShown) {
         msg_disclaimer();
