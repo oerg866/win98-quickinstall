@@ -124,6 +124,15 @@ bool quirk_i875Sata(qi_PciDeviceList *list) {
             sataIrq != qi_pciDeviceIrq(list, 0x8086, 0x24DD);
 }
 
+// Check presence of a Marvell 88SE9172 SATA controller
+// Depending on the mode (AHCI, IDE, RAID) it shows up with a different device ID
+bool quirk_marvell9172(qi_PciDeviceList *list) {
+    return  !qi_pciDeviceExists(list, 0x1B4B, 0x9172) &&
+            !qi_pciDeviceExists(list, 0x1B4B, 0x917A) &&
+            !qi_pciDeviceExists(list, 0x1B4B, 0x9192) &&
+            !qi_pciDeviceExists(list, 0x1B4B, 0x91B0);
+}
+
 // All the known hardware quirks
 static const qi_HwQuirk quirks[] = {
     { quirk_i875Sata,   "You are running an Intel-Chipset motherboard with an early integrated SATA\n"
@@ -132,6 +141,11 @@ static const qi_HwQuirk quirks[] = {
                         "HANG on boot or during installation.\n\n"
                         "Please either switch the SATA controller to IDE Primary or Secondary mode\n"
                         "or disable the USB Controller." },
+
+    { quirk_marvell9172,"You have a Marvell 9172 SATA controller in your system.\n\n"
+                        "This controller is known to cause crashes when booting Windows 9x.\n\n"
+                        "Please disable this controller and move all hard disks to another\n"
+                        "controller." },
 };
 
 bool inst_doHardwareQuirks(void) {
