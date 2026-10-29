@@ -103,7 +103,11 @@ static bool qi_unpackExtractAllFilesV1(MappedFile *file, uint32_t fileCount, cha
         success &= mappedFile_read(file, &fileToWrite, MERCYPAK_FILE_DESCRIPTOR_SIZE);
 
         int outfd = open(destPath,  O_WRONLY | O_CREAT | O_TRUNC, 0777);
-        QI_ASSERT(outfd >= 0);
+
+        if (outfd < 0) {
+            success = false;
+            break;
+        }
 
         success &= mappedFile_copyToFiles(file, 1, &outfd, fileToWrite.fileSize);
 
