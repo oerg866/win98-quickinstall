@@ -261,7 +261,7 @@ static bool qi_copyAllFilesInDirectoryRecursive(const char *sourceBase, const ch
             *fileCount += 1;
             ad_progressBoxMultiUpdate(qi_wizData.progress, progressBarIndex, *fileCount);
         } else if (util_isDir(newSource)) {
-            qi_copyAllFilesInDirectoryRecursive(newSource, newTarget, fileCount, progressBarIndex);
+            success &= qi_copyAllFilesInDirectoryRecursive(newSource, newTarget, fileCount, progressBarIndex);
         }
 
         free(newSource);
