@@ -290,7 +290,7 @@ bool util_mkDir(const char *dirName, uint32_t dosFlags) {
     int fd = open(dirName, O_RDONLY | O_DIRECTORY);
     success &= fd >= 0;
 
-    if (fd) {
+    if (fd >= 0) {
         success &= 0 == ioctl(fd, FAT_IOCTL_SET_ATTRIBUTES, &dosFlags);
         close(fd);
     }
