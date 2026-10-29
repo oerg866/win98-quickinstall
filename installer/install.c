@@ -888,7 +888,11 @@ bool qi_wizard() {
 
 
 bool qi_main(int argc, char *argv[]) {
-    ad_init(LUNMERCY_BACKTITLE);
+    if (!ad_init(LUNMERCY_BACKTITLE)) {
+        ad_deinit();
+        printf("Failed to initialize user interface!\n");
+        return false;
+    }
     setlocale(LC_ALL, "CP437");
     // VGA BIOS pattern small square
     ad_progressBoxSetCharAndColor((char) 0xFE, COLOR_WHITE, COLOR_BLACK, COLOR_WHITE, COLOR_GREEN);
