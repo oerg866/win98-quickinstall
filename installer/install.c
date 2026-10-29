@@ -131,6 +131,11 @@ static bool qi_unpackExtractAllFilesV2(MappedFile *file, uint32_t fileCount, cha
     QI_FATAL(filesToWrite != NULL,              "Error allocating MercyPak V2 file headers.");
     QI_FATAL(fileDescriptorsToWrite != NULL,    "Error allocating MercyPak V2 file descriptors.");
 
+    // -1 marks a slot without an open file, so the cleanup below doesn't attempt to close them
+    for (uint32_t subFile = 0; subFile < MERCYPAK_V2_MAX_IDENTICAL_FILES; subFile++) {
+        fileDescriptorsToWrite[subFile] = -1;
+    }
+
     for (uint32_t f = 0; f < fileCount;) {
         ad_progressBoxMultiUpdate(qi_wizData.progress, progressBarIndex, mappedFile_getPosition(file));
 
@@ -145,7 +150,7 @@ static bool qi_unpackExtractAllFilesV2(MappedFile *file, uint32_t fileCount, cha
 
             fileDescriptorsToWrite[subFile] = open(destPath,  O_WRONLY | O_CREAT | O_TRUNC);
 
-            success &= (fileDescriptorsToWrite[subFile] > 0);
+            success &= (fileDescriptorsToWrite[subFile] >= 0);
             success &= mappedFile_read(file, &filesToWrite[subFile], MERCYPAK_V2_FILE_DESCRIPTOR_SIZE);
         }
 
@@ -160,15 +165,16 @@ static bool qi_unpackExtractAllFilesV2(MappedFile *file, uint32_t fileCount, cha
             success &= util_setDosFileTime(fileDescriptorsToWrite[subFile], filesToWrite[subFile].fileDate, filesToWrite[subFile].fileTime);
             success &= util_setDosFileAttributes(fileDescriptorsToWrite[subFile], filesToWrite[subFile].fileFlags);
             close(fileDescriptorsToWrite[subFile]);
+            fileDescriptorsToWrite[subFile] = -1; // mark slot as unused again
         }
 
         f += identicalFileCount;
     }
 
-    // Just in case
+    // Close whatever is still open after an error
     if (!success) {
         for (uint32_t subFile = 0; subFile < MERCYPAK_V2_MAX_IDENTICAL_FILES; subFile++) {
-            close(fileDescriptorsToWrite[subFile]);
+            if (fileDescriptorsToWrite[subFile] >= 0) close(fileDescriptorsToWrite[subFile]);
         }
     }
 
