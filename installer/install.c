@@ -102,7 +102,7 @@ static bool qi_unpackExtractAllFilesV1(MappedFile *file, uint32_t fileCount, cha
 
         success &= mappedFile_read(file, &fileToWrite, MERCYPAK_FILE_DESCRIPTOR_SIZE);
 
-        int outfd = open(destPath,  O_WRONLY | O_CREAT | O_TRUNC);
+        int outfd = open(destPath,  O_WRONLY | O_CREAT | O_TRUNC, 0777);
         QI_ASSERT(outfd >= 0);
 
         success &= mappedFile_copyToFiles(file, 1, &outfd, fileToWrite.fileSize);
@@ -148,7 +148,7 @@ static bool qi_unpackExtractAllFilesV2(MappedFile *file, uint32_t fileCount, cha
             success &= inst_getMercyPakString(file, destPathAppend);
             util_stringReplaceChar(destPathAppend, '\\', '/');
 
-            fileDescriptorsToWrite[subFile] = open(destPath,  O_WRONLY | O_CREAT | O_TRUNC);
+            fileDescriptorsToWrite[subFile] = open(destPath,  O_WRONLY | O_CREAT | O_TRUNC, 0777);
 
             success &= (fileDescriptorsToWrite[subFile] >= 0);
             success &= mappedFile_read(file, &filesToWrite[subFile], MERCYPAK_V2_FILE_DESCRIPTOR_SIZE);
