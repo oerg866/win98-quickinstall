@@ -65,7 +65,9 @@ util_CommandOutput *util_commandOutputCapture(const char *command) {
         // If fgets returns NULL, the program is finished and we need to discard this line
         if (NULL == fgets(tmpLine, UTIL_CMD_OUTPUT_LINE_LENGTH, pipe)) {
             free(tmpLine);
-            ret->returnCode = WEXITSTATUS(pclose(pipe));
+            int status = pclose(pipe);
+            // A command that was killed by a signal (or a failed pclose) must not count as success
+            ret->returnCode = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
             return ret;
         }
 
@@ -272,7 +274,7 @@ bool util_mkDir(const char *dirName, uint32_t dosFlags) {
             // Create the actual directory now
             if (!util_fileExists(tmp)) {
                 int result = mkdir(tmp, 0777);
-                success &= (result == 0) || (result == EEXIST);
+                success &= (result == 0) || (errno == EEXIST);
             }
             
             // Put the slash back

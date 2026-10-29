@@ -363,7 +363,7 @@ bool util_unmountPartition(util_Partition *part) {
     if (util_isPartitionMounted(part)) {
         char umountCmd[1024];
         snprintf(umountCmd, sizeof(umountCmd), "umount -l %s" CMD_SURPRESS_OUTPUT, part->device);
-        success = (WEXITSTATUS(system(umountCmd)) == 0);
+        success = (system(umountCmd) == 0);
     }
 
     if (part->mountPath != NULL) {
