@@ -41,10 +41,15 @@ typedef struct MappedFile {
     size_t pos;
     size_t readaheadPos;
     pthread_t thread;
+
+    // Everything below is shared between READER and CONSUMER threads.
+    // It is protected by "lock".
+    // stateChanged is signaled whenever any of it changes
+    // this removes the previous busy-wait implementation
+    // (I really hope i got this right...)
     pthread_mutex_t lock;
-    pthread_mutex_t errorLock;
-    pthread_cond_t errorLockCondition;
-    
+    pthread_cond_t stateChanged;
+
     bool closing;
     bool readaheadComplete;
 
@@ -68,12 +73,21 @@ static __INLINE__ void mappedFile_unlock(MappedFile *mf) {
     pthread_mutex_unlock(&mf->lock);
 }
 
+// Must be called with the lock held
+static __INLINE__ void mappedFile_wait(MappedFile *mf) {
+    pthread_cond_wait(&mf->stateChanged, &mf->lock);
+}
+
+// Must be called with the lock held
+static __INLINE__ void mappedFile_signal(MappedFile *mf) {
+    pthread_cond_broadcast(&mf->stateChanged);
+}
+
+// Must be called with the lock held
 static __INLINE__ void mappedFile_readErrorAcknowledge(MappedFile *mf, MappedFile_ErrorReaction errorReaction) {
-    pthread_mutex_lock(&mf->errorLock);
     mf->hasError = false;
     mf->errorReaction = errorReaction;
-    pthread_cond_signal(&mf->errorLockCondition);
-    pthread_mutex_unlock(&mf->errorLock);
+    mappedFile_signal(mf);
 }
 
 
@@ -90,6 +104,8 @@ static __INLINE__ void mappedFile_disposeBlock(MappedFile *mf) {
     if (mf->blockCount == 0) {
         mf->memLast = NULL;
     }
+    // The reader thread may be waiting for space
+    mappedFile_signal(mf);
     mappedFile_unlock(mf);
 }
 
@@ -101,32 +117,44 @@ static __INLINE__ mappedFile_MemBlock *mappedFile_getCurrentBlock(MappedFile *fi
 }
 
 static __INLINE__ mappedFile_MemBlock *mappedFile_waitForValidBlockAndGet(MappedFile *file) {
-    if (file->blockCount > 0) {
-        return mappedFile_getCurrentBlock(file);
-    }
-
+    // No more data, wait until reader thread has some
+    // either over the threshold or the rest of the file if it was read completely
     size_t blockThreshold = MAX(MIN(file->maxBlocks / 2, 8), 1);
+    mappedFile_MemBlock *block;
 
-    while (file->blockCount < blockThreshold && file->readaheadComplete == false) {
+    mappedFile_lock(file);
 
+    if (file->blockCount == 0) {
+        while (file->blockCount < blockThreshold && file->readaheadComplete == false) {
+            // We may have a read error.
+            // The callback is run on the consumer thread, so we won't have concurrency
+            // issues with the UI, but it must run without the lock held since it can take a while.
+            if (file->hasError) {
+                int readErrno = file->mErrno;
+                MappedFile_ErrorReaction action = MF_RETRY;
 
-        // We may have a read error. Check for this, then call the callback. Since this is running on the 
-        // same thread as the consumer, we won't have concurrency issues.
-        if (file->hasError) {
-            MappedFile_ErrorReaction action = MF_RETRY;
-            if (file->errorCallback != NULL)  {
-                action = file->errorCallback(file->mErrno, file);
+                mappedFile_unlock(file);
+                if (file->errorCallback != NULL)  {
+                    action = file->errorCallback(readErrno, file);
+                }
+                mappedFile_lock(file);
+
+                mappedFile_readErrorAcknowledge(file, action);
+
+                if (action == MF_CANCEL) {
+                    mappedFile_unlock(file);
+                    return NULL;
+                }
+                continue;
             }
 
-            mappedFile_readErrorAcknowledge(file, action);
-            
-            if (action == MF_CANCEL) {
-                return NULL;
-            }
+            mappedFile_wait(file);
         }
-        sched_yield();
     }
-    return mappedFile_getCurrentBlock(file);
+
+    block = file->memFirst;
+    mappedFile_unlock(file);
+    return block;
 }
 
 static __INLINE__ bool mappedFile_readInternal(int fd, uint8_t *mem, size_t toRead) {
@@ -172,45 +200,51 @@ static __INLINE__ bool mappedFile_readAhead1Block(MappedFile *mf) {
     if (mf->memFirst == NULL) mf->memFirst = block;
     if (mf->memLast != NULL) mf->memLast->next = block;
     mf->memLast = block;
+    // The consumer may be waiting for data
+    mappedFile_signal(mf);
     mappedFile_unlock(mf);
 
     return true;
 }
 
-static MappedFile_ErrorReaction mappedFile_readAheadHandleError(MappedFile *mf) {
+// Must be called with the lock held
+static MappedFile_ErrorReaction mappedFile_readAheadHandleError(MappedFile *mf, int readErrno) {
     // First, we need to actually flag the error internally. We only do this here, the hasError variable is ONLY for the consumer!!
-
-    pthread_mutex_lock(&mf->errorLock);
-
-    mf->mErrno = errno;
+    mf->mErrno = readErrno;
     mf->errorReaction = MF_NONE;
     mf->hasError = true;
+    mappedFile_signal(mf);
 
-    // Wait for reader thread to send us the information what to do now...
-    while (mf->errorReaction == MF_NONE) {
-        pthread_cond_wait(&mf->errorLockCondition, &mf->errorLock);
+    // Wait for the consumer to tell us what to do now... unless the file gets closed in the meantime.
+    while (mf->errorReaction == MF_NONE && mf->closing == false) {
+        mappedFile_wait(mf);
     }
 
-    MappedFile_ErrorReaction ret = mf->errorReaction;
-
-    pthread_mutex_unlock(&mf->errorLock);
-
-    return ret;
+    return mf->closing ? MF_CANCEL : mf->errorReaction;
 }
 
 static void *mappedFile_threadFunc(void *param) {
     MappedFile *mf = (MappedFile *) param;
-    
+
+    mappedFile_lock(mf);
+
     while (mf->closing == false && mf->readaheadPos < mf->size) {
-        sched_yield();
-        
-        if (mf->blockCount == mf->maxBlocks) {
+        // Are we full?
+        if (mf->blockCount >= mf->maxBlocks) {
+            // Sleep until the consumer finishes a block (or closes the file)
+            mappedFile_wait(mf);
             continue;
         }
 
+        // Read without locking, so the consumer can keep...consuming
+        mappedFile_unlock(mf);
+        bool readOk = mappedFile_readAhead1Block(mf);
+        int readErrno = errno;
+        mappedFile_lock(mf);
+
         // Handle an error condition
-        if (!mappedFile_readAhead1Block(mf)) {
-            MappedFile_ErrorReaction action = mappedFile_readAheadHandleError(mf);
+        if (!readOk) {
+            MappedFile_ErrorReaction action = mappedFile_readAheadHandleError(mf, readErrno);
             assert(action != MF_NONE);
 
             if (action == MF_CANCEL) {
@@ -222,6 +256,9 @@ static void *mappedFile_threadFunc(void *param) {
     }
 
     mf->readaheadComplete = true;
+    mappedFile_signal(mf);
+    mappedFile_unlock(mf);
+
     pthread_exit(param);
 }
 
@@ -247,25 +284,33 @@ MappedFile *mappedFile_open(const char *filename, size_t readahead, MappedFile_E
     file->maxBlocks = MAX(readahead / MEM_BLOCK_SIZE, 1);
     file->errorCallback = errorCallback;
 
-    assert (0 == pthread_mutex_init(&file->lock, NULL));
-    assert (0 == pthread_mutex_init(&file->errorLock, NULL));
-    assert (0 == pthread_cond_init(&file->errorLockCondition, NULL));
-    assert (0 == pthread_create(&file->thread, NULL, mappedFile_threadFunc, (void*) file));
+    if (0 != pthread_mutex_init(&file->lock, NULL)
+     || 0 != pthread_cond_init(&file->stateChanged, NULL)
+     || 0 != pthread_create(&file->thread, NULL, mappedFile_threadFunc, (void*) file)) {
+        printf("Error starting reader thread for file %s \n", filename);
+        close(file->fd);
+        free(file);
+        return NULL;
+    }
 
     return file;
 }
 
 void mappedFile_close(MappedFile *file) {
+    // Wake the reader thread up
+    // it could be waiting for buffer space or for read error acknowledgement
+    mappedFile_lock(file);
     file->closing = true;
+    mappedFile_signal(file);
+    mappedFile_unlock(file);
 
     pthread_join(file->thread, NULL);
-    while (mappedFile_getCurrentBlock(file) != NULL) { 
-        mappedFile_disposeBlock(file); 
+    while (mappedFile_getCurrentBlock(file) != NULL) {
+        mappedFile_disposeBlock(file);
     };
 
     pthread_mutex_destroy(&file->lock);
-    pthread_mutex_destroy(&file->errorLock);
-    pthread_cond_destroy(&file->errorLockCondition);
+    pthread_cond_destroy(&file->stateChanged);
     close(file->fd);
     free(file);
 }
