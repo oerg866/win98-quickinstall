@@ -743,6 +743,8 @@ static void qi_installExecuteIfEnabled(qi_OptionIdx index, qi_OptionFunc func, c
     }
 
     ad_setFooterText(footerText);
+    // So that a failing step can't report an error left over from before it
+    errno = 0;
     if (!func(qi_configGetProgressBarIndex(index))) {
         qi_wizData.error = true;
         qi_wizData.errorIndex = index;
