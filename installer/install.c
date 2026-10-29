@@ -397,17 +397,17 @@ static qi_WizardAction qi_mainMenu() {
 
     ad_Menu *menu = ad_menuCreate("Windows 9x QuickInstall: Main Menu", true, false, msg_mainMenuText);
     QI_ASSERT(menu);
-    ad_menuAddItemFormatted(menu, "[INSTALL] Install %s", qi_wizData.variantName);
-    ad_menuAddItemFormatted(menu, "   [DISK] Manage and partition hard disks");
-#ifdef RAID_TEST
-    ad_menuAddItemFormatted(menu, "   [RAID] Try to find and activate RAID sets");
-#endif
-    ad_menuAddItemFormatted(menu, "   [HELP] Troubleshooting, known issues & FAQ");
-    ad_menuAddItemFormatted(menu, "  [SHELL] Exit to minmal diagnostic Linux shell");
+    // Remember the index of every item, so that optional items don't shift the ones after them
+    int itemInstall = ad_menuAddItemFormatted(menu, "[INSTALL] Install %s", qi_wizData.variantName);
+    int itemDisk    = ad_menuAddItemFormatted(menu, "   [DISK] Manage and partition hard disks");
+
+    int itemHelp    = ad_menuAddItemFormatted(menu, "   [HELP] Troubleshooting, known issues & FAQ");
+    int itemShell   = ad_menuAddItemFormatted(menu, "  [SHELL] Exit to minmal diagnostic Linux shell");
+    int itemVariant = AD_ERROR;
 
     // Show the OS selection option in the menu only if we have more than 1 OS variant in this image.
     if (qi_wizData.variantCount > 1) {
-        ad_menuAddItemFormatted(menu, "     [OS] Change Operating System variant");
+        itemVariant = ad_menuAddItemFormatted(menu, "     [OS] Change Operating System variant");
     }
 
 
@@ -416,16 +416,15 @@ static qi_WizardAction qi_mainMenu() {
 
     QI_ASSERT(menuResult != AD_ERROR);
 
-    switch (menuResult) {
-        case 0:             return WIZ_SELECT_PARTITION;
-        case 1:             return WIZ_DISKMGMT;
-        case 2:             return WIZ_HELP;
-        case 3:             return WIZ_EXIT_TO_SHELL;
-        case 4:             return WIZ_REDO_FROM_START;
-        case AD_CANCELED:   return WIZ_REDO_FROM_START;
-        default:            QI_FATAL(false, "Inconsistent menu state");
-                            return WIZ_REDO_FROM_START;
-    }
+    if (menuResult == AD_CANCELED)  return WIZ_REDO_FROM_START;
+    if (menuResult == itemInstall)  return WIZ_SELECT_PARTITION;
+    if (menuResult == itemDisk)     return WIZ_DISKMGMT;
+    if (menuResult == itemHelp)     return WIZ_HELP;
+    if (menuResult == itemShell)    return WIZ_EXIT_TO_SHELL;
+    if (menuResult == itemVariant)  return WIZ_REDO_FROM_START;
+
+    QI_FATAL(false, "Inconsistent menu state");
+    return WIZ_REDO_FROM_START;
 }
 
 static qi_WizardAction qi_help(void) {
