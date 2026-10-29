@@ -242,6 +242,16 @@ static inline void msg_directoryWarning(void) {
 }
 
 static inline void msg_installError(const char *optionLabel) {
+    // Steps that don't fail because of a system call (e.g. formatting) already explained themselves
+    if (errno == 0) {
+        ad_okBox("Error!", false,
+            "A problem occurred during installation!\n"
+            "Failed step:\n"
+            "  '%s'\n",
+            optionLabel);
+        return;
+    }
+
     ad_okBox("Error!", false,
         "A problem occurred during installation!\n"
         "Failed step:\n"
