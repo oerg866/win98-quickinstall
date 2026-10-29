@@ -105,7 +105,7 @@ static __INLINE__ mappedFile_MemBlock *mappedFile_waitForValidBlockAndGet(Mapped
         return mappedFile_getCurrentBlock(file);
     }
 
-    size_t blockThreshold = MIN(file->maxBlocks / 2, 8);
+    size_t blockThreshold = MAX(MIN(file->maxBlocks / 2, 8), 1);
 
     while (file->blockCount < blockThreshold && file->readaheadComplete == false) {
 
